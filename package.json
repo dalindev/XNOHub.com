@@ -5,7 +5,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "ts": "tsc --noEmit"
   },
   "dependencies": {
     "@headlessui/react": "^1.7.15",
