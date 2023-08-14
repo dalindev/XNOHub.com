@@ -47,9 +47,9 @@ export default async function IndexPage({}: {}) {
   // const data = fetchData();const myGlobe = Globe();
 
   return (
-    <main className="p-4 md:p-10 mx-auto max-w-7xl h-full">
+    <main className="p-4 md:p-10 mx-auto h-full w-full">
       <Title>XNO Globe</Title>
-      <div className="flex justify-center items-center h-full">
+      <div className="flex justify-center items-center h-full w-full">
         <Test />
       </div>
     </main>
