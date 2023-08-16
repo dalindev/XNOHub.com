@@ -1,17 +1,21 @@
 'use client';
 
 import React from 'react';
-import { Canvas, useLoader } from '@react-three/fiber';
+import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import ThreeMesh from './three-mesh';
 import { StarsMesh } from './three-stars-mesh';
+import { CloudMesh } from './three-cloud-mesh';
+import { useRef } from 'react';
 
 const ThreeScene = () => {
+  const lightRef = useRef<THREE.DirectionalLight>(null);
+
   return (
     <Canvas
       camera={{
-        fov: 75,
-        position: [0, 0.5, 0.75]
+        fov: 45,
+        position: [0, 1, 2]
       }}
       style={{
         cursor: 'move'
@@ -26,10 +30,17 @@ const ThreeScene = () => {
         // autoRotate={true}
         // autoRotateSpeed={0.25}
       />
-      <ambientLight color={0x333333} intensity={1} />
-      <directionalLight color={0xffffff} position={[5, 3, 5]} intensity={1.4} />
-      <ThreeMesh />
-      <StarsMesh />
+      <ambientLight color={0x444444} intensity={1} />
+      <directionalLight
+        ref={lightRef}
+        color={0xffffff}
+        position={[5, 3, 5]}
+        intensity={1}
+      />
+
+      <ThreeMesh lightRef={lightRef} />
+      <CloudMesh />
+      {/* <StarsMesh /> */}
     </Canvas>
   );
 };

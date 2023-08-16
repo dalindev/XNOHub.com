@@ -24,24 +24,24 @@ interface Rep {
   lastVoted: string;
 }
 
-async function fetchData(): Promise<Rep[] | null> {
-  const body = {
-    action: 'reps'
-  };
+// async function fetchData(): Promise<Rep[] | null> {
+//   const body = {
+//     action: 'reps'
+//   };
 
-  const response = await fetch('https://rpc.nano.to', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    cache: 'force-cache',
-    body: JSON.stringify(body)
-  });
+//   const response = await fetch('https://rpc.nano.to', {
+//     method: 'POST',
+//     headers: {
+//       'Content-Type': 'application/json'
+//     },
+//     cache: 'force-cache',
+//     body: JSON.stringify(body)
+//   });
 
-  const data = await response.json();
-  console.log(data);
-  return data;
-}
+//   const data = await response.json();
+//   console.log(data);
+//   return data;
+// }
 
 export default async function IndexPage({}: {}) {
   // const data = fetchData();const myGlobe = Globe();

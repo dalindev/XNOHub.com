@@ -4,11 +4,11 @@ import { TextureLoader } from 'three/src/loaders/TextureLoader';
 import { BackSide } from 'three';
 
 export const StarsMesh = () => {
-  const starMap = useLoader(TextureLoader, '/earth-assets/starmap_g4k.jpg');
+  const starMap = useLoader(TextureLoader, '/earth-assets/starfield.jpg');
   return (
     <mesh>
-      <sphereGeometry args={[2, 32, 32]} />
-      <meshBasicMaterial map={starMap} side={BackSide} opacity={0.3} />
+      <sphereGeometry args={[1000, 32, 32]} />
+      <meshPhongMaterial map={starMap} side={BackSide} />
     </mesh>
   );
 };
