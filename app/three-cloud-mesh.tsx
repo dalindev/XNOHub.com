@@ -15,8 +15,8 @@ export const CloudMesh = () => {
 
   return (
     <mesh ref={meshRef}>
-      <sphereGeometry args={[1.02, 64, 64]} />
-      <meshPhongMaterial map={cloudMap} transparent={true} />
+      <sphereGeometry args={[1.01, 64, 64]} />
+      <meshPhongMaterial map={cloudMap} transparent={true} opacity={0.5} />
     </mesh>
   );
 };

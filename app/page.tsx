@@ -1,5 +1,5 @@
 import { Card, Title, Text } from '@tremor/react';
-import Test from './three-scence';
+import ThreeScene from './three-scence';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,10 +47,10 @@ export default async function IndexPage({}: {}) {
   // const data = fetchData();const myGlobe = Globe();
 
   return (
-    <main className="p-4 md:p-10 mx-auto h-full w-full">
+    <main className="mx-auto h-full w-full">
       <Title>XNO Globe</Title>
       <div className="flex justify-center items-center h-full w-full">
-        <Test />
+        <ThreeScene />
       </div>
     </main>
   );
