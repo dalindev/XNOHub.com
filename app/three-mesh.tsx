@@ -3,10 +3,16 @@ import { useTexture } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
+const sunPositionOffset = {
+  x: 0, // Offset for the x-axis
+  y: 0, // Offset for the y-axis
+  z: 0 // Offset for the z-axis
+};
+
 const ThreeMesh = ({
-  lightRef
+  lightRefs
 }: {
-  lightRef: React.RefObject<THREE.DirectionalLight>;
+  lightRefs: React.RefObject<THREE.DirectionalLight>[];
 }) => {
   const props = useTexture({
     map: '/earth-assets/earth_no_clouds_8k.jpg',
@@ -15,12 +21,14 @@ const ThreeMesh = ({
     emissiveMap: '/earth-assets/earth_night_8k.jpg'
   });
   const earthRef = useRef<any>(null);
+  const initialRotation = 2 * Math.PI * (180 / 360); // This is an approximate value. 15 degrees for every hour from midnight.
+
   // const lightRotationSpeed = 0.5;
 
   const getCurrentTimeInNY = () => {
     const now = new Date();
     const utc = now.getTime() + now.getTimezoneOffset() * 60000;
-    const nyOffset = -4; // UTC-4 for New York (EST without considering daylight savings)
+    const nyOffset = 0; // UTC-4 for New York (EST without considering daylight savings)
     return new Date(utc + 3600000 * nyOffset);
   };
 
@@ -55,27 +63,36 @@ const ThreeMesh = ({
   };
 
   useFrame(({ clock }) => {
-    if (earthRef.current && lightRef.current && lightRef.current.position) {
+    if (earthRef.current) {
       const rotationSpeed = (2 * Math.PI) / (24 * 60 * 60 * 60);
-      const elapsedTime = clock.getElapsedTime() * rotationSpeed * 2;
+      earthRef.current.rotation.y =
+        initialRotation + rotationSpeed * clock.elapsedTime;
 
-      const longitudeOffsetInHours = -5; // Adjust this to shift the sunlight's position
-      const offsetInRadians = (longitudeOffsetInHours / 24) * 2 * Math.PI;
+      // Get the current hour in New York
+      const currentTime = getCurrentTimeInNY();
+      const currentHour = currentTime.getHours();
+
+      // Calculate the sun's position
+      const sunPosition = getSunPosition(currentHour);
+      const radius = 10; // Distance of the light source from the Earth
+
+      lightRefs.forEach((lightRef, index) => {
+        if (lightRef.current && lightRef.current.position) {
+          // Set the light's position based on the sun's altitude and azimuth
+          const offset = (index * Math.PI) / 2;
+          lightRef.current.position.x =
+            radius * Math.cos(sunPosition.azimuth + offset) +
+            sunPositionOffset.x;
+          lightRef.current.position.y =
+            radius * Math.sin(sunPosition.altitude) + sunPositionOffset.y;
+          lightRef.current.position.z =
+            radius * Math.sin(sunPosition.azimuth + offset) +
+            sunPositionOffset.z;
+        }
+      });
 
       // Adjust the Earth's rotation
       earthRef.current.rotation.y += rotationSpeed;
-
-      // Compute the light's position with the offset
-      const radius = 5;
-      lightRef.current.position.x =
-        radius * Math.cos(elapsedTime + offsetInRadians);
-      lightRef.current.position.y = 0.5 + 0.5 * Math.sin(elapsedTime);
-      lightRef.current.position.z =
-        radius * Math.sin(elapsedTime + offsetInRadians);
-
-      atmosphereMaterial.uniforms.viewVector.value = lightRef.current.position
-        .clone()
-        .normalize();
     }
   });
 
@@ -133,7 +150,7 @@ const ThreeMesh = ({
         <meshPhongMaterial
           bumpScale={0.005}
           displacementScale={0.02}
-          emissive={'yellow'}
+          emissive={'lightyellow'}
           emissiveIntensity={1} // set initial emissiveIntensity to 0
           {...props}
         />

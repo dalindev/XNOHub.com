@@ -8,12 +8,13 @@ import { CloudMesh } from './three-cloud-mesh';
 import { useRef, useEffect } from 'react';
 
 const ThreeScene = () => {
-  const lightRef = useRef<THREE.DirectionalLight>(null);
+  const lightRef1 = useRef<THREE.DirectionalLight>(null);
+  const lightRef2 = useRef<THREE.DirectionalLight>(null);
   return (
     <Canvas
       camera={{
         fov: 45,
-        position: [0, 1, 2]
+        position: [0, 1, 3]
       }}
       style={{
         cursor: 'move'
@@ -25,8 +26,6 @@ const ThreeScene = () => {
         enableZoom={true}
         zoomSpeed={0.2}
         enablePan={false}
-        // autoRotate={true}
-        // autoRotateSpeed={0.25}
       />
       <Stars
         radius={200}
@@ -37,12 +36,18 @@ const ThreeScene = () => {
         fade={true}
       />
       <directionalLight
-        ref={lightRef}
+        ref={lightRef1}
         color={0xffffff}
-        position={[5, 3, 5]}
-        intensity={1}
+        position={[5, 1, 5]}
+        intensity={1.5}
       />
-      <ThreeMesh lightRef={lightRef} />
+      <directionalLight
+        ref={lightRef2}
+        color={'0xffffff'}
+        position={[-5, 1, 5]}
+        intensity={1.5}
+      />
+      <ThreeMesh lightRefs={[lightRef1, lightRef2]} />
       <CloudMesh />
     </Canvas>
   );

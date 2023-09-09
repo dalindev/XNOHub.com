@@ -9,7 +9,7 @@ export const CloudMesh = () => {
 
   useFrame(() => {
     if (meshRef.current) {
-      meshRef.current.rotation.y += 0.00055;
+      meshRef.current.rotation.y += 0.00005;
     }
   });
 
