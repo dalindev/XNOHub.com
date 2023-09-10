@@ -4,7 +4,7 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
 const sunPositionOffset = {
-  x: 0, // Offset for the x-axis
+  x: -9, // Offset for the x-axis
   y: 0, // Offset for the y-axis
   z: 0 // Offset for the z-axis
 };
@@ -14,6 +14,7 @@ const ThreeMesh = ({
 }: {
   lightRefs: React.RefObject<THREE.DirectionalLight>[];
 }) => {
+  const lastUpdateTimeRef = useRef(0);
   const props = useTexture({
     map: '/earth-assets/earth_no_clouds_8k.jpg',
     displacementMap: '/earth-assets/earth_elev_bump_8k.jpg',
@@ -21,9 +22,6 @@ const ThreeMesh = ({
     emissiveMap: '/earth-assets/earth_night_8k.jpg'
   });
   const earthRef = useRef<any>(null);
-  const initialRotation = 2 * Math.PI * (180 / 360); // This is an approximate value. 15 degrees for every hour from midnight.
-
-  // const lightRotationSpeed = 0.5;
 
   const getCurrentTimeInNY = () => {
     const now = new Date();
@@ -63,10 +61,13 @@ const ThreeMesh = ({
   };
 
   useFrame(({ clock }) => {
-    if (earthRef.current) {
+    const elapsedTime = clock.getElapsedTime();
+
+    if (earthRef.current && elapsedTime - lastUpdateTimeRef.current >= 1) {
+      lastUpdateTimeRef.current = elapsedTime;
+
       const rotationSpeed = (2 * Math.PI) / (24 * 60 * 60 * 60);
-      earthRef.current.rotation.y =
-        initialRotation + rotationSpeed * clock.elapsedTime;
+      earthRef.current.rotation.y = rotationSpeed * clock.elapsedTime;
 
       // Get the current hour in New York
       const currentTime = getCurrentTimeInNY();
@@ -81,13 +82,10 @@ const ThreeMesh = ({
           // Set the light's position based on the sun's altitude and azimuth
           const offset = (index * Math.PI) / 2;
           lightRef.current.position.x =
-            radius * Math.cos(sunPosition.azimuth + offset) +
-            sunPositionOffset.x;
-          lightRef.current.position.y =
-            radius * Math.sin(sunPosition.altitude) + sunPositionOffset.y;
-          lightRef.current.position.z =
-            radius * Math.sin(sunPosition.azimuth + offset) +
-            sunPositionOffset.z;
+            radius *
+            Math.cos(sunPosition.azimuth + offset + sunPositionOffset.x);
+          lightRef.current.position.y = radius * Math.sin(sunPosition.altitude);
+          lightRef.current.position.z = radius * Math.sin(sunPosition.azimuth);
         }
       });
 
@@ -143,6 +141,35 @@ const ThreeMesh = ({
   const atmosphereGeometry = new THREE.SphereGeometry(atmosphereRadius, 64, 64);
   const atmosphereMesh = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
 
+  const latLongToVector3 = (
+    lat: number,
+    lon: number,
+    radius: number
+  ): THREE.Vector3 => {
+    const phi = (90 - lat) * (Math.PI / 180);
+    const theta = (lon + 180) * (Math.PI / 180);
+    const x = -(radius * Math.sin(phi) * Math.cos(theta));
+    const y = radius * Math.cos(phi);
+    const z = radius * Math.sin(phi) * Math.sin(theta);
+    return new THREE.Vector3(x, y, z);
+  };
+
+  const cityPosition: THREE.Vector3 = latLongToVector3(
+    40.7128,
+    -74.006,
+    earthRadius
+  ); // New York's latitude and longitude
+  const cityGeometry: THREE.SphereGeometry = new THREE.SphereGeometry(
+    0.005,
+    32,
+    32
+  ); // Adjust the size as needed
+  const cityMaterial: THREE.MeshBasicMaterial = new THREE.MeshBasicMaterial({
+    color: 0xff0000
+  }); // Red color for the city dot
+  const cityMesh: THREE.Mesh = new THREE.Mesh(cityGeometry, cityMaterial);
+  cityMesh.position.set(cityPosition.x, cityPosition.y, cityPosition.z);
+
   return (
     <>
       <mesh ref={earthRef}>
@@ -156,6 +183,7 @@ const ThreeMesh = ({
         />
       </mesh>
       <primitive object={atmosphereMesh} />
+      <primitive object={cityMesh} /> {/* Add this line */}
     </>
   );
 };
