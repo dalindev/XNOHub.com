@@ -2,6 +2,12 @@ import React, { useRef, useEffect } from 'react';
 import { useTexture } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { Rep } from './page';
+
+interface ThreeMeshProps {
+  lightRefs: React.RefObject<THREE.DirectionalLight>[];
+  data: Rep[] | null;
+}
 
 const sunPositionOffset = {
   x: -9, // Offset for the x-axis
@@ -9,11 +15,7 @@ const sunPositionOffset = {
   z: 0 // Offset for the z-axis
 };
 
-const ThreeMesh = ({
-  lightRefs
-}: {
-  lightRefs: React.RefObject<THREE.DirectionalLight>[];
-}) => {
+const ThreeMesh: React.FC<ThreeMeshProps> = ({ lightRefs, data }) => {
   const lastUpdateTimeRef = useRef(0);
   const props = useTexture({
     map: '/earth-assets/earth_no_clouds_8k.jpg',
@@ -22,6 +24,7 @@ const ThreeMesh = ({
     emissiveMap: '/earth-assets/earth_night_8k.jpg'
   });
   const earthRef = useRef<any>(null);
+  const meshesRef = useRef<THREE.Mesh[]>([]);
 
   const getCurrentTimeInNY = () => {
     const now = new Date();
@@ -60,7 +63,7 @@ const ThreeMesh = ({
     return (now.valueOf() - solstice.valueOf()) / (24 * 60 * 60 * 1000);
   };
 
-  useFrame(({ clock }) => {
+  useFrame(({ clock, camera }) => {
     const elapsedTime = clock.getElapsedTime();
 
     if (earthRef.current && elapsedTime - lastUpdateTimeRef.current >= 1) {
@@ -154,21 +157,46 @@ const ThreeMesh = ({
     return new THREE.Vector3(x, y, z);
   };
 
-  const cityPosition: THREE.Vector3 = latLongToVector3(
-    40.7128,
-    -74.006,
-    earthRadius
-  ); // New York's latitude and longitude
-  const cityGeometry: THREE.SphereGeometry = new THREE.SphereGeometry(
-    0.005,
-    32,
-    32
-  ); // Adjust the size as needed
-  const cityMaterial: THREE.MeshBasicMaterial = new THREE.MeshBasicMaterial({
-    color: 0xff0000
-  }); // Red color for the city dot
-  const cityMesh: THREE.Mesh = new THREE.Mesh(cityGeometry, cityMaterial);
-  cityMesh.position.set(cityPosition.x, cityPosition.y, cityPosition.z);
+  useEffect(() => {
+    if (data && earthRef.current) {
+      // Clear existing meshes
+      meshesRef.current.forEach((mesh) => {
+        earthRef.current.remove(mesh);
+      });
+      meshesRef.current = [];
+
+      // Create new meshes and labels
+      data.forEach((node) => {
+        const position = latLongToVector3(node.latitude, node.longitude, 1);
+        const geometry = new THREE.CylinderGeometry(0.005, 0.005, 0.05, 32); // Cylinder geometry
+        const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.set(position.x, position.y, position.z);
+        mesh.userData = node; // Attach node data to mesh
+
+        // Calculate the normal vector at this position
+        const normal = position.clone().normalize();
+
+        // Scale the normal vector and add it to the original position
+        const labelPosition = position.clone().add(normal.multiplyScalar(0.1));
+
+        // Create label
+        const labelCanvas = document.createElement('canvas');
+        const ctx = labelCanvas.getContext('2d');
+        ctx!.font = '24px Arial';
+        ctx!.fillText(node.alias, 10, 50);
+
+        const labelTexture = new THREE.CanvasTexture(labelCanvas);
+        const labelMaterial = new THREE.SpriteMaterial({ map: labelTexture });
+        const label = new THREE.Sprite(labelMaterial);
+        label.position.set(labelPosition.x, labelPosition.y, labelPosition.z);
+        label.scale.set(0.05, 0.05, 0.05);
+
+        earthRef.current.add(mesh, label);
+        meshesRef.current.push(mesh);
+      });
+    }
+  }, [data]);
 
   return (
     <>
@@ -183,7 +211,7 @@ const ThreeMesh = ({
         />
       </mesh>
       <primitive object={atmosphereMesh} />
-      <primitive object={cityMesh} /> {/* Add this line */}
+      {/* <primitive object={cityMesh} /> Add this line */}
     </>
   );
 };

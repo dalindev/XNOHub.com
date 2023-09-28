@@ -3,7 +3,7 @@ import ThreeScene from './three-scence';
 
 export const dynamic = 'force-dynamic';
 
-interface Rep {
+export interface Rep {
   rep_address: string;
   est_payment: string | null;
   donation_address: string | null;
@@ -24,33 +24,35 @@ interface Rep {
   lastVoted: string;
 }
 
-// async function fetchData(): Promise<Rep[] | null> {
-//   const body = {
-//     action: 'reps'
-//   };
+async function fetchData(): Promise<Rep[] | null> {
+  const body = {
+    action: 'reps'
+  };
 
-//   const response = await fetch('https://rpc.nano.to', {
-//     method: 'POST',
-//     headers: {
-//       'Content-Type': 'application/json'
-//     },
-//     cache: 'force-cache',
-//     body: JSON.stringify(body)
-//   });
+  const response = await fetch('https://rpc.nano.to', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    cache: 'force-cache',
+    body: JSON.stringify(body)
+  });
 
-//   const data = await response.json();
-//   console.log(data);
-//   return data;
-// }
+  const data = await response.json();
+  console.log(data);
+  return data;
+}
 
-export default async function IndexPage({}: {}) {
-  // const data = fetchData();const myGlobe = Globe();
+export default async function IndexPage() {
+  const data = await fetchData();
+
+  console.log(data);
 
   return (
     <main className="mx-auto h-full w-full">
       <Title>XNO Globe</Title>
       <div className="flex justify-center items-center h-full w-full">
-        <ThreeScene />
+        <ThreeScene data={data} />
       </div>
     </main>
   );

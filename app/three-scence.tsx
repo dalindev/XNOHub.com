@@ -1,15 +1,21 @@
 'use client';
 
 import React from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
 import ThreeMesh from './three-mesh';
 import { CloudMesh } from './three-cloud-mesh';
-import { useRef, useEffect } from 'react';
+import { useRef } from 'react';
+import { Rep } from './page';
 
-const ThreeScene = () => {
+interface ThreeSceneProps {
+  data: Rep[] | null;
+}
+
+const ThreeScene: React.FC<ThreeSceneProps> = ({ data }) => {
   const lightRef1 = useRef<THREE.DirectionalLight>(null);
   const lightRef2 = useRef<THREE.DirectionalLight>(null);
+
   return (
     <Canvas
       camera={{
@@ -24,7 +30,7 @@ const ThreeScene = () => {
         enableRotate={true}
         rotateSpeed={0.5}
         enableZoom={true}
-        zoomSpeed={0.2}
+        zoomSpeed={0.6}
         enablePan={false}
       />
       <Stars
@@ -47,7 +53,7 @@ const ThreeScene = () => {
         position={[-5, 1, 5]}
         intensity={1.5}
       />
-      <ThreeMesh lightRefs={[lightRef1, lightRef2]} />
+      <ThreeMesh lightRefs={[lightRef1, lightRef2]} data={data} />
       <CloudMesh />
     </Canvas>
   );
