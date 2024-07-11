@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useRef } from 'react';
 import { useLoader, useFrame } from '@react-three/fiber';
 import { TextureLoader } from 'three/src/loaders/TextureLoader';

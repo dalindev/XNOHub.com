@@ -1,3 +1,5 @@
+'use client';
+
 import { Title, Text } from '@tremor/react';
 import Search from './search';
 

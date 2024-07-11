@@ -1,3 +1,5 @@
+'use client';
+
 import Navbar from './navbar';
 import { getServerSession } from 'next-auth/next';
 
