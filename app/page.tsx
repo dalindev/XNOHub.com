@@ -1082,11 +1082,11 @@ const data: Rep[] = [
 
 export default async function Page() {
   // const data = await getData();
-  // const serverTime = new Date().toISOString(); // Generate server time
+  const serverTime = new Date();
 
   return (
     <Suspense fallback={<div>Loading...</div>}>
-      <ThreeSceneClient data={data} />
+      <ThreeSceneClient data={data} serverDateTime={serverTime} />
     </Suspense>
   );
 }

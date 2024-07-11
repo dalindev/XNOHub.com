@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
 import ThreeMesh from './three-mesh';
@@ -9,25 +9,29 @@ import { Rep } from './page';
 
 interface ThreeSceneClientProps {
   data: Rep[];
+  serverDateTime: Date;
 }
 
-const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({ data }) => {
+const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
+  data,
+  serverDateTime
+}) => {
   const lightRef = useRef<THREE.DirectionalLight>(null);
-  const [simulationTime, setSimulationTime] = useState<Date>(new Date());
+  const [simulationTime, setSimulationTime] = useState<Date>(serverDateTime);
   const [timeOffset, setTimeOffset] = useState(0);
   const [isControlsVisible, setIsControlsVisible] = useState(false);
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setSimulationTime((prevTime) => {
-        const newTime = new Date(prevTime);
-        newTime.setSeconds(newTime.getSeconds() + 1);
-        return newTime;
-      });
-    }, 1000);
+  // useEffect(() => {
+  //   const timer = setInterval(() => {
+  //     setSimulationTime((prevTime) => {
+  //       const newTime = new Date(prevTime);
+  //       newTime.setSeconds(newTime.getSeconds() + 1);
+  //       return newTime;
+  //     });
+  //   }, 1000);
 
-    return () => clearInterval(timer);
-  }, []);
+  //   return () => clearInterval(timer);
+  // }, []);
 
   const adjustTime = (date: Date, hoursOffset: number): Date => {
     const newDate = new Date(date);
@@ -132,7 +136,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({ data }) => {
       <Canvas
         camera={{
           fov: 45,
-          position: [0, 0, 3]
+          position: [0, 2, 4]
         }}
         className="w-full h-full cursor-move"
       >
@@ -151,8 +155,8 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({ data }) => {
           saturation={0}
           fade={true}
         />
-        <directionalLight ref={lightRef} color={0xffffff} intensity={1.5} />
-        <ambientLight intensity={0.1} />
+        <directionalLight ref={lightRef} color={0xffffff} intensity={2.5} />
+        <ambientLight intensity={0.2} />
         <ThreeMesh
           lightRefs={[lightRef]}
           data={data}
