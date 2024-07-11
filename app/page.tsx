@@ -15,7 +15,7 @@ export interface Rep {
   website: string | null;
   latitude: number;
   longitude: number;
-  alias: string;
+  alias: string | null;
   uptime_over: {
     week: number;
     day: number;
@@ -43,7 +43,7 @@ export interface Rep {
 //   return data;
 // }
 
-const data = [
+const data: Rep[] = [
   {
     rep_address:
       'nano_1oenixj4qtpfcembga9kqwggkb87wooicfy5df8nhdywrjrrqxk7or4gz15b',
@@ -1082,11 +1082,11 @@ const data = [
 
 export default async function Page() {
   // const data = await getData();
-  const serverTime = new Date().toISOString(); // Generate server time
+  // const serverTime = new Date().toISOString(); // Generate server time
 
   return (
     <Suspense fallback={<div>Loading...</div>}>
-      <ThreeSceneClient data={data} serverTime={serverTime} />
+      <ThreeSceneClient data={data} />
     </Suspense>
   );
 }
