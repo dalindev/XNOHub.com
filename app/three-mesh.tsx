@@ -4,18 +4,23 @@ import React, { useRef, useEffect, useMemo } from 'react';
 import { useTexture } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import { Rep } from './page';
+import { Rep } from '@/types/index';
+import NanoRepNodes from '@/components/nano-rep-nodes';
 
 interface ThreeMeshProps {
   lightRefs: React.RefObject<THREE.DirectionalLight>[];
   data: Rep[] | null;
   manualTime?: Date;
+  onNodeHover: (nodeData: Rep | null) => void;
+  onNodeClick: (nodeData: Rep) => void;
 }
 
 const ThreeMesh: React.FC<ThreeMeshProps> = ({
   lightRefs,
   data,
-  manualTime
+  manualTime,
+  onNodeHover,
+  onNodeClick
 }) => {
   const earthRef = useRef<THREE.Mesh>(null);
   const sunRef = useRef<THREE.Mesh>(null);
@@ -105,6 +110,14 @@ const ThreeMesh: React.FC<ThreeMeshProps> = ({
           emissiveIntensity={0.1}
           {...props}
         />
+        {data && (
+          <NanoRepNodes
+            data={data}
+            earthRadius={1}
+            onNodeHover={onNodeHover}
+            onNodeClick={onNodeClick}
+          />
+        )}
       </mesh>
       <mesh ref={sunRef}>
         <sphereGeometry args={[0.1, 16, 16]} />

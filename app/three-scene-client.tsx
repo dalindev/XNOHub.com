@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
 import ThreeMesh from './three-mesh';
 import { CloudMesh } from './three-cloud-mesh';
-import { Rep } from './page';
+import { Rep } from '@/types/index';
+import NodeInfoPanel from '@/components/nano-rep-nodes';
 
 interface ThreeSceneClientProps {
   data: Rep[];
@@ -20,18 +21,20 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
   const [simulationTime, setSimulationTime] = useState<Date>(serverDateTime);
   const [timeOffset, setTimeOffset] = useState(0);
   const [isControlsVisible, setIsControlsVisible] = useState(false);
+  const [hoveredNode, setHoveredNode] = useState<Rep | null>(null);
+  const [selectedNode, setSelectedNode] = useState<Rep | null>(null);
 
-  // useEffect(() => {
-  //   const timer = setInterval(() => {
-  //     setSimulationTime((prevTime) => {
-  //       const newTime = new Date(prevTime);
-  //       newTime.setSeconds(newTime.getSeconds() + 1);
-  //       return newTime;
-  //     });
-  //   }, 1000);
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setSimulationTime((prevTime) => {
+        const newTime = new Date(prevTime);
+        newTime.setSeconds(newTime.getSeconds() + 1);
+        return newTime;
+      });
+    }, 1000);
 
-  //   return () => clearInterval(timer);
-  // }, []);
+    return () => clearInterval(timer);
+  }, []);
 
   const adjustTime = (date: Date, hoursOffset: number): Date => {
     const newDate = new Date(date);
@@ -155,15 +158,18 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
           saturation={0}
           fade={true}
         />
-        <directionalLight ref={lightRef} color={0xffffff} intensity={2.5} />
-        <ambientLight intensity={0.2} />
+        <directionalLight ref={lightRef} color={0xffffff} intensity={2} />
+        <ambientLight intensity={0.1} />
         <ThreeMesh
           lightRefs={[lightRef]}
           data={data}
           manualTime={simulationTime}
+          onNodeHover={setHoveredNode}
+          onNodeClick={setSelectedNode}
         />
         <CloudMesh />
       </Canvas>
+      <NodeInfoPanel node={selectedNode || hoveredNode} />
     </div>
   );
 };
