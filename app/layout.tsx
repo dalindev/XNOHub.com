@@ -1,13 +1,11 @@
-import './globals.css';
-
 import { Analytics } from '@vercel/analytics/react';
-import Nav from './nav';
-import { Suspense } from 'react';
+
+import '@/app/globals.css';
 
 export const metadata = {
-  title: 'Nano Network Visualizer - Coming Soon',
+  title: 'Nano Network Visualizer',
   description:
-    'Stay tuned for the Nano Network Visualizer, an interactive tool to explore the entire Nano cryptocurrency network.'
+    'NanoHub.com, A 3D visualization of the Nano network, showing the current state of the network and the nodes that are participating in it.'
 };
 
 export default async function RootLayout({
@@ -16,11 +14,8 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="h-full relative">
-      <body className="h-full text-white relative bg-black">
-        {/* <Suspense>
-          <Nav />
-        </Suspense> */}
+    <html lang="en" className="h-screen relative">
+      <body className="h-screen text-white relative bg-black">
         {children}
         <Analytics />
       </body>
