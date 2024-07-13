@@ -76,28 +76,28 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
   return (
     <div className="relative w-screen h-screen">
       {/* Collapsible Time controls */}
-      <div className="absolute top-4 left-4 z-10">
+      <div className="absolute top-4 left-4 z-10 flex flex-col">
         <button
           onClick={() => setIsControlsVisible(!isControlsVisible)}
-          className={`bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 ${
-            isControlsVisible ? 'rounded-t-lg' : 'rounded-lg'
-          }  w-full`}
+          className={`bg-transparent text-gray-400 px-4 py-2 w-full border-[1px] border-blue-600`}
         >
-          {isControlsVisible ? 'Hide Controls' : 'Show Controls'}
+          {isControlsVisible ? 'Hide Time Controls' : 'Show Time Controls'}
         </button>
         <div
-          className={`bg-gray-800 bg-opacity-70 rounded-b-lg text-white transition-all duration-300 ease-in-out overflow-hidden ${
+          className={`bg-gray-800 bg-opacity-70 w-[275px] rounded-b-lg p-4 text-white transition-all duration-300 ease-in-out overflow-hidden ${
             isControlsVisible
-              ? 'p-4 max-h-96 opacity-100'
-              : 'p-0 h-0 max-h-0 opacity-0 overflow-hidden'
+              ? 'max-h-96 opacity-100'
+              : 'py-0 h-0 max-h-0 opacity-0'
           }`}
         >
           <div className="flex flex-col gap-2">
-            <input
+            {/* TODO: add input validation */}
+            {/* <input
               type="date"
               onChange={handleDateChange}
               value={simulationTime.toISOString().split('T')[0]}
               className="w-full p-1 text-gray-800 rounded"
+              disabled={true}
             />
             <input
               type="time"
@@ -110,7 +110,8 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
                 .toString()
                 .padStart(2, '0')}`}
               className="w-full p-1 text-gray-800 rounded"
-            />
+              disabled={true}
+            /> */}
             <div className="flex justify-between">
               <button
                 onClick={() => handleOffsetChange(-1)}

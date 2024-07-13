@@ -11,6 +11,6 @@
     "typescriptreact": "html"
   },
   "editor.quickSuggestions": {
-      "strings": true
+    "strings": true
   }
 }
