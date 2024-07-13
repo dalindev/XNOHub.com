@@ -4,27 +4,27 @@ import React, { useRef, useEffect, useMemo } from 'react';
 import { useTexture } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import { Rep } from '@/types/index';
+import { IRepData } from '@/types/index';
 import NanoRepNodes from '@/components/nano-rep-nodes';
 
 interface ThreeMeshProps {
   lightRefs: React.RefObject<THREE.DirectionalLight>[];
-  data: Rep[] | null;
+  repsGeoInfo: IRepData[] | null;
   manualTime?: Date;
-  onNodeHover: (nodeData: Rep | null) => void;
-  onNodeClick: (nodeData: Rep) => void;
+  onNodeHover: (noderepsGeoInfo: IRepData | null) => void;
+  onNodeClick: (noderepsGeoInfo: IRepData) => void;
 }
 
 const ThreeMesh: React.FC<ThreeMeshProps> = ({
   lightRefs,
-  data,
+  repsGeoInfo,
   manualTime,
   onNodeHover,
   onNodeClick
 }) => {
   const earthRef = useRef<THREE.Mesh>(null);
   const sunRef = useRef<THREE.Mesh>(null);
-  const { scene } = useThree();
+  // const { scene } = useThree();
 
   const props = useTexture({
     map: '/earth-assets/earth_no_clouds_8k.jpg',
@@ -102,17 +102,19 @@ const ThreeMesh: React.FC<ThreeMeshProps> = ({
   return (
     <>
       <mesh ref={earthRef}>
-        <sphereGeometry args={[1, 64, 64]} />
+        <sphereGeometry args={[1, 128, 128]} />
         <meshPhongMaterial
-          bumpScale={0.005}
-          displacementScale={0.02}
+          bumpScale={0.01}
+          displacementScale={0.01}
           emissive={'lightyellow'}
           emissiveIntensity={0.1}
+          specular={new THREE.Color(0x333333)}
+          shininess={15}
           {...props}
         />
-        {data && (
+        {repsGeoInfo && (
           <NanoRepNodes
-            data={data}
+            repsGeoInfo={repsGeoInfo}
             earthRadius={1}
             onNodeHover={onNodeHover}
             onNodeClick={onNodeClick}
@@ -120,7 +122,7 @@ const ThreeMesh: React.FC<ThreeMeshProps> = ({
         )}
       </mesh>
       <mesh ref={sunRef}>
-        <sphereGeometry args={[0.1, 16, 16]} />
+        <sphereGeometry args={[0.2, 16, 16]} />
         <primitive object={sunMaterial} attach="material" />
       </mesh>
     </>

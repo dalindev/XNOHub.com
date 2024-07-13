@@ -1,96 +1,113 @@
-import type { Config } from 'tailwindcss';
-
-export default {
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  darkMode: ['class'],
   content: [
-    './app/**/*.{js,ts,jsx,tsx,mdx}',
-    './pages/**/*.{js,ts,jsx,tsx,mdx}',
-    './node_modules/@tremor/**/*.{js,ts,jsx,tsx,mdx}'
+    './pages/**/*.{ts,tsx}',
+    './components/**/*.{ts,tsx}',
+    './app/**/*.{ts,tsx}',
+    './src/**/*.{ts,tsx}'
   ],
+  prefix: '',
   theme: {
-    transparent: 'transparent',
-    current: 'currentColor',
+    container: {
+      center: true,
+      padding: '2rem',
+      screens: {
+        '2xl': '1400px'
+      }
+    },
     extend: {
+      fontFamily: {
+        body: ['new-order', 'sans-serif'],
+        'new-order': ['new-order', 'sans-serif']
+      },
       colors: {
-        // light mode
-        tremor: {
-          brand: {
-            faint: '#eff6ff', // blue-50
-            muted: '#bfdbfe', // blue-200
-            subtle: '#60a5fa', // blue-400
-            DEFAULT: '#3b82f6', // blue-500
-            emphasis: '#1d4ed8', // blue-700
-            inverted: '#ffffff' // white
-          },
-          background: {
-            muted: '#f9fafb', // gray-50
-            subtle: '#f3f4f6', // gray-100
-            DEFAULT: '#ffffff', // white
-            emphasis: '#374151' // gray-700
-          },
-          border: {
-            DEFAULT: '#e5e7eb' // gray-200
-          },
-          ring: {
-            DEFAULT: '#e5e7eb' // gray-200
-          },
-          content: {
-            subtle: '#9ca3af', // gray-400
-            DEFAULT: '#6b7280', // gray-500
-            emphasis: '#374151', // gray-700
-            strong: '#111827', // gray-900
-            inverted: '#ffffff' // white
-          }
+        border: 'hsl(var(--border))',
+        input: 'hsl(var(--input))',
+        ring: 'hsl(var(--ring))',
+        background: 'hsl(var(--background))',
+        foreground: 'hsl(var(--foreground))',
+        primary: {
+          DEFAULT: 'hsl(var(--primary))',
+          foreground: 'hsl(var(--primary-foreground))'
+        },
+        secondary: {
+          DEFAULT: 'hsl(var(--secondary))',
+          foreground: 'hsl(var(--secondary-foreground))'
+        },
+        destructive: {
+          DEFAULT: 'hsl(var(--destructive))',
+          foreground: 'hsl(var(--destructive-foreground))'
+        },
+        muted: {
+          DEFAULT: 'hsl(var(--muted))',
+          foreground: 'hsl(var(--muted-foreground))'
+        },
+        accent: {
+          DEFAULT: 'hsl(var(--accent))',
+          foreground: 'hsl(var(--accent-foreground))'
+        },
+        popover: {
+          DEFAULT: 'hsl(var(--popover))',
+          foreground: 'hsl(var(--popover-foreground))'
+        },
+        card: {
+          DEFAULT: 'hsl(var(--card))',
+          foreground: 'hsl(var(--card-foreground))'
+        },
+        // SimplePay colors
+        'sp-primary': {
+          DEFAULT: '#D0F451'
+        },
+        'sp-background': {
+          DEFAULT: '#EDECE8CC'
+        },
+        'sp-text': {
+          DEFAULT: '#1A1A1A'
+        },
+        'sp-text-secondary': {
+          DEFAULT: '#767676'
         }
       },
-      boxShadow: {
-        // light
-        'tremor-input': '0 1px 2px 0 rgb(0 0 0 / 0.05)',
-        'tremor-card':
-          '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
-        'tremor-dropdown':
-          '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)'
-      },
       borderRadius: {
-        'tremor-small': '0.375rem',
-        'tremor-default': '0.5rem',
-        'tremor-full': '9999px'
+        lg: 'var(--radius)',
+        md: 'calc(var(--radius) - 2px)',
+        sm: 'calc(var(--radius) - 4px)'
+      },
+      keyframes: {
+        'accordion-down': {
+          from: { height: '0' },
+          to: { height: 'var(--radix-accordion-content-height)' }
+        },
+        'accordion-up': {
+          from: { height: 'var(--radix-accordion-content-height)' },
+          to: { height: '0' }
+        }
       },
       fontSize: {
-        'tremor-label': '0.75rem',
-        'tremor-default': ['0.875rem', { lineHeight: '1.25rem' }],
-        'tremor-title': ['1.125rem', { lineHeight: '1.75rem' }],
-        'tremor-metric': ['1.875rem', { lineHeight: '2.25rem' }]
+        'sp-title-small': ['14px', { lineHeight: '16.8px' }],
+        'sp-h1-small': ['28px', { lineHeight: '39.2px' }],
+        'sp-h2-small': ['22px', { lineHeight: '26.4px' }],
+        'sp-13px': ['13px', { lineHeight: '15.6px' }],
+        'sp-paragraph-regular': ['14px', { lineHeight: '21px' }],
+        'sp-button-text-small': ['13px', { lineHeight: '15.6px' }],
+        'sp-title-regular': ['16px', { lineHeight: '19.2px' }],
+        'sp-h5': ['14px', { lineHeight: '19.6px' }],
+        'sp-paragraph-small': ['12px', { lineHeight: '15.6px' }],
+        'sp-h1-large': ['32px', { lineHeight: '44.8px' }],
+        'sp-h2-large': ['24px', { lineHeight: '28.8px' }],
+        'sp-h4': ['16px', { lineHeight: '22.4px' }]
+      },
+      fontWeight: {
+        'sp-medium': 500,
+        'sp-semibold': 600,
+        'sp-regular': 400
+      },
+      animation: {
+        'accordion-down': 'accordion-down 0.2s ease-out',
+        'accordion-up': 'accordion-up 0.2s ease-out'
       }
     }
   },
-  safelist: [
-    {
-      pattern:
-        /^(bg-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-(?:50|100|200|300|400|500|600|700|800|900|950))$/,
-      variants: ['hover', 'ui-selected']
-    },
-    {
-      pattern:
-        /^(text-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-(?:50|100|200|300|400|500|600|700|800|900|950))$/,
-      variants: ['hover', 'ui-selected']
-    },
-    {
-      pattern:
-        /^(border-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-(?:50|100|200|300|400|500|600|700|800|900|950))$/,
-      variants: ['hover', 'ui-selected']
-    },
-    {
-      pattern:
-        /^(ring-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-(?:50|100|200|300|400|500|600|700|800|900|950))$/
-    },
-    {
-      pattern:
-        /^(stroke-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-(?:50|100|200|300|400|500|600|700|800|900|950))$/
-    },
-    {
-      pattern:
-        /^(fill-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-(?:50|100|200|300|400|500|600|700|800|900|950))$/
-    }
-  ],
-  plugins: [require('@headlessui/tailwindcss')]
-} satisfies Config;
+  plugins: [require('tailwindcss-animate')]
+};

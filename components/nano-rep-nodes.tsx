@@ -1,28 +1,28 @@
 import React, { useMemo, useState } from 'react';
 import * as THREE from 'three';
-import { Rep } from '@/types/index';
+import { IRepData } from '@/types/index';
 
 interface NanoRepNodesProps {
-  data: Rep[];
+  repsGeoInfo: IRepData[];
   earthRadius: number;
-  onNodeHover: (nodeData: Rep | null) => void;
-  onNodeClick: (nodeData: Rep) => void;
+  onNodeHover: (noderepsGeoInfo: IRepData | null) => void;
+  onNodeClick: (noderepsGeoInfo: IRepData) => void;
 }
 
 const NanoRepNodes: React.FC<NanoRepNodesProps> = ({
-  data,
+  repsGeoInfo,
   earthRadius,
   onNodeHover,
   onNodeClick
 }) => {
   const nodes = useMemo(() => {
-    if (!data) return [];
-    return data.map((rep) => ({
+    if (!repsGeoInfo) return [];
+    return repsGeoInfo.map((rep) => ({
       ...rep,
       position: calculatePosition(rep.latitude, rep.longitude, earthRadius),
       color: new THREE.Color(Math.random(), Math.random(), Math.random())
     }));
-  }, [data, earthRadius]);
+  }, [repsGeoInfo, earthRadius]);
 
   return (
     <group>
@@ -53,22 +53,24 @@ const calculatePosition = (
 };
 
 interface NodeProps {
-  node: Rep & { position: THREE.Vector3; color: THREE.Color };
+  node: IRepData & { position: THREE.Vector3; color: THREE.Color };
   earthRadius: number;
-  onHover: (nodeData: Rep | null) => void;
-  onClick: (nodeData: Rep) => void;
+  onHover: (noderepsGeoInfo: IRepData | null) => void;
+  onClick: (noderepsGeoInfo: IRepData) => void;
 }
 
 const Node: React.FC<NodeProps> = ({ node, earthRadius, onHover, onClick }) => {
   const [hovered, setHovered] = useState(false);
 
   const barHeight = useMemo(() => {
-    const extraHeight = node.weight * 0.02; // 2% of Earth's radius
-    return earthRadius * 0.1 + extraHeight; // 10% of Earth's radius
-  }, [earthRadius, node.weight]);
+    const baseHeight = earthRadius * 0.2; // 20% of Earth's radius as base height
+    const variableHeight = (node.weight_percent / 50) * earthRadius;
+    const hoverMultiplier = hovered ? 1.3 : 1; // Increase height by 30% when hovered
+    return (baseHeight + variableHeight) * hoverMultiplier;
+  }, [earthRadius, node.weight_percent, hovered]);
 
   const barGeometry = useMemo(() => {
-    const geometry = new THREE.CylinderGeometry(0.0005, 0.004, barHeight, 8);
+    const geometry = new THREE.CylinderGeometry(0.0005, 0.006, barHeight, 32);
     geometry.translate(0, barHeight / 2, 0);
     return geometry;
   }, [barHeight]);
@@ -85,10 +87,10 @@ const Node: React.FC<NodeProps> = ({ node, earthRadius, onHover, onClick }) => {
   }, [barPosition]);
 
   const color = useMemo(() => {
-    // Color-code based on score: red for low scores, green for high scores
-    const hue = (node.delegators / 1024) * 0.3; // 0.3 is green in HSL
-    return new THREE.Color().setHSL(hue, 1, 0.5);
-  }, [node.score]);
+    const baseColor = new THREE.Color(0x00ff00); // Green base color
+    const hoverColor = new THREE.Color(0xffa500); // Cyan hover color
+    return hovered ? hoverColor : baseColor;
+  }, [hovered]);
 
   return (
     <group

@@ -3,26 +3,26 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
-import ThreeMesh from './three-mesh';
-import { CloudMesh } from './three-cloud-mesh';
-import { Rep } from '@/types/index';
+import { IRepData } from '@/types/index';
+import ThreeMesh from '@/components/three-mesh';
+import { CloudMesh } from '@/components/three-cloud-mesh';
 import NodeInfoPanel from '@/components/nano-rep-nodes';
 
 interface ThreeSceneClientProps {
-  data: Rep[];
+  repsGeoInfo: IRepData[];
   serverDateTime: Date;
 }
 
 const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
-  data,
+  repsGeoInfo,
   serverDateTime
 }) => {
   const lightRef = useRef<THREE.DirectionalLight>(null);
   const [simulationTime, setSimulationTime] = useState<Date>(serverDateTime);
   const [timeOffset, setTimeOffset] = useState(0);
   const [isControlsVisible, setIsControlsVisible] = useState(false);
-  const [hoveredNode, setHoveredNode] = useState<Rep | null>(null);
-  const [selectedNode, setSelectedNode] = useState<Rep | null>(null);
+  const [hoveredNode, setHoveredNode] = useState<IRepData | null>(null);
+  const [selectedNode, setSelectedNode] = useState<IRepData | null>(null);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -86,11 +86,13 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
           {isControlsVisible ? 'Hide Controls' : 'Show Controls'}
         </button>
         <div
-          className={`bg-gray-800 bg-opacity-70 p-4 rounded-b-lg text-white transition-all duration-300 ease-in-out overflow-hidden ${
-            isControlsVisible ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+          className={`bg-gray-800 bg-opacity-70 rounded-b-lg text-white transition-all duration-300 ease-in-out overflow-hidden ${
+            isControlsVisible
+              ? 'p-4 max-h-96 opacity-100'
+              : 'p-0 h-0 max-h-0 opacity-0 overflow-hidden'
           }`}
         >
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             <input
               type="date"
               onChange={handleDateChange}
@@ -124,7 +126,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
               </button>
             </div>
             <div>Time Offset: {timeOffset} hours</div>
-            <div className="">{simulationTime.toUTCString()}</div>
+            <div className="w-[500px]">{simulationTime.toUTCString()}</div>
             <button
               onClick={handleResetToCurrentTime}
               className="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded w-full"
@@ -162,13 +164,14 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
         <ambientLight intensity={0.1} />
         <ThreeMesh
           lightRefs={[lightRef]}
-          data={data}
+          repsGeoInfo={repsGeoInfo}
           manualTime={simulationTime}
           onNodeHover={setHoveredNode}
           onNodeClick={setSelectedNode}
         />
         <CloudMesh />
       </Canvas>
+      {/* @ts-ignore */}
       <NodeInfoPanel node={selectedNode || hoveredNode} />
     </div>
   );
