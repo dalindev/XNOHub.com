@@ -25,16 +25,21 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
   const [selectedNode, setSelectedNode] = useState<IRepData | null>(null);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setSimulationTime((prevTime) => {
-        const newTime = new Date(prevTime);
-        newTime.setSeconds(newTime.getSeconds() + 1);
-        return newTime;
-      });
-    }, 1000);
+    console.log('hoveredNode:', hoveredNode);
+    console.log('selectedNode:', selectedNode);
+  }, [hoveredNode, selectedNode]);
 
-    return () => clearInterval(timer);
-  }, []);
+  // useEffect(() => {
+  //   const timer = setInterval(() => {
+  //     setSimulationTime((prevTime) => {
+  //       const newTime = new Date(prevTime);
+  //       newTime.setSeconds(newTime.getSeconds() + 1);
+  //       return newTime;
+  //     });
+  //   }, 1000);
+
+  //   return () => clearInterval(timer);
+  // }, []);
 
   const adjustTime = (date: Date, hoursOffset: number): Date => {
     const newDate = new Date(date);
@@ -42,23 +47,23 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
     return newDate;
   };
 
-  const handleTimeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const [hours, minutes] = event.target.value.split(':').map(Number);
-    setSimulationTime((prevTime) => {
-      const newTime = new Date(prevTime);
-      newTime.setUTCHours(hours, minutes, 0, 0);
-      return newTime;
-    });
-  };
+  // const handleTimeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  //   const [hours, minutes] = event.target.value.split(':').map(Number);
+  //   setSimulationTime((prevTime) => {
+  //     const newTime = new Date(prevTime);
+  //     newTime.setUTCHours(hours, minutes, 0, 0);
+  //     return newTime;
+  //   });
+  // };
 
-  const handleDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const [year, month, day] = event.target.value.split('-').map(Number);
-    setSimulationTime((prevTime) => {
-      const newTime = new Date(prevTime);
-      newTime.setUTCFullYear(year, month - 1, day);
-      return newTime;
-    });
-  };
+  // const handleDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  //   const [year, month, day] = event.target.value.split('-').map(Number);
+  //   setSimulationTime((prevTime) => {
+  //     const newTime = new Date(prevTime);
+  //     newTime.setUTCFullYear(year, month - 1, day);
+  //     return newTime;
+  //   });
+  // };
 
   const handleOffsetChange = (offset: number) => {
     setTimeOffset((prevOffset) => {
@@ -172,8 +177,18 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
         />
         <CloudMesh />
       </Canvas>
-      {/* @ts-ignore */}
-      <NodeInfoPanel node={selectedNode || hoveredNode} />
+      <div className="absolute bottom-4 right-4 z-10">
+        {hoveredNode && (
+          <div className="bg-transparent text-white p-4 rounded-lg shadow-lg max-w-sm">
+            <h3 className="text-lg font-bold mb-2">
+              {hoveredNode.account_formatted ||
+                hoveredNode.alias ||
+                'Unknown Node'}
+            </h3>
+            <p>Weight: {hoveredNode.weight_formatted}</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

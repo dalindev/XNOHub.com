@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useMemo, useState } from 'react';
 import * as THREE from 'three';
 import { IRepData } from '@/types/index';
@@ -104,7 +106,6 @@ const Node: React.FC<NodeProps> = ({ node, earthRadius, onHover, onClick }) => {
       onPointerOut={(e) => {
         e.stopPropagation();
         setHovered(false);
-        onHover(null);
       }}
       onClick={(e) => {
         e.stopPropagation();
