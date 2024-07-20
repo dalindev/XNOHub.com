@@ -1,24 +1,29 @@
-'use client';
-
 import React, { useMemo, useState } from 'react';
 import * as THREE from 'three';
 import { IRepData } from '@/types/index';
+import NetworkArcs from './network-arc';
+
+interface Confirmation {
+  account: string;
+  duration: number;
+}
 
 interface NanoRepNodesProps {
   repsGeoInfo: IRepData[];
   earthRadius: number;
-  onNodeHover: (noderepsGeoInfo: IRepData | null) => void;
-  onNodeClick: (noderepsGeoInfo: IRepData) => void;
+  onNodeHover: (nodeRepsGeoInfo: IRepData | null) => void;
+  onNodeClick: (nodeRepsGeoInfo: IRepData) => void;
+  confirmations: Confirmation[];
 }
 
 const NanoRepNodes: React.FC<NanoRepNodesProps> = ({
   repsGeoInfo,
   earthRadius,
   onNodeHover,
-  onNodeClick
+  onNodeClick,
+  confirmations
 }) => {
   const nodes = useMemo(() => {
-    if (!repsGeoInfo) return [];
     return repsGeoInfo.map((rep) => ({
       ...rep,
       position: calculatePosition(rep.latitude, rep.longitude, earthRadius),
@@ -37,6 +42,11 @@ const NanoRepNodes: React.FC<NanoRepNodesProps> = ({
           onClick={onNodeClick}
         />
       ))}
+      <NetworkArcs
+        nodes={nodes}
+        confirmations={confirmations}
+        earthRadius={earthRadius}
+      />
     </group>
   );
 };
@@ -57,8 +67,8 @@ const calculatePosition = (
 interface NodeProps {
   node: IRepData & { position: THREE.Vector3; color: THREE.Color };
   earthRadius: number;
-  onHover: (noderepsGeoInfo: IRepData | null) => void;
-  onClick: (noderepsGeoInfo: IRepData) => void;
+  onHover: (nodeRepsGeoInfo: IRepData | null) => void;
+  onClick: (nodeRepsGeoInfo: IRepData) => void;
 }
 
 const Node: React.FC<NodeProps> = ({ node, earthRadius, onHover, onClick }) => {
@@ -90,7 +100,7 @@ const Node: React.FC<NodeProps> = ({ node, earthRadius, onHover, onClick }) => {
 
   const color = useMemo(() => {
     const baseColor = new THREE.Color(0x00ff00); // Green base color
-    const hoverColor = new THREE.Color(0xffa500); // Cyan hover color
+    const hoverColor = new THREE.Color(0xffa500); // Orange hover color
     return hovered ? hoverColor : baseColor;
   }, [hovered]);
 
@@ -106,6 +116,7 @@ const Node: React.FC<NodeProps> = ({ node, earthRadius, onHover, onClick }) => {
       onPointerOut={(e) => {
         e.stopPropagation();
         setHovered(false);
+        onHover(null);
       }}
       onClick={(e) => {
         e.stopPropagation();

@@ -24,11 +24,6 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
   const [hoveredNode, setHoveredNode] = useState<IRepData | null>(null);
   const [selectedNode, setSelectedNode] = useState<IRepData | null>(null);
 
-  useEffect(() => {
-    console.log('hoveredNode:', hoveredNode);
-    console.log('selectedNode:', selectedNode);
-  }, [hoveredNode, selectedNode]);
-
   // useEffect(() => {
   //   const timer = setInterval(() => {
   //     setSimulationTime((prevTime) => {

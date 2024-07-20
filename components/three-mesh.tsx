@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useEffect, useMemo } from 'react';
+import React, { useRef, useEffect, useMemo, useState } from 'react';
 import { useTexture } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
@@ -25,6 +25,34 @@ const ThreeMesh: React.FC<ThreeMeshProps> = ({
   const earthRef = useRef<THREE.Mesh>(null);
   const sunRef = useRef<THREE.Mesh>(null);
   // const { scene } = useThree();
+
+  const [confirmations, setConfirmations] = useState<any[]>([]);
+
+  useEffect(() => {
+    const generateConfirmation = () => {
+      if (repsGeoInfo && repsGeoInfo.length > 0) {
+        const newConfirmation: any = {
+          account:
+            repsGeoInfo[Math.floor(Math.random() * repsGeoInfo.length)].account,
+          duration: 1000 + Math.random() * 2000 // Random duration between 2-5 seconds
+        };
+        setConfirmations((prev) => [...prev, newConfirmation]);
+
+        // Remove the confirmation after its duration has passed
+        setTimeout(() => {
+          setConfirmations((prev) => prev.filter((c) => c !== newConfirmation));
+        }, newConfirmation.duration);
+      }
+    };
+
+    // Generate a new confirmation every 1-3 seconds
+    const interval = setInterval(
+      generateConfirmation,
+      1000 + Math.random() * 3000
+    );
+
+    return () => clearInterval(interval);
+  }, [repsGeoInfo]);
 
   const props = useTexture({
     map: '/earth-assets/earth_no_clouds_8k.jpg',
@@ -99,6 +127,39 @@ const ThreeMesh: React.FC<ThreeMeshProps> = ({
     }
   }, [manualTime, lightRefs]);
 
+  // const SampleConfirmationData = [
+  //   {
+  //     account:
+  //       'nano_3ug5bau7xq5cgue9hdr3ppprnxzio1ro7qrothiz34pf7gph3uita8fdb7ar',
+  //     startTime: 1721013261260,
+  //     duration: 500
+  //   },
+  //   {
+  //     account:
+  //       'nano_1banexkcfuieufzxksfrxqf6xy8e57ry1zdtq9yn7jntzhpwu4pg4hajojmq',
+  //     startTime: 1721013261260,
+  //     duration: 1500
+  //   },
+  //   {
+  //     account:
+  //       'nano_3ug8jkpbr35qpa1ceyf6kf7za8nirbxyiyh58iapfzrujfsi4dxf4kmbp6nq',
+  //     startTime: 1721013261260,
+  //     duration: 3100
+  //   },
+  //   {
+  //     account:
+  //       'nano_3eemoaewtwnkkstap3oy487457pb44d3t5ke589rm1fq67k9ebtciw4h9quw',
+  //     startTime: 1721013261260,
+  //     duration: 2100
+  //   },
+  //   {
+  //     account:
+  //       'nano_3ambuw68n7h53wuu7a8e9astuajbgps8amx3db3cbu65rhtjba6t1owgqg5k',
+  //     startTime: 1721013261260,
+  //     duration: 15000
+  //   }
+  // ];
+
   return (
     <>
       <mesh ref={earthRef}>
@@ -107,7 +168,7 @@ const ThreeMesh: React.FC<ThreeMeshProps> = ({
           bumpScale={0.01}
           displacementScale={0.01}
           emissive={'lightyellow'}
-          emissiveIntensity={0.1}
+          emissiveIntensity={0.4}
           specular={new THREE.Color(0x333333)}
           shininess={15}
           {...props}
@@ -118,6 +179,7 @@ const ThreeMesh: React.FC<ThreeMeshProps> = ({
             earthRadius={1}
             onNodeHover={onNodeHover}
             onNodeClick={onNodeClick}
+            confirmations={confirmations}
           />
         )}
       </mesh>

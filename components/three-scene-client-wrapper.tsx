@@ -35,6 +35,23 @@ export const environment = {
 //   }
 // }
 
+// Nano Foundation #3
+// {
+//   "topic": "vote",
+//   "time": "1721012896983",
+//   "message": {
+//       "account": "nano_1q3hqecaw15cjt7thbtxu3pbzr1eihtzzpzxguoc37bj1wc5ffoh7w74gi6p",
+//       "signature": "2557275631242862995372204112869250643558527901054196110021563257636943961549060203842310621958442979295593518945936804193292372999963897153338700091630092",
+//       "sequence": "1721012896960",
+//       "timestamp": "1721012896960",
+//       "duration": "9",
+//       "blocks": [
+//           "75C57CE64748B63295424C5E3FB2C3E44DE8DBB8B98319AA9179803FE03248CF"
+//       ],
+//       "type": "vote"
+//   }
+// }
+
 // Received confirmation:
 // {
 //   "topic": "confirmation",
@@ -47,28 +64,7 @@ export const environment = {
 //   }
 // }
 // Received confirmation:
-// {
-//   "topic": "confirmation",
-//   "time": "1720821536797",
-//   "message": {
-//       "account": "nano_3ug8jkpbr35qpa1ceyf6kf7za8nirbxyiyh58iapfzrujfsi4dxf4kmbp6nq",
-//       "amount": "100000000000000000000000000",
-//       "hash": "F0AA4C76F6321B40E521AF416D6A9100C21341B83116F8FE4D137F87D5DFBFBD",
-//       "confirmation_type": "active_quorum",
-//       "block": {
-//           "type": "state",
-//           "account": "nano_3ug8jkpbr35qpa1ceyf6kf7za8nirbxyiyh58iapfzrujfsi4dxf4kmbp6nq",
-//           "previous": "692B2D2786CB7F3C3C67B554CA02EEBBC1E693F8D7D0CAE697A6D7DD1988A9CA",
-//           "representative": "nano_3hd4ezdgsp15iemx7h81in7xz5tpxi43b6b41zn3qmwiuypankocw3awes5k",
-//           "balance": "36965869581599000000000000000000",
-//           "link": "692B2D2786CB7F3C3C67B554CA02EEBBC1E693F8D7D0CAE697A6D7DD1988A9CA",
-//           "link_as_account": "nano_1tbd7nmrfkuz9iy8hfcnsa3gxgy3wtbzjoyisdmbhbpqunerjcgcijwusd54",
-//           "signature": "E2FA35ED8CF709DD6734808358475EB5C15EC3C321175E4D20F9F30C7B7D4DC5BBB7AF56A7E0D7F988A9D988EC352641351F3443F567E53625B8EC8A400DBD0A",
-//           "work": "3ce614084d93b1a0",
-//           "subtype": "receive"
-//       }
-//   }
-// }
+
 // Received stopped election:
 // {
 //   "topic": "stopped_election",
@@ -92,10 +88,7 @@ const ThreeSceneClientWrapper: React.FC<ThreeSceneClientWrapperProps> = ({
   const wsUrl = environment.wsUrl; // 'wss://nanoslo.0x.no/websocket';
   const principalsUrl = environment.principalsUrl;
 
-  // const { subscriptions, principals } = useNanoWebsocket(
-  //   wsUrl,
-  //   'https://httpbin.org/get'
-  // );
+  // const { subscriptions, principals } = useNanoWebsocket(wsUrl, principalsUrl);
 
   // useEffect(() => {
   //   if (subscriptions) {
