@@ -3,12 +3,11 @@ import * as THREE from 'three';
 import { Line } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import { IRepData } from '@/types/index';
-import { NanoConfirmation } from '@/types/index';
 import { parseNanoAmount } from '@/lib/parse-nano-amount';
+import { useConfirmations } from '@/providers/confirmation-provider';
 
 interface NetworkArcsProps {
   nodes: IRepData[];
-  confirmations: NanoConfirmation[];
   earthRadius: number;
 }
 
@@ -82,31 +81,24 @@ const getArcColor = (amount: number) => {
   };
 };
 
-const NetworkArcs: React.FC<NetworkArcsProps> = ({
-  nodes,
-  confirmations,
-  earthRadius
-}) => {
+const NetworkArcs: React.FC<NetworkArcsProps> = ({ nodes, earthRadius }) => {
+  const { confirmations } = useConfirmations();
   const [arcs, setArcs] = useState<IArc[]>([]);
 
   useEffect(() => {
     if (confirmations.length === 0 || nodes.length < 2) return;
 
+    console.log('Updated confirmations=>', confirmations);
+
+    // "nano_1dyxqop7makeqwfddgij7moi5zu1zti5uug6ydweyu914z4n3rpkr8i6b8ah"
+
     const newArcs = confirmations.flatMap((confirmation) => {
       const representativeAccount = confirmation.message.block.representative;
       const duration = Number(confirmation.message.election_info.duration);
       const amount = parseNanoAmount(confirmation.message.amount);
-      console.log('amount', amount);
-      const sourceNode = nodes.find(
-        (node) => node.account === representativeAccount
-      );
-      if (!sourceNode) {
-        console.log(
-          `Source node not found for account: ${representativeAccount}`
-        );
-        return [];
-      }
-
+      const sourceNode =
+        nodes.find((node) => node.account === representativeAccount) ??
+        nodes[Math.floor(Math.random() * nodes.length)]; // Fallback to a random node
       const sourcePos = latLongToVector3(
         sourceNode.latitude,
         sourceNode.longitude,

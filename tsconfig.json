@@ -30,7 +30,10 @@
       "@/styles/*": ["styles/*"],
       "@/utils/*": ["utils/*"],
       "@/types/*": ["types/*"],
-      "@/data/*": ["data/*"]
+      "@/data/*": ["data/*"],
+      "@/api/*": ["api/*"],
+      "@/constants/*": ["constants/*"],
+      "@/providers/*": ["providers/*"]
     }
   },
   "include": [

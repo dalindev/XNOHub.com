@@ -2,10 +2,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { Subject } from 'rxjs';
 import { webSocket, WebSocketSubject } from 'rxjs/webSocket';
 import { IRepOnline } from '@/types/index';
+import { NanoConfirmation } from '@/types/index';
+import { NANO_LIVE_ENV } from '@/constants/nano-live-env';
 
 interface Subscriptions {
   votes: Subject<Vote>;
-  confirmations: Subject<Confirmation>;
+  confirmations: Subject<NanoConfirmation>;
   stoppedElections: Subject<StoppedElection>;
 }
 
@@ -22,17 +24,6 @@ interface Vote {
   };
 }
 
-interface Confirmation {
-  topic: string;
-  time: string;
-  message: {
-    account: string;
-    amount: string;
-    hash: string;
-    confirmation_type: string;
-  };
-}
-
 interface StoppedElection {
   topic: string;
   time: string;
@@ -41,7 +32,9 @@ interface StoppedElection {
   };
 }
 
-const useNanoWebsocket = (wsUrl: string, principalsUrl: string) => {
+const useNanoWebsocket = () => {
+  const wsUrl = NANO_LIVE_ENV.wsUrl; // 'wss://nanoslo.0x.no/websocket';
+  const principalsUrl = NANO_LIVE_ENV.principalsUrl;
   const [socket, setSocket] = useState<WebSocketSubject<any> | null>(null);
   const [principals, setPrincipals] = useState<IRepOnline[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscriptions | null>(
@@ -61,7 +54,7 @@ const useNanoWebsocket = (wsUrl: string, principalsUrl: string) => {
   const subscribe = useCallback(() => {
     if (socket) {
       const voteSubscription = new Subject<Vote>();
-      const confirmationSubscription = new Subject<Confirmation>();
+      const confirmationSubscription = new Subject<NanoConfirmation>();
       const stoppedElectionsSubscription = new Subject<StoppedElection>();
 
       socket.asObservable().subscribe((res) => {
