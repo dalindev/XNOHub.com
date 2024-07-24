@@ -6,7 +6,7 @@ import { OrbitControls, Stars } from '@react-three/drei';
 import { IRepData } from '@/types/index';
 import ThreeMesh from '@/components/three-mesh';
 import { CloudMesh } from '@/components/three-cloud-mesh';
-import NodeInfoPanel from '@/components/nano-rep-nodes';
+import { ConfirmationHistoryTable } from '@/components/confirmation-history-table';
 
 interface ThreeSceneClientProps {
   repsGeoInfo: IRepData[];
@@ -100,6 +100,10 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
         </div>
       </div>
 
+      <div className="absolute top-4 right-4 z-10">
+        <ConfirmationHistoryTable />
+      </div>
+
       {/* Canvas */}
       <Canvas
         camera={{
@@ -134,6 +138,8 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
         />
         <CloudMesh />
       </Canvas>
+
+      {/* Node Info */}
       <div className="absolute bottom-4 right-4 z-10">
         {hoveredNode && (
           <div className="bg-transparent text-white p-4 rounded-lg shadow-lg max-w-sm">

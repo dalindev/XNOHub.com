@@ -5,94 +5,34 @@ import { useFrame } from '@react-three/fiber';
 import { IRepData } from '@/types/index';
 import { parseNanoAmount } from '@/lib/parse-nano-amount';
 import { useConfirmations } from '@/providers/confirmation-provider';
+import {
+  getStyleByNanoAmount,
+  StyleByAmount
+} from '@/lib/get-style-by-nano-amount';
 
 interface NetworkArcsProps {
   nodes: IRepData[];
   earthRadius: number;
 }
 
-interface ArcLineStyle {
-  color: THREE.ColorRepresentation;
-  lineWidth?: number;
-  opacity?: number;
-}
-
 interface IArc {
   points: THREE.Vector3[];
   progress: number;
   duration: number;
-  style: ArcLineStyle;
+  style: StyleByAmount;
   startTime: number;
 }
 
-const getArcColor = (amount: number) => {
-  if (amount >= 1000000)
-    return {
-      color: new THREE.Color(0x800080), // Purple
-      lineWidth: 5
-    };
-  if (amount >= 100000)
-    return {
-      color: new THREE.Color(0xff0000), // Red
-      lineWidth: 4
-    };
-  if (amount >= 10000)
-    return {
-      color: new THREE.Color(0xff6b00), // Orange
-      lineWidth: 3
-    };
-  if (amount >= 5000)
-    return {
-      color: new THREE.Color(0xff9200), // Yellow
-      lineWidth: 3
-    };
-  if (amount >= 1000)
-    return {
-      color: new THREE.Color(0xffe500),
-      lineWidth: 2
-    };
-  if (amount >= 500)
-    return {
-      color: new THREE.Color(0x1544bf),
-      lineWidth: 2
-    };
-  if (amount >= 100)
-    return {
-      color: new THREE.Color(0x1a6dd4),
-      lineWidth: 2
-    };
-  if (amount >= 10)
-    return {
-      color: new THREE.Color(0x209ce9)
-    };
-  if (amount >= 1)
-    return {
-      color: new THREE.Color(0x57f2f4),
-      opacity: 0.6
-    };
-  if (amount >= 0.1)
-    return {
-      color: new THREE.Color(0x91fbd5),
-      opacity: 0.5
-    };
-  return {
-    color: new THREE.Color(0xceffdb),
-    opacity: 0.1
-  };
-};
-
 const NetworkArcs: React.FC<NetworkArcsProps> = ({ nodes, earthRadius }) => {
-  const { confirmations } = useConfirmations();
+  const { activeConfirmations } = useConfirmations();
   const [arcs, setArcs] = useState<IArc[]>([]);
 
   useEffect(() => {
-    if (confirmations.length === 0 || nodes.length < 2) return;
-
-    console.log('Updated confirmations=>', confirmations);
+    if (activeConfirmations.length === 0 || nodes.length < 2) return;
 
     // "nano_1dyxqop7makeqwfddgij7moi5zu1zti5uug6ydweyu914z4n3rpkr8i6b8ah"
 
-    const newArcs = confirmations.flatMap((confirmation) => {
+    const newArcs = activeConfirmations.flatMap((confirmation) => {
       const representativeAccount = confirmation.message.block.representative;
       const duration = Number(confirmation.message.election_info.duration);
       const amount = parseNanoAmount(confirmation.message.amount);
@@ -123,14 +63,14 @@ const NetworkArcs: React.FC<NetworkArcsProps> = ({ nodes, earthRadius }) => {
             points,
             progress: 0,
             duration: duration / 1000,
-            style: getArcColor(amount),
+            style: getStyleByNanoAmount(amount),
             startTime: Date.now()
           };
         });
     });
 
     setArcs((currentArcs) => [...currentArcs, ...newArcs]);
-  }, [confirmations, nodes, earthRadius]);
+  }, [activeConfirmations, nodes, earthRadius]);
 
   useFrame((state, delta) => {
     setArcs((currentArcs) =>
@@ -212,7 +152,7 @@ const createGreatCircleArc = (
 interface AnimatedArcProps {
   points: THREE.Vector3[];
   progress: number;
-  style: ArcLineStyle;
+  style: StyleByAmount;
 }
 
 const AnimatedArc: React.FC<AnimatedArcProps> = ({
@@ -244,7 +184,7 @@ const AnimatedArc: React.FC<AnimatedArcProps> = ({
   return (
     <Line
       points={visibleSegment}
-      color={color}
+      color={new THREE.Color(color)}
       lineWidth={lineWidth}
       transparent
       opacity={opacity}

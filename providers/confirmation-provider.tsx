@@ -10,7 +10,8 @@ import useNanoWebsocket from '@/hooks/use-nano-websocket';
 import { parseNanoAmount } from '@/lib/parse-nano-amount';
 
 interface ConfirmationContextType {
-  confirmations: NanoConfirmation[];
+  activeConfirmations: NanoConfirmation[];
+  confirmationHistory: NanoConfirmation[];
   addConfirmation: (confirmation: NanoConfirmation) => void;
 }
 
@@ -21,15 +22,27 @@ const ConfirmationContext = createContext<ConfirmationContextType | undefined>(
 export const ConfirmationProvider: React.FC<{ children: React.ReactNode }> = ({
   children
 }) => {
-  const [confirmations, setConfirmations] = useState<NanoConfirmation[]>([]);
+  const [activeConfirmations, setActiveConfirmations] = useState<
+    NanoConfirmation[]
+  >([]);
+  const [confirmationHistory, setConfirmationHistory] = useState<
+    NanoConfirmation[]
+  >([]);
   const { subscriptions } = useNanoWebsocket();
 
   const addConfirmation = useCallback((confirmation: NanoConfirmation) => {
-    setConfirmations((prev) => [...prev, confirmation]);
+    // Add to active confirmations
+    setActiveConfirmations((prev) => [...prev, confirmation]);
 
-    // Remove confirmation after duration
+    // Add to history
+    setConfirmationHistory((prev) => {
+      const newHistory = [confirmation, ...prev].slice(0, 200); // Keep only the latest 200
+      return newHistory;
+    });
+
+    // Remove from active confirmations after duration
     setTimeout(() => {
-      setConfirmations((prev) => prev.filter((c) => c !== confirmation));
+      setActiveConfirmations((prev) => prev.filter((c) => c !== confirmation));
     }, Number(confirmation.message.election_info.duration) ?? 0);
   }, []);
 
@@ -43,7 +56,9 @@ export const ConfirmationProvider: React.FC<{ children: React.ReactNode }> = ({
             }ms, Ӿ${parseNanoAmount(confirmation.message.amount)}):`,
             confirmation
           );
-          addConfirmation(confirmation);
+          if (parseNanoAmount(confirmation.message.amount) > 0) {
+            addConfirmation(confirmation);
+          }
         },
         error: (err) =>
           console.error('Error in confirmation subscription:', err.message),
@@ -57,7 +72,9 @@ export const ConfirmationProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [subscriptions, addConfirmation]);
 
   return (
-    <ConfirmationContext.Provider value={{ confirmations, addConfirmation }}>
+    <ConfirmationContext.Provider
+      value={{ activeConfirmations, confirmationHistory, addConfirmation }}
+    >
       {children}
     </ConfirmationContext.Provider>
   );
