@@ -1,12 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Subject } from 'rxjs';
 import { webSocket, WebSocketSubject } from 'rxjs/webSocket';
-
-interface Principal {
-  account: string;
-  alias: string;
-  votingweight: number;
-}
+import { IRepOnline } from '@/types/index';
 
 interface Subscriptions {
   votes: Subject<Vote>;
@@ -48,7 +43,7 @@ interface StoppedElection {
 
 const useNanoWebsocket = (wsUrl: string, principalsUrl: string) => {
   const [socket, setSocket] = useState<WebSocketSubject<any> | null>(null);
-  const [principals, setPrincipals] = useState<Principal[]>([]);
+  const [principals, setPrincipals] = useState<IRepOnline[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscriptions | null>(
     null
   );

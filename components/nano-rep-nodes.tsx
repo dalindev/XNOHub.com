@@ -2,18 +2,14 @@ import React, { useMemo, useState } from 'react';
 import * as THREE from 'three';
 import { IRepData } from '@/types/index';
 import NetworkArcs from './network-arc';
-
-interface Confirmation {
-  account: string;
-  duration: number;
-}
+import { NanoConfirmation } from '@/types/index';
 
 interface NanoRepNodesProps {
   repsGeoInfo: IRepData[];
   earthRadius: number;
   onNodeHover: (nodeRepsGeoInfo: IRepData | null) => void;
   onNodeClick: (nodeRepsGeoInfo: IRepData) => void;
-  confirmations: Confirmation[];
+  confirmations: NanoConfirmation[];
 }
 
 const NanoRepNodes: React.FC<NanoRepNodesProps> = ({

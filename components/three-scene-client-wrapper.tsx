@@ -5,6 +5,8 @@ import ThreeSceneClient from './three-scene-client';
 import useNanoWebsocket from '@/hooks/use-nano-websocket';
 import { IRepData } from '@/types/index';
 import { RepsData } from '@/data/defualtMergedRepsData';
+import { mergeRepsData } from '@/lib/merge-reps-data';
+import { NanoConfirmation } from '@/types/index';
 
 export const environment = {
   production: true,
@@ -18,130 +20,83 @@ export const environment = {
   // hostAccount: 'nano_3zapp5z141qpjipsb1jnjdmk49jwqy58i6u6wnyrh6x7woajeyme85shxewt',
 };
 
-// Received vote:
-// {
-//   "topic": "vote",
-//   "time": "1720821215738",
-//   "message": {
-//       "account": "nano_37ortkby6k68z8tkk8g63ndbp8wjbmofhn56oyxb4rm6s3x51pkpiwcnpgmq",
-//       "signature": "6338185331417388429342847820729208186083101460526705934626374078492212822288926274408339628101154085623920343617062916355570846420369642139174993052221705",
-//       "sequence": "18446744073709551615",
-//       "timestamp": "18446744073709551615",
-//       "duration": "15",
-//       "blocks": [
-//           "21FADAF8D53B2E8F31989476FB74DB33D9BB0851014B8B33E2DD170C7F49AD51"
-//       ],
-//       "type": "vote"
-//   }
-// }
-
-// Nano Foundation #3
-// {
-//   "topic": "vote",
-//   "time": "1721012896983",
-//   "message": {
-//       "account": "nano_1q3hqecaw15cjt7thbtxu3pbzr1eihtzzpzxguoc37bj1wc5ffoh7w74gi6p",
-//       "signature": "2557275631242862995372204112869250643558527901054196110021563257636943961549060203842310621958442979295593518945936804193292372999963897153338700091630092",
-//       "sequence": "1721012896960",
-//       "timestamp": "1721012896960",
-//       "duration": "9",
-//       "blocks": [
-//           "75C57CE64748B63295424C5E3FB2C3E44DE8DBB8B98319AA9179803FE03248CF"
-//       ],
-//       "type": "vote"
-//   }
-// }
-
-// Received confirmation:
 // {
 //   "topic": "confirmation",
-//   "time": "1720821323361",
+//   "time": "1721790974578",
 //   "message": {
-//       "account": "nano_11tikb8iji6hdqfcfdcypoy9ekfj5he7p1m5qrc3njskfx819ax5a31ku9eb",
-//       "amount": "158114000000000030000000000000",
-//       "hash": "C3A0FC225B0CBC3A2D240B561FAF111C450A921117C750E8A57CD02951D44718",
-//       "confirmation_type": "active_quorum"
+//       "account": "nano_14mytoo837bjozd3wizonc8qu8db533fehbbhnonf5h81a31i4ihojbiy8i1",
+//       "amount": "952000000000000000000000000",
+//       "hash": "DE103BF03F76B3D954DA07C6DE6EECF1C942C87B4EF2790A16CEFBA16182CDDD",
+//       "confirmation_type": "active_quorum",
+//       "election_info": {
+//           "duration": "458",
+//           "time": "1721790974571",
+//           "tally": "92724677033683972877068954324283531637",
+//           "final": "65863988935346425732083583196945349441",
+//           "blocks": "1",
+//           "voters": "68",
+//           "request_count": "1"
+//       },
+//       "block": {
+//           "type": "state",
+//           "account": "nano_14mytoo837bjozd3wizonc8qu8db533fehbbhnonf5h81a31i4ihojbiy8i1",
+//           "previous": "1460732E7C8D309BCB0387A17D53D7DC4DA547150E6EB6FD8A179E8CDBD45278",
+//           "representative": "nano_3pnanopr3d5g7o45zh3nmdkqpaqxhhp3mw14nzr41smjz8xsrfyhtf9xac77",
+//           "balance": "11255150000000000000000000000",
+//           "link": "7C74939A2ABF668302B188040E2F6ADF5F21A124E7F00F7760C8EA9AFF2C6CB7",
+//           "link_as_account": "nano_1z5nkgf4ohu8ie3d54163rqpoqtz68ikbszi3xup3k9cmdzkru7qtp3xrjkw",
+//           "signature": "B73F6F1F6A869BCED7F3DCF654C2631CBC4174E9E26EF1F8A179F9C379AD860E39BE636183778F33D2A3D1B913FB8AF05DD51B5A0E5FA06EA76814B81D6B9E05",
+//           "work": "a55deafb51ccc1ac",
+//           "subtype": "receive"
+//       }
 //   }
 // }
-// Received confirmation:
 
-// Received stopped election:
-// {
-//   "topic": "stopped_election",
-//   "time": "1720821332499",
-//   "message": {
-//       "hash": "D99E0B483544391EEFD0B8EE3206A0D7366958BA6AF269126FDFF6A3D046E03E"
-//   }
-// }
-
-interface ThreeSceneClientWrapperProps {
-  initialServerTime: Date;
-}
-
-const ThreeSceneClientWrapper: React.FC<ThreeSceneClientWrapperProps> = ({
-  initialServerTime
-}) => {
-  const [data, setData] = useState<IRepData[]>([]);
-  const [serverDateTime, setServerDateTime] = useState<Date>(initialServerTime);
+const ThreeSceneClientWrapper: React.FC = () => {
+  const [repsInfo, setRepsInfo] = useState<IRepData[]>(RepsData);
+  const [serverDateTime, setServerDateTime] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
-
   const wsUrl = environment.wsUrl; // 'wss://nanoslo.0x.no/websocket';
   const principalsUrl = environment.principalsUrl;
-
+  const [nanoConfirmations, setNanoConfirmations] = useState<
+    NanoConfirmation[]
+  >([]);
   // const { subscriptions, principals } = useNanoWebsocket(wsUrl, principalsUrl);
+
+  useEffect(() => {
+    setServerDateTime(new Date());
+  }, []);
 
   // useEffect(() => {
   //   if (subscriptions) {
-  //     // const voteSubscription = subscriptions.votes.subscribe({
-  //     //   next: (vote) => {
-  //     //     console.log('Received vote:', vote);
-  //     //     // Process vote data here
-  //     //   },
-  //     //   error: (err) => setError('Error in vote subscription: ' + err.message),
-  //     //   complete: () => console.log('Vote subscription completed')
-  //     // });
+  //     const confirmationSubscription = subscriptions.confirmations.subscribe({
+  //       next: (confirmation) => {
+  //         console.log('Received confirmation:', confirmation);
+  //         // Process confirmation data here
+  //       },
+  //       error: (err) =>
+  //         setError('Error in confirmation subscription: ' + err.message),
+  //       complete: () => console.log('Confirmation subscription completed')
+  //     });
 
-  //     // const confirmationSubscription = subscriptions.confirmations.subscribe({
-  //     //   next: (confirmation) => {
-  //     //     console.log('Received confirmation:', confirmation);
-  //     //     // Process confirmation data here
-  //     //   },
-  //     //   error: (err) =>
-  //     //     setError('Error in confirmation subscription: ' + err.message),
-  //     //   complete: () => console.log('Confirmation subscription completed')
-  //     // });
-
-  //     // const stoppedElectionSubscription =
-  //     //   subscriptions.stoppedElections.subscribe({
-  //     //     next: (stoppedElection) => {
-  //     //       console.log('Received stopped election:', stoppedElection);
-  //     //     },
-  //     //     error: (err) =>
-  //     //       setError('Error in stopped election subscription: ' + err.message),
-  //     //     complete: () => console.log('Stopped election subscription completed')
-  //     //   });
-
-  //     // Cleanup function to unsubscribe when component unmounts
   //     return () => {
-  //       // voteSubscription.unsubscribe();
-  //       // confirmationSubscription.unsubscribe();
-  //       // stoppedElectionSubscription.unsubscribe();
+  //       confirmationSubscription.unsubscribe();
   //     };
   //   }
   // }, [subscriptions]);
 
   // useEffect(() => {
   //   if (principals.length > 0) {
-  //     console.log('Received principals:', principals);
-  //     // setData(
-  //     //   principals.map((p) => ({
-  //     //     rep_address: p.account,
-  //     //     alias: p.alias,
-  //     //     weight: p.votingweight
-  //     //     // Add other fields as needed
-  //     //   }))
-  //     // );
-  //     setServerDateTime(new Date());
+  //     try {
+  //       console.log('Received principals:', principals);
+  //       const mergedRepsData = mergeRepsData({
+  //         onlineData: principals
+  //       });
+  //       setRepsInfo(mergedRepsData);
+  //       setServerDateTime(new Date());
+  //     } catch (error) {
+  //       console.error('Error merging reps data:', error);
+  //     }
   //   }
   // }, [principals]);
 
@@ -154,10 +109,7 @@ const ThreeSceneClientWrapper: React.FC<ThreeSceneClientWrapperProps> = ({
   }
 
   return (
-    <ThreeSceneClient
-      repsGeoInfo={RepsData as IRepData[]}
-      serverDateTime={serverDateTime}
-    />
+    <ThreeSceneClient repsGeoInfo={repsInfo} serverDateTime={serverDateTime} />
   );
 };
 

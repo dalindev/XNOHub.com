@@ -10,7 +10,7 @@ import NodeInfoPanel from '@/components/nano-rep-nodes';
 
 interface ThreeSceneClientProps {
   repsGeoInfo: IRepData[];
-  serverDateTime: Date;
+  serverDateTime: Date | null;
 }
 
 const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
@@ -18,47 +18,25 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
   serverDateTime
 }) => {
   const lightRef = useRef<THREE.DirectionalLight>(null);
-  const [simulationTime, setSimulationTime] = useState<Date>(serverDateTime);
+  const [simulationTime, setSimulationTime] = useState<Date>(
+    serverDateTime || new Date()
+  );
   const [timeOffset, setTimeOffset] = useState(0);
   const [isControlsVisible, setIsControlsVisible] = useState(false);
   const [hoveredNode, setHoveredNode] = useState<IRepData | null>(null);
   const [selectedNode, setSelectedNode] = useState<IRepData | null>(null);
 
-  // useEffect(() => {
-  //   const timer = setInterval(() => {
-  //     setSimulationTime((prevTime) => {
-  //       const newTime = new Date(prevTime);
-  //       newTime.setSeconds(newTime.getSeconds() + 1);
-  //       return newTime;
-  //     });
-  //   }, 1000);
-
-  //   return () => clearInterval(timer);
-  // }, []);
+  useEffect(() => {
+    if (serverDateTime) {
+      setSimulationTime(serverDateTime);
+    }
+  }, [serverDateTime]);
 
   const adjustTime = (date: Date, hoursOffset: number): Date => {
     const newDate = new Date(date);
     newDate.setUTCHours(newDate.getUTCHours() + hoursOffset);
     return newDate;
   };
-
-  // const handleTimeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-  //   const [hours, minutes] = event.target.value.split(':').map(Number);
-  //   setSimulationTime((prevTime) => {
-  //     const newTime = new Date(prevTime);
-  //     newTime.setUTCHours(hours, minutes, 0, 0);
-  //     return newTime;
-  //   });
-  // };
-
-  // const handleDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-  //   const [year, month, day] = event.target.value.split('-').map(Number);
-  //   setSimulationTime((prevTime) => {
-  //     const newTime = new Date(prevTime);
-  //     newTime.setUTCFullYear(year, month - 1, day);
-  //     return newTime;
-  //   });
-  // };
 
   const handleOffsetChange = (offset: number) => {
     setTimeOffset((prevOffset) => {
@@ -69,9 +47,14 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
   };
 
   const handleResetToCurrentTime = () => {
-    setSimulationTime(new Date());
+    const currentTime = new Date();
+    setSimulationTime(currentTime);
     setTimeOffset(0);
   };
+
+  if (!serverDateTime) {
+    return null;
+  }
 
   return (
     <div className="relative w-screen h-screen">
@@ -91,27 +74,6 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
           }`}
         >
           <div className="flex flex-col gap-2">
-            {/* TODO: add input validation */}
-            {/* <input
-              type="date"
-              onChange={handleDateChange}
-              value={simulationTime.toISOString().split('T')[0]}
-              className="w-full p-1 text-gray-800 rounded"
-              disabled={true}
-            />
-            <input
-              type="time"
-              onChange={handleTimeChange}
-              value={`${simulationTime
-                .getUTCHours()
-                .toString()
-                .padStart(2, '0')}:${simulationTime
-                .getUTCMinutes()
-                .toString()
-                .padStart(2, '0')}`}
-              className="w-full p-1 text-gray-800 rounded"
-              disabled={true}
-            /> */}
             <div className="flex justify-between">
               <button
                 onClick={() => handleOffsetChange(-1)}

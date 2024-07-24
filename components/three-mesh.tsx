@@ -2,9 +2,8 @@
 
 import React, { useRef, useEffect, useMemo, useState } from 'react';
 import { useTexture } from '@react-three/drei';
-import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import { IRepData } from '@/types/index';
+import { IRepData, NanoConfirmation } from '@/types/index';
 import NanoRepNodes from '@/components/nano-rep-nodes';
 
 interface ThreeMeshProps {
@@ -15,6 +14,38 @@ interface ThreeMeshProps {
   onNodeClick: (noderepsGeoInfo: IRepData) => void;
 }
 
+// {
+//   "topic": "confirmation",
+//   "time": "1721790974578",
+//   "message": {
+//       "account": "nano_14mytoo837bjozd3wizonc8qu8db533fehbbhnonf5h81a31i4ihojbiy8i1",
+//       "amount": "952000000000000000000000000",
+//       "hash": "DE103BF03F76B3D954DA07C6DE6EECF1C942C87B4EF2790A16CEFBA16182CDDD",
+//       "confirmation_type": "active_quorum",
+//       "election_info": {
+//           "duration": "458",
+//           "time": "1721790974571",
+//           "tally": "92724677033683972877068954324283531637",
+//           "final": "65863988935346425732083583196945349441",
+//           "blocks": "1",
+//           "voters": "68",
+//           "request_count": "1"
+//       },
+//       "block": {
+//           "type": "state",
+//           "account": "nano_14mytoo837bjozd3wizonc8qu8db533fehbbhnonf5h81a31i4ihojbiy8i1",
+//           "previous": "1460732E7C8D309BCB0387A17D53D7DC4DA547150E6EB6FD8A179E8CDBD45278",
+//           "representative": "nano_3pnanopr3d5g7o45zh3nmdkqpaqxhhp3mw14nzr41smjz8xsrfyhtf9xac77",
+//           "balance": "11255150000000000000000000000",
+//           "link": "7C74939A2ABF668302B188040E2F6ADF5F21A124E7F00F7760C8EA9AFF2C6CB7",
+//           "link_as_account": "nano_1z5nkgf4ohu8ie3d54163rqpoqtz68ikbszi3xup3k9cmdzkru7qtp3xrjkw",
+//           "signature": "B73F6F1F6A869BCED7F3DCF654C2631CBC4174E9E26EF1F8A179F9C379AD860E39BE636183778F33D2A3D1B913FB8AF05DD51B5A0E5FA06EA76814B81D6B9E05",
+//           "work": "a55deafb51ccc1ac",
+//           "subtype": "receive"
+//       }
+//   }
+// }
+
 const ThreeMesh: React.FC<ThreeMeshProps> = ({
   lightRefs,
   repsGeoInfo,
@@ -24,31 +55,61 @@ const ThreeMesh: React.FC<ThreeMeshProps> = ({
 }) => {
   const earthRef = useRef<THREE.Mesh>(null);
   const sunRef = useRef<THREE.Mesh>(null);
-  // const { scene } = useThree();
-
   const [confirmations, setConfirmations] = useState<any[]>([]);
 
   useEffect(() => {
     const generateConfirmation = () => {
       if (repsGeoInfo && repsGeoInfo.length > 0) {
-        const newConfirmation: any = {
-          account:
-            repsGeoInfo[Math.floor(Math.random() * repsGeoInfo.length)].account,
-          duration: 1000 + Math.random() * 2000 // Random duration between 2-5 seconds
+        const newConfirmation: NanoConfirmation = {
+          topic: 'confirmation',
+          time: '1721790974578',
+          message: {
+            account:
+              'nano_14mytoo837bjozd3wizonc8qu8db533fehbbhnonf5h81a31i4ihojbiy8i1',
+            amount: '1111255150000000000000000000000',
+            hash: 'DE103BF03F76B3D954DA07C6DE6EECF1C942C87B4EF2790A16CEFBA16182CDDD',
+            confirmation_type: 'active_quorum',
+            election_info: {
+              duration: String(400 + Math.random() * 1000),
+              time: '1721790974571',
+              tally: '92724677033683972877068954324283531637',
+              final: '65863988935346425732083583196945349441',
+              blocks: '1',
+              voters: '68',
+              request_count: '1'
+            },
+            block: {
+              type: 'state',
+              account:
+                'nano_14mytoo837bjozd3wizonc8qu8db533fehbbhnonf5h81a31i4ihojbiy8i1',
+              previous:
+                '1460732E7C8D309BCB0387A17D53D7DC4DA547150E6EB6FD8A179E8CDBD45278',
+              representative:
+                'nano_3pnanopr3d5g7o45zh3nmdkqpaqxhhp3mw14nzr41smjz8xsrfyhtf9xac77',
+              balance: '11255150000000000000000000000',
+              link: '7C74939A2ABF668302B188040E2F6ADF5F21A124E7F00F7760C8EA9AFF2C6CB7',
+              link_as_account:
+                'nano_1z5nkgf4ohu8ie3d54163rqpoqtz68ikbszi3xup3k9cmdzkru7qtp3xrjkw',
+              signature:
+                'B73F6F1F6A869BCED7F3DCF654C2631CBC4174E9E26EF1F8A179F9C379AD860E39BE636183778F33D2A3D1B913FB8AF05DD51B5A0E5FA06EA76814B81D6B9E05',
+              work: 'a55deafb51ccc1ac',
+              subtype: 'receive'
+            }
+          }
         };
         setConfirmations((prev) => [...prev, newConfirmation]);
 
         // Remove the confirmation after its duration has passed
         setTimeout(() => {
           setConfirmations((prev) => prev.filter((c) => c !== newConfirmation));
-        }, newConfirmation.duration);
+        }, Number(newConfirmation.message.election_info.duration) ?? 0);
       }
     };
 
     // Generate a new confirmation every 1-3 seconds
     const interval = setInterval(
       generateConfirmation,
-      1000 + Math.random() * 3000
+      500 + Math.random() * 2000
     );
 
     return () => clearInterval(interval);
@@ -127,43 +188,10 @@ const ThreeMesh: React.FC<ThreeMeshProps> = ({
     }
   }, [manualTime, lightRefs]);
 
-  // const SampleConfirmationData = [
-  //   {
-  //     account:
-  //       'nano_3ug5bau7xq5cgue9hdr3ppprnxzio1ro7qrothiz34pf7gph3uita8fdb7ar',
-  //     startTime: 1721013261260,
-  //     duration: 500
-  //   },
-  //   {
-  //     account:
-  //       'nano_1banexkcfuieufzxksfrxqf6xy8e57ry1zdtq9yn7jntzhpwu4pg4hajojmq',
-  //     startTime: 1721013261260,
-  //     duration: 1500
-  //   },
-  //   {
-  //     account:
-  //       'nano_3ug8jkpbr35qpa1ceyf6kf7za8nirbxyiyh58iapfzrujfsi4dxf4kmbp6nq',
-  //     startTime: 1721013261260,
-  //     duration: 3100
-  //   },
-  //   {
-  //     account:
-  //       'nano_3eemoaewtwnkkstap3oy487457pb44d3t5ke589rm1fq67k9ebtciw4h9quw',
-  //     startTime: 1721013261260,
-  //     duration: 2100
-  //   },
-  //   {
-  //     account:
-  //       'nano_3ambuw68n7h53wuu7a8e9astuajbgps8amx3db3cbu65rhtjba6t1owgqg5k',
-  //     startTime: 1721013261260,
-  //     duration: 15000
-  //   }
-  // ];
-
   return (
     <>
       <mesh ref={earthRef}>
-        <sphereGeometry args={[1, 128, 128]} />
+        <sphereGeometry args={[1, 64, 64]} />
         <meshPhongMaterial
           bumpScale={0.01}
           displacementScale={0.01}
