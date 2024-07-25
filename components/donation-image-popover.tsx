@@ -25,21 +25,18 @@ export const DonationImagePopover = () => {
             alt="Nano Donation QR Code"
             className="max-w-full max-h-fit md:max-w-[510px] md:max-h-[300px] object-contain"
           />
-          <p className="text-center text-[14px] my-3">
+          <p className="text-center text-[14px] my-3 text-wrap break-words w-3/4">
             nano_1osom16ctb773i6zi5fnepfro7bcmr5yqxb4qnmtzxkmdg88o4x6obmchzna
           </p>
-          <p className="text-center text-sm my-4 text-[18px] select-none">
-            Thank you for your donation! 🙏
+          <p className="text-center text-sm text-[18px] select-none">
+            Thank you! 🚀 🌔
           </p>
-          <p className="text-center mb-1">
-            If you made a mistake sending Nano, please let me know at &nbsp;
-          </p>
-          <center className="mb-2">
-            {' '}
+          <p className="text-center text-[12px] text-gray-400 mb-1">
+            If you sending by mistake, please let me know at &nbsp;
             <a href="https://x.com/dalinhuang" className="text-[#209ce9]">
               x.com/dalinhuang
             </a>
-          </center>
+          </p>
         </div>
       </PopoverContent>
     </Popover>
