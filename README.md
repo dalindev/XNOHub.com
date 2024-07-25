@@ -1,8 +1,7 @@
 # Nano Network Globe Visualization
 
-![Screenshot 2024-03-16 at 11 12 44 AM](https://github.com/dalindev/XNOHub.com/assets/6508763/951bd83e-4e88-44c1-a5d5-05b628c5f910)
-
-
+## Demo Video
+https://github.com/user-attachments/assets/8322efc5-1ebc-4fd2-ae76-c960f59b5430
 
 ## Overview
 
