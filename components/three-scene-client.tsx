@@ -1,13 +1,18 @@
 'use client';
 
 import React, { useRef, useState, useEffect } from 'react';
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
+import * as THREE from 'three';
 import { IRepData } from '@/types/index';
 import ThreeMesh from '@/components/three-mesh';
 import { CloudMesh } from '@/components/three-cloud-mesh';
 import { ConfirmationHistoryTable } from '@/components/confirmation-history-table';
 import { DonationImagePopover } from '@/components/donation-image-popover';
+import { useConfirmations } from '@/providers/confirmation-provider';
+import { DonationAnimation } from '@/components/donation-animation';
+import { NANO_LIVE_ENV } from '@/constants/nano-live-env';
+import { parseNanoAmount } from '@/lib/parse-nano-amount';
 
 interface ThreeSceneClientProps {
   repsGeoInfo: IRepData[];
@@ -27,11 +32,26 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
   const [hoveredNode, setHoveredNode] = useState<IRepData | null>(null);
   const [selectedNode, setSelectedNode] = useState<IRepData | null>(null);
 
+  const { confirmationHistory: confirmations } = useConfirmations();
+
   useEffect(() => {
     if (serverDateTime) {
       setSimulationTime(serverDateTime);
     }
   }, [serverDateTime]);
+
+  useEffect(() => {
+    const latestConfirmation = confirmations[0];
+    if (latestConfirmation) {
+      const isDonation =
+        latestConfirmation.message.block.link_as_account ===
+        NANO_LIVE_ENV.donationAccount;
+      if (isDonation && (window as any).triggerDonationAnimation) {
+        const amount = parseNanoAmount(latestConfirmation.message.amount);
+        (window as any).triggerDonationAnimation(amount);
+      }
+    }
+  }, [confirmations]);
 
   const adjustTime = (date: Date, hoursOffset: number): Date => {
     const newDate = new Date(date);
@@ -138,15 +158,16 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
           onNodeClick={setSelectedNode}
         />
         <CloudMesh />
+        <DonationAnimation />
       </Canvas>
 
       {/* Donation Image Popover */}
-      <div className="absolute bottom-6 left-0 right-0 flex justify-center">
+      <div className="absolute bottom-6 right-6 z-10">
         <DonationImagePopover />
       </div>
 
       {/* Node Info */}
-      <div className="absolute bottom-4 right-4 z-10">
+      <div className="absolute bottom-4 left-4 z-10">
         {hoveredNode && (
           <div className="bg-transparent text-white p-4 rounded-lg shadow-lg max-w-sm">
             <h3 className="text-lg font-bold mb-2">
