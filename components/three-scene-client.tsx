@@ -1,16 +1,22 @@
 'use client';
 
 import React, { useRef, useState, useEffect } from 'react';
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
+import * as THREE from 'three';
 import { IRepData } from '@/types/index';
 import ThreeMesh from '@/components/three-mesh';
 import { CloudMesh } from '@/components/three-cloud-mesh';
-import NodeInfoPanel from '@/components/nano-rep-nodes';
+import { ConfirmationHistoryTable } from '@/components/confirmation-history-table';
+import { DonationImagePopover } from '@/components/donation-image-popover';
+import { useConfirmations } from '@/providers/confirmation-provider';
+import { DonationAnimation } from '@/components/donation-animation';
+import { NANO_LIVE_ENV } from '@/constants/nano-live-env';
+import { parseNanoAmount } from '@/lib/parse-nano-amount';
 
 interface ThreeSceneClientProps {
   repsGeoInfo: IRepData[];
-  serverDateTime: Date;
+  serverDateTime: Date | null;
 }
 
 const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
@@ -18,52 +24,40 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
   serverDateTime
 }) => {
   const lightRef = useRef<THREE.DirectionalLight>(null);
-  const [simulationTime, setSimulationTime] = useState<Date>(serverDateTime);
+  const [simulationTime, setSimulationTime] = useState<Date>(
+    serverDateTime || new Date()
+  );
   const [timeOffset, setTimeOffset] = useState(0);
   const [isControlsVisible, setIsControlsVisible] = useState(false);
   const [hoveredNode, setHoveredNode] = useState<IRepData | null>(null);
   const [selectedNode, setSelectedNode] = useState<IRepData | null>(null);
 
+  const { confirmationHistory: confirmations } = useConfirmations();
+
   useEffect(() => {
-    console.log('hoveredNode:', hoveredNode);
-    console.log('selectedNode:', selectedNode);
-  }, [hoveredNode, selectedNode]);
+    if (serverDateTime) {
+      setSimulationTime(serverDateTime);
+    }
+  }, [serverDateTime]);
 
-  // useEffect(() => {
-  //   const timer = setInterval(() => {
-  //     setSimulationTime((prevTime) => {
-  //       const newTime = new Date(prevTime);
-  //       newTime.setSeconds(newTime.getSeconds() + 1);
-  //       return newTime;
-  //     });
-  //   }, 1000);
-
-  //   return () => clearInterval(timer);
-  // }, []);
+  useEffect(() => {
+    const latestConfirmation = confirmations[0];
+    if (latestConfirmation) {
+      const isDonation =
+        latestConfirmation.message.block.link_as_account ===
+        NANO_LIVE_ENV.donationAccount;
+      if (isDonation && (window as any).triggerDonationAnimation) {
+        const amount = parseNanoAmount(latestConfirmation.message.amount);
+        (window as any).triggerDonationAnimation(amount);
+      }
+    }
+  }, [confirmations]);
 
   const adjustTime = (date: Date, hoursOffset: number): Date => {
     const newDate = new Date(date);
     newDate.setUTCHours(newDate.getUTCHours() + hoursOffset);
     return newDate;
   };
-
-  // const handleTimeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-  //   const [hours, minutes] = event.target.value.split(':').map(Number);
-  //   setSimulationTime((prevTime) => {
-  //     const newTime = new Date(prevTime);
-  //     newTime.setUTCHours(hours, minutes, 0, 0);
-  //     return newTime;
-  //   });
-  // };
-
-  // const handleDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-  //   const [year, month, day] = event.target.value.split('-').map(Number);
-  //   setSimulationTime((prevTime) => {
-  //     const newTime = new Date(prevTime);
-  //     newTime.setUTCFullYear(year, month - 1, day);
-  //     return newTime;
-  //   });
-  // };
 
   const handleOffsetChange = (offset: number) => {
     setTimeOffset((prevOffset) => {
@@ -74,9 +68,14 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
   };
 
   const handleResetToCurrentTime = () => {
-    setSimulationTime(new Date());
+    const currentTime = new Date();
+    setSimulationTime(currentTime);
     setTimeOffset(0);
   };
+
+  if (!serverDateTime) {
+    return null;
+  }
 
   return (
     <div className="relative w-screen h-screen">
@@ -96,27 +95,6 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
           }`}
         >
           <div className="flex flex-col gap-2">
-            {/* TODO: add input validation */}
-            {/* <input
-              type="date"
-              onChange={handleDateChange}
-              value={simulationTime.toISOString().split('T')[0]}
-              className="w-full p-1 text-gray-800 rounded"
-              disabled={true}
-            />
-            <input
-              type="time"
-              onChange={handleTimeChange}
-              value={`${simulationTime
-                .getUTCHours()
-                .toString()
-                .padStart(2, '0')}:${simulationTime
-                .getUTCMinutes()
-                .toString()
-                .padStart(2, '0')}`}
-              className="w-full p-1 text-gray-800 rounded"
-              disabled={true}
-            /> */}
             <div className="flex justify-between">
               <button
                 onClick={() => handleOffsetChange(-1)}
@@ -141,6 +119,10 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
             </button>
           </div>
         </div>
+      </div>
+
+      <div className="absolute top-4 right-4 z-10">
+        <ConfirmationHistoryTable />
       </div>
 
       {/* Canvas */}
@@ -176,8 +158,16 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
           onNodeClick={setSelectedNode}
         />
         <CloudMesh />
+        <DonationAnimation />
       </Canvas>
-      <div className="absolute bottom-4 right-4 z-10">
+
+      {/* Donation Image Popover */}
+      <div className="absolute bottom-6 right-6 z-10">
+        <DonationImagePopover />
+      </div>
+
+      {/* Node Info */}
+      <div className="absolute bottom-4 left-4 z-10">
         {hoveredNode && (
           <div className="bg-transparent text-white p-4 rounded-lg shadow-lg max-w-sm">
             <h3 className="text-lg font-bold mb-2">

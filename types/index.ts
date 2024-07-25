@@ -50,3 +50,45 @@ export interface IRepData {
   longitude: number;
   assigned_city?: boolean;
 }
+
+// Define the block type
+interface NanoBlock {
+  type: string;
+  account: string;
+  previous: string;
+  representative: string;
+  balance: string;
+  link: string;
+  link_as_account: string;
+  signature: string;
+  work: string;
+  subtype: string;
+}
+
+// Define the election info type
+interface ElectionInfo {
+  duration: string;
+  time: string;
+  tally: string;
+  final: string;
+  blocks: string;
+  voters: string;
+  request_count: string;
+}
+
+// Define the message type
+interface ConfirmationMessage {
+  account: string;
+  amount: string;
+  hash: string;
+  confirmation_type: string;
+  election_info: ElectionInfo;
+  block: NanoBlock;
+}
+
+// Define the main confirmation type
+export interface NanoConfirmation {
+  topic: string;
+  time: string;
+  message: ConfirmationMessage;
+}
