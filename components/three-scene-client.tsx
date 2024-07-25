@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useRef, useState, useEffect } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
+import Image from 'next/image';
 import * as THREE from 'three';
 import { IRepData } from '@/types/index';
 import ThreeMesh from '@/components/three-mesh';
@@ -27,8 +28,8 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
   const [simulationTime, setSimulationTime] = useState<Date>(
     serverDateTime || new Date()
   );
-  const [timeOffset, setTimeOffset] = useState(0);
-  const [isControlsVisible, setIsControlsVisible] = useState(false);
+  // const [timeOffset, setTimeOffset] = useState(0);
+  // const [isControlsVisible, setIsControlsVisible] = useState(false);
   const [hoveredNode, setHoveredNode] = useState<IRepData | null>(null);
   const [selectedNode, setSelectedNode] = useState<IRepData | null>(null);
 
@@ -59,19 +60,19 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
     return newDate;
   };
 
-  const handleOffsetChange = (offset: number) => {
-    setTimeOffset((prevOffset) => {
-      const newOffset = prevOffset + offset;
-      setSimulationTime((prevTime) => adjustTime(prevTime, offset));
-      return newOffset;
-    });
-  };
+  // const handleOffsetChange = (offset: number) => {
+  //   setTimeOffset((prevOffset) => {
+  //     const newOffset = prevOffset + offset;
+  //     setSimulationTime((prevTime) => adjustTime(prevTime, offset));
+  //     return newOffset;
+  //   });
+  // };
 
-  const handleResetToCurrentTime = () => {
-    const currentTime = new Date();
-    setSimulationTime(currentTime);
-    setTimeOffset(0);
-  };
+  // const handleResetToCurrentTime = () => {
+  //   const currentTime = new Date();
+  //   setSimulationTime(currentTime);
+  //   setTimeOffset(0);
+  // };
 
   if (!serverDateTime) {
     return null;
@@ -80,7 +81,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
   return (
     <div className="relative w-screen h-screen">
       {/* Collapsible Time controls */}
-      <div className="absolute top-4 left-4 z-10 flex flex-col">
+      {/* <div className="absolute top-4 left-4 z-10 flex-col hidden">
         <button
           onClick={() => setIsControlsVisible(!isControlsVisible)}
           className={`bg-transparent text-gray-400 px-4 py-2 w-full border-[1px] border-blue-600`}
@@ -119,6 +120,16 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
             </button>
           </div>
         </div>
+      </div> */}
+
+      <div className="absolute top-4 left-4 z-10 flex-col">
+        <Image
+          src="/logo.png"
+          alt="xnohub.com"
+          width={120}
+          height={40}
+          className="border border-gray-300 rounded-[10px]"
+        />
       </div>
 
       <div className="absolute top-4 right-4 z-10">

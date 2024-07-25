@@ -12,17 +12,18 @@ export const DonationImagePopover = () => {
       <PopoverTrigger asChild>
         <Button
           variant="outline"
-          className="bg-transparent select-none text-[#209ce9] border-[#209ce9] text-[16px] hover:bg-transparent hover:text-green-400 hover:border-green-400"
+          className="bg-transparent w-full md:w-auto max-w-full select-none text-[#209ce9] border-[#209ce9] text-sm md:text-base hover:bg-transparent hover:text-green-400 hover:border-green-400 px-2 py-1 md:px-4 md:py-2 h-auto min-h-[2.5rem] whitespace-normal text-center"
         >
-          Make a small Donation and see what happens! 😛 🌎 🚀
+          Make a small Donation
+          <br className="md:hidden" /> and see what happens! 😛 🌎 🚀
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto bg-transparent p-0 mb-2">
+      <PopoverContent className="w-[90vw] md:w-auto bg-transparent p-0 mb-2">
         <div className="flex flex-col items-center bg-transparent text-gray-300">
           <img
             src="/donation/my_nano_donation_account.jpg"
             alt="Nano Donation QR Code"
-            className="max-w-[510px] max-h-[300px] object-contain"
+            className="max-w-full max-h-fit md:max-w-[510px] md:max-h-[300px] object-contain"
           />
           <p className="text-center text-[14px] my-3">
             nano_1osom16ctb773i6zi5fnepfro7bcmr5yqxb4qnmtzxkmdg88o4x6obmchzna

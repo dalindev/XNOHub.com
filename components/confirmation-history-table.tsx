@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import { useConfirmations } from '@/providers/confirmation-provider';
 import { parseNanoAmount } from '@/lib/parse-nano-amount';
 import { getStyleByNanoAmount } from '@/lib/get-style-by-nano-amount';
-import Image from 'next/image';
 import {
   Tooltip,
   TooltipContent,
@@ -40,11 +39,6 @@ export const ConfirmationHistoryTable = () => {
     );
   };
 
-  // const paginatedHistory = confirmationHistory.slice(
-  //   (currentPage - 1) * itemsPerPage,
-  //   currentPage * itemsPerPage
-  // );
-
   const confirmationTimeStyle = (confirmationTime: number) => {
     if (confirmationTime < 500) return 'text-green-500';
     if (confirmationTime < 1000) return 'text-yellow-500';
@@ -52,15 +46,8 @@ export const ConfirmationHistoryTable = () => {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <Image
-          src="/logo.png"
-          alt="xnohub.com"
-          width={120}
-          height={40}
-          className="border border-gray-300 rounded-[10px]"
-        />
+    <div className="space-y-4 md:px-0 w-full md:w-fit">
+      <div className="flex justify-end min-w-full items-center">
         <Button
           onClick={() => setIsCollapsed(!isCollapsed)}
           variant="outline"
@@ -84,11 +71,11 @@ export const ConfirmationHistoryTable = () => {
         <table className="min-w-full bg-transparent border border-gray-300 text-[14px]">
           <thead className="bg-transparent select-none">
             <tr>
-              <th className="px-2 py-2 text-left">Time</th>
-              <th className="px-2 py-2 text-left">Account</th>
-              <th className="px-2 py-2 text-left">Amount (Ӿ)</th>
-              <th className="px-2 py-2 text-left">Conf Time</th>
-              <th className="px-2 py-2 text-left">Type</th>
+              <th className="p-1 md:p-2 text-left">Time</th>
+              <th className="p-1 md:p-2 text-left hidden md:block">Account</th>
+              <th className="p-1 md:p-2 text-left">Amount (Ӿ)</th>
+              <th className="p-1 md:p-2 text-left">Conf Time</th>
+              <th className="p-1 md:p-2 text-left hidden md:block">Type</th>
             </tr>
           </thead>
           <tbody>
@@ -106,8 +93,10 @@ export const ConfirmationHistoryTable = () => {
                   key={confirmation.message.hash}
                   className={isDonation ? 'bg-blue-600 text-white' : ''}
                 >
-                  <td className="px-2 py-2">{formatTime(confirmation.time)}</td>
-                  <td className={`px-2 py-2`}>
+                  <td className="p-1 md:p-2 ">
+                    {formatTime(confirmation.time)}
+                  </td>
+                  <td className={`p-1 md:p-2 hidden md:block`}>
                     <TooltipProvider
                       skipDelayDuration={100}
                       delayDuration={0}
@@ -128,16 +117,16 @@ export const ConfirmationHistoryTable = () => {
                       </Tooltip>
                     </TooltipProvider>
                   </td>
-                  <td className={`px-2 py-2`}>
+                  <td className={`p-1 md:p-2`}>
                     <span style={{ color: style.hexColor }}>Ӿ {amount}</span>
                   </td>
-                  <td className="px-2 py-2">
+                  <td className="p-1 md:p-2">
                     <span className={`${confirmationTimeClasses}`}>
                       {confirmation.message.election_info.duration}
                     </span>
                     <span> ms</span>
                   </td>
-                  <td className="px-2 py-2">
+                  <td className="p-1 md:p-2 hidden md:block">
                     {isDonation
                       ? 'Donation💰'
                       : confirmation.message.block.subtype.toLocaleUpperCase()}
