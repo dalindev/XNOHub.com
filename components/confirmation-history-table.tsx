@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { NANO_LIVE_ENV } from '@/constants/nano-live-env';
 
 export const ConfirmationHistoryTable = () => {
   const { confirmationHistory } = useConfirmations();
@@ -52,12 +53,14 @@ export const ConfirmationHistoryTable = () => {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold">Confirmation History</h2>
+        <h2 className="text-xl font-semibold select-none text-gray-300">
+          Confirmation History
+        </h2>
         <Button
           onClick={() => setIsCollapsed(!isCollapsed)}
           variant="outline"
           size="sm"
-          className="flex items-center gap-2 bg-transparent hover:bg-transparent hover:text-[#209ce9]"
+          className="flex select-none items-center gap-2 bg-transparent hover:bg-transparent hover:text-[#209ce9]"
         >
           {isCollapsed ? (
             <>
@@ -72,9 +75,9 @@ export const ConfirmationHistoryTable = () => {
           )}
         </Button>
       </div>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto select-none text-gray-400">
         <table className="min-w-full bg-transparent border border-gray-300 text-[14px]">
-          <thead className="bg-transparent">
+          <thead className="bg-transparent select-none">
             <tr>
               <th className="px-2 py-2 text-left">Time</th>
               <th className="px-2 py-2 text-left">Account</th>
@@ -90,9 +93,14 @@ export const ConfirmationHistoryTable = () => {
               const confirmationTimeClasses = confirmationTimeStyle(
                 Number(confirmation.message.election_info.duration)
               );
-
+              const isDonation =
+                confirmation.message.block.link_as_account ===
+                NANO_LIVE_ENV.donationAccount;
               return (
-                <tr key={confirmation.message.hash}>
+                <tr
+                  key={confirmation.message.hash}
+                  className={isDonation ? 'bg-blue-600 text-white' : ''}
+                >
                   <td className="px-2 py-2">{formatTime(confirmation.time)}</td>
                   <td className={`px-2 py-2`}>
                     <TooltipProvider
@@ -108,7 +116,7 @@ export const ConfirmationHistoryTable = () => {
                           </span>
                         </TooltipTrigger>
                         <TooltipContent className="bg-black">
-                          <span className="bg-black text-white border-1 border-gray-300 p-2">
+                          <span className="bg-black text-white border-1 border-gray-300 p-2 select-text">
                             {confirmation.message.account}
                           </span>
                         </TooltipContent>
@@ -125,7 +133,9 @@ export const ConfirmationHistoryTable = () => {
                     <span> ms</span>
                   </td>
                   <td className="px-2 py-2">
-                    {confirmation.message.block.subtype.toLocaleUpperCase()}
+                    {isDonation
+                      ? 'Donation💰'
+                      : confirmation.message.block.subtype.toLocaleUpperCase()}
                   </td>
                 </tr>
               );
@@ -134,7 +144,7 @@ export const ConfirmationHistoryTable = () => {
         </table>
       </div>
       {!isCollapsed && (
-        <div className="flex justify-between items-center mt-4">
+        <div className="flex justify-between items-center mt-4 select-none text-gray-400">
           <Button
             onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
             disabled={currentPage === 1}
@@ -159,7 +169,7 @@ export const ConfirmationHistoryTable = () => {
               currentPage ===
               Math.ceil(confirmationHistory.length / itemsPerPage)
             }
-            className="px-3 py-0 h-8 text-[16px] font-normal bg-green-500 hover:bg-green-600 text-white rounded disabled:bg-black"
+            className="px-3 py-0 h-8 text-[16px] font-normal bg-green-700 hover:bg-green-800 text-white rounded disabled:bg-black"
           >
             Next
           </Button>

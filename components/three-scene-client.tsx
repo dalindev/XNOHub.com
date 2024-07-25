@@ -7,6 +7,7 @@ import { IRepData } from '@/types/index';
 import ThreeMesh from '@/components/three-mesh';
 import { CloudMesh } from '@/components/three-cloud-mesh';
 import { ConfirmationHistoryTable } from '@/components/confirmation-history-table';
+import { DonationImagePopover } from '@/components/donation-image-popover';
 
 interface ThreeSceneClientProps {
   repsGeoInfo: IRepData[];
@@ -138,6 +139,11 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
         />
         <CloudMesh />
       </Canvas>
+
+      {/* Donation Image Popover */}
+      <div className="absolute bottom-6 left-0 right-0 flex justify-center">
+        <DonationImagePopover />
+      </div>
 
       {/* Node Info */}
       <div className="absolute bottom-4 right-4 z-10">

@@ -50,12 +50,6 @@ export const ConfirmationProvider: React.FC<{ children: React.ReactNode }> = ({
     if (subscriptions) {
       const confirmationSubscription = subscriptions.confirmations.subscribe({
         next: (confirmation) => {
-          console.log(
-            `Received confirmation (${
-              confirmation.message.election_info.duration
-            }ms, Ӿ${parseNanoAmount(confirmation.message.amount)}):`,
-            confirmation
-          );
           if (parseNanoAmount(confirmation.message.amount) > 0) {
             addConfirmation(confirmation);
           }
