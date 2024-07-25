@@ -152,7 +152,7 @@ const ThreeMesh: React.FC<ThreeMeshProps> = ({
         )}
       </mesh>
       <mesh ref={sunRef}>
-        <sphereGeometry args={[0.2, 16, 16]} />
+        {/* <sphereGeometry args={[0.2, 16, 16]} /> */}
         <primitive object={sunMaterial} attach="material" />
       </mesh>
     </>
