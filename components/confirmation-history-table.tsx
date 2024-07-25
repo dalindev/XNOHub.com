@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useConfirmations } from '@/providers/confirmation-provider';
 import { parseNanoAmount } from '@/lib/parse-nano-amount';
 import { getStyleByNanoAmount } from '@/lib/get-style-by-nano-amount';
+import Image from 'next/image';
 import {
   Tooltip,
   TooltipContent,
@@ -53,9 +54,13 @@ export const ConfirmationHistoryTable = () => {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold select-none text-gray-300">
-          Confirmation History
-        </h2>
+        <Image
+          src="/logo.png"
+          alt="xnohub.com"
+          width={120}
+          height={40}
+          className="border border-gray-300 rounded-[10px]"
+        />
         <Button
           onClick={() => setIsCollapsed(!isCollapsed)}
           variant="outline"
