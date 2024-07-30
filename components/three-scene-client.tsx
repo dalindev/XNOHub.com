@@ -122,14 +122,18 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
         </div>
       </div> */}
 
-      <div className="absolute top-4 left-4 z-10 flex-col">
-        <Image
+      <div className="absolute top-1 md:top-4 left-4 md:left-10 z-10 flex-col">
+        <span className="text-[40px] font-thin font-sans text-[#209ce9]">
+          ӾNO
+        </span>
+        <span className="text-[40px] text-gray-200">Hub</span>
+        {/* <Image
           src="/logo.png"
           alt="xnohub.com"
           width={120}
           height={40}
           className="border border-gray-300 rounded-[10px] select-none"
-        />
+        /> */}
       </div>
 
       <div className="absolute top-4 right-4 z-10">
