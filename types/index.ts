@@ -52,7 +52,7 @@ export interface IRepData {
 }
 
 // Define the block type
-interface NanoBlock {
+interface Block {
   type: string;
   account: string;
   previous: string;
@@ -77,13 +77,21 @@ interface ElectionInfo {
 }
 
 // Define the message type
+// interface ConfirmationMessage {
+//   account: string;
+//   amount: string;
+//   hash: string;
+//   confirmation_type: string;
+//   election_info: ElectionInfo;
+//   block: NanoBlock;
+// }
+
 interface ConfirmationMessage {
   account: string;
   amount: string;
   hash: string;
   confirmation_type: string;
-  election_info: ElectionInfo;
-  block: NanoBlock;
+  block: Block;
 }
 
 // Define the main confirmation type

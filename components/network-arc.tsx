@@ -34,7 +34,8 @@ const NetworkArcs: React.FC<NetworkArcsProps> = ({ nodes, earthRadius }) => {
 
     const newArcs = activeConfirmations.flatMap((confirmation) => {
       const representativeAccount = confirmation.message.block.representative;
-      const duration = Number(confirmation.message.election_info.duration);
+      // const duration = Number(confirmation.message.election_info.duration);
+      const duration = 500;
       const amount = parseNanoAmount(confirmation.message.amount);
       const sourceNode =
         nodes.find((node) => node.account === representativeAccount) ??

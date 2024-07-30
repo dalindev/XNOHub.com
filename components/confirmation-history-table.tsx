@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { NANO_LIVE_ENV } from '@/constants/nano-live-env';
+import { getRepName } from '@/lib/get-rep-name';
 
 export const ConfirmationHistoryTable = () => {
   const { confirmationHistory } = useConfirmations();
@@ -68,23 +69,29 @@ export const ConfirmationHistoryTable = () => {
         </Button>
       </div>
       <div className="overflow-x-auto select-none text-gray-400">
-        <table className="min-w-full bg-transparent border border-gray-300 text-[14px]">
+        <table className="min-w-full bg-transparent border border-transparent md:border-gray-300 text-[14px]">
           <thead className="bg-transparent select-none">
             <tr>
-              <th className="p-1 md:p-2 text-left">Time</th>
-              <th className="p-1 md:p-2 text-left hidden md:block">Account</th>
+              <th className="p-1 md:p-2 text-left hidden md:table-cell">
+                Time
+              </th>
+              <th className="p-1 md:p-2 text-left hidden md:table-cell">
+                Account
+              </th>
               <th className="p-1 md:p-2 text-left">Amount (Ӿ)</th>
-              <th className="p-1 md:p-2 text-left">Conf Time</th>
-              <th className="p-1 md:p-2 text-left hidden md:block">Type</th>
+              <th className="p-1 md:p-2 text-left hidden md:table-cell">
+                Representative
+              </th>
+              <th className="p-1 md:p-2 text-left hidden md:table-cell">
+                Type
+              </th>
             </tr>
           </thead>
           <tbody>
             {getDisplayedHistory().map((confirmation, index) => {
               const amount = parseNanoAmount(confirmation.message.amount);
               const style = getStyleByNanoAmount(amount);
-              const confirmationTimeClasses = confirmationTimeStyle(
-                Number(confirmation.message.election_info.duration)
-              );
+              const confirmationTimeClasses = confirmationTimeStyle(500);
               const isDonation =
                 confirmation.message.block.link_as_account ===
                 NANO_LIVE_ENV.donationAccount;
@@ -93,10 +100,10 @@ export const ConfirmationHistoryTable = () => {
                   key={confirmation.message.hash}
                   className={isDonation ? 'bg-blue-600 text-white' : ''}
                 >
-                  <td className="p-1 md:p-2 ">
+                  <td className="p-1 md:p-2  hidden md:table-cell">
                     {formatTime(confirmation.time)}
                   </td>
-                  <td className={`p-1 md:p-2 hidden md:block`}>
+                  <td className={`p-1 md:p-2 hidden md:table-cell`}>
                     <TooltipProvider
                       skipDelayDuration={100}
                       delayDuration={0}
@@ -117,16 +124,15 @@ export const ConfirmationHistoryTable = () => {
                       </Tooltip>
                     </TooltipProvider>
                   </td>
-                  <td className={`p-1 md:p-2`}>
+                  <td className={`p-1 md:p-2 `}>
                     <span style={{ color: style.hexColor }}>Ӿ {amount}</span>
                   </td>
-                  <td className="p-1 md:p-2">
+                  <td className="p-1 md:p-2  hidden md:table-cell">
                     <span className={`${confirmationTimeClasses}`}>
-                      {confirmation.message.election_info.duration}
+                      {getRepName(confirmation.message.block.representative)}
                     </span>
-                    <span> ms</span>
                   </td>
-                  <td className="p-1 md:p-2 hidden md:block">
+                  <td className="p-1 md:p-2 hidden md:table-cell">
                     {isDonation
                       ? 'Donation💰'
                       : confirmation.message.block.subtype.toLocaleUpperCase()}
@@ -142,11 +148,12 @@ export const ConfirmationHistoryTable = () => {
           <Button
             onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
             disabled={currentPage === 1}
-            className="px-3 py-0 h-8 text-[16px] bg-green-500 hover:bg-green-600 text-white rounded disabled:bg-black"
+            className="p-1 md:px-3 py-0 h-8 text-[12px] md:text-[16px] bg-transparent hover:bg-green-600 text-white rounded disabled:bg-black"
           >
-            Previous
+            <span className="hidden md:flex">Previous</span>
+            <span className="md:hidden">&lt;</span>
           </Button>
-          <span>
+          <span className="text-[10px] md:text-[14px]">
             Page {currentPage} of{' '}
             {Math.ceil(confirmationHistory.length / itemsPerPage)}
           </span>
@@ -163,9 +170,10 @@ export const ConfirmationHistoryTable = () => {
               currentPage ===
               Math.ceil(confirmationHistory.length / itemsPerPage)
             }
-            className="px-3 py-0 h-8 text-[16px] font-normal bg-green-700 hover:bg-green-800 text-white rounded disabled:bg-black"
+            className="p-1 md:px-3 py-0 h-8 text-[12px] md:text-[16px] font-normal bg-transparent hover:bg-green-800 text-white rounded disabled:bg-black"
           >
-            Next
+            <span className="hidden md:flex">Next</span>
+            <span className="md:hidden">&gt;</span>
           </Button>
         </div>
       )}

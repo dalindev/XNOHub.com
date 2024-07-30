@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Subject } from 'rxjs';
 import { webSocket, WebSocketSubject } from 'rxjs/webSocket';
 import { IRepOnline } from '@/types/index';
 import { NanoConfirmation } from '@/types/index';
 import { NANO_LIVE_ENV } from '@/constants/nano-live-env';
+import { RepsData } from '@/data/defualtMergedRepsData';
 
 interface Subscriptions {
   votes: Subject<Vote>;
@@ -33,23 +34,24 @@ interface StoppedElection {
 }
 
 const useNanoWebsocket = () => {
-  const wsUrl = NANO_LIVE_ENV.wsUrl; // 'wss://nanoslo.0x.no/websocket';
-  const principalsUrl = NANO_LIVE_ENV.principalsUrl;
+  const wsUrl = useMemo(() => NANO_LIVE_ENV.wsUrl, []);
+  // const principalsUrl = useMemo(() => NANO_LIVE_ENV.principalsUrl, []);
+  // const principalsUrl = NANO_LIVE_ENV.principalsUrl;
   const [socket, setSocket] = useState<WebSocketSubject<any> | null>(null);
-  const [principals, setPrincipals] = useState<IRepOnline[]>([]);
+  const [principals, setPrincipals] = useState<IRepOnline[]>(RepsData);
   const [subscriptions, setSubscriptions] = useState<Subscriptions | null>(
     null
   );
 
-  const fetchPrincipals = useCallback(async () => {
-    try {
-      const response = await fetch(principalsUrl);
-      const data = await response.json();
-      setPrincipals(data);
-    } catch (error) {
-      console.error('Error fetching principals:', error);
-    }
-  }, [principalsUrl]);
+  // const fetchPrincipals = useCallback(async () => {
+  //   try {
+  //     const response = await fetch(principalsUrl);
+  //     const data = await response.json();
+  //     setPrincipals(data);
+  //   } catch (error) {
+  //     console.error('Error fetching principals:', error);
+  //   }
+  // }, [principalsUrl]);
 
   const subscribe = useCallback(() => {
     if (socket) {
@@ -64,6 +66,7 @@ const useNanoWebsocket = () => {
             break;
           case 'confirmation':
             confirmationSubscription.next(res);
+            console.log('confirmation:', res);
             break;
           case 'stopped_election':
             stoppedElectionsSubscription.next(res);
@@ -80,11 +83,11 @@ const useNanoWebsocket = () => {
           representatives: principals.map((p) => p.account)
         }
       });
-
       socket.next({
         action: 'subscribe',
         topic: 'confirmation',
         options: {
+          all_local_accounts: 'true',
           confirmation_type: 'active',
           include_election_info: 'true',
           include_block: 'true'
@@ -105,15 +108,32 @@ const useNanoWebsocket = () => {
   }, [socket, principals]);
 
   useEffect(() => {
-    fetchPrincipals();
-  }, [fetchPrincipals]);
+    console.log('Attempting to connect to WebSocket:', wsUrl);
+    const newSocket = webSocket<any>({
+      url: wsUrl,
+      openObserver: {
+        next: () => {
+          console.log('WebSocket connection established');
+        }
+      },
+      closeObserver: {
+        next: (closeEvent) => {
+          console.log('WebSocket connection closed:', closeEvent);
+        }
+      }
+    });
 
-  useEffect(() => {
-    const newSocket = webSocket<any>(wsUrl);
+    newSocket.subscribe({
+      next: (msg) => console.log('Received message:', msg),
+      error: (err) => console.error('WebSocket error:', err),
+      complete: () => console.log('WebSocket connection completed')
+    });
+
     setSocket(newSocket);
 
     return () => {
       if (newSocket) {
+        console.log('Closing WebSocket connection');
         newSocket.complete();
       }
     };

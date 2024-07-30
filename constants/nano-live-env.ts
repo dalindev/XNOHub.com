@@ -1,7 +1,11 @@
+// For more websockets, see https://publicnodes.somenano.com/
 export const NANO_LIVE_ENV = {
   production: true,
   network: 'live',
-  wsUrl: 'wss://nanows.numsu.dev',
+  // wsUrl: 'wss://node.somenano.com/websocket',
+  // wsUrl: 'wss://rainstorm.city/websocket',
+  // wsUrl: 'wss://bitrequest.app:8010/',
+  wsUrl: 'wss://nanoslo.0x.no/websocket',
   rpcUrl: 'https://nanoproxy.numsu.dev/proxy',
   principalsUrl: 'https://nanobrowse.com/api/reps_online',
   // https://node.somenano.com/proxy?action=representatives

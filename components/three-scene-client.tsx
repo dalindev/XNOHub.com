@@ -54,11 +54,11 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
     }
   }, [confirmations]);
 
-  const adjustTime = (date: Date, hoursOffset: number): Date => {
-    const newDate = new Date(date);
-    newDate.setUTCHours(newDate.getUTCHours() + hoursOffset);
-    return newDate;
-  };
+  // const adjustTime = (date: Date, hoursOffset: number): Date => {
+  //   const newDate = new Date(date);
+  //   newDate.setUTCHours(newDate.getUTCHours() + hoursOffset);
+  //   return newDate;
+  // };
 
   // const handleOffsetChange = (offset: number) => {
   //   setTimeOffset((prevOffset) => {
@@ -128,7 +128,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
           alt="xnohub.com"
           width={120}
           height={40}
-          className="border border-gray-300 rounded-[10px]"
+          className="border border-gray-300 rounded-[10px] select-none"
         />
       </div>
 

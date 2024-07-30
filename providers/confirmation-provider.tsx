@@ -40,16 +40,43 @@ export const ConfirmationProvider: React.FC<{ children: React.ReactNode }> = ({
       return newHistory;
     });
 
+    // create type for this:
+
+    // {
+    //     "topic": "confirmation",
+    //     "time": "1722230032943",
+    //     "message": {
+    //         "account": "nano_1tipnanogsu7q59pnie3qfc4w378wm43fg4ksqc8wmnnfnizrq1xrpt5geho",
+    //         "amount": "3752000000000000000000000000",
+    //         "hash": "5ECDF2BDFB4DE31FC39EE0C267B3192270CF3F5E4C33FB675F2010F86A1DA9F4",
+    //         "confirmation_type": "active_quorum",
+    //         "block": {
+    //             "type": "state",
+    //             "account": "nano_1tipnanogsu7q59pnie3qfc4w378wm43fg4ksqc8wmnnfnizrq1xrpt5geho",
+    //             "previous": "7763F149524FFE88411234CF1F1A7C1D33D47E045333A595AB10E7E33F8189D9",
+    //             "representative": "nano_1tipnanogsu7q59pnie3qfc4w378wm43fg4ksqc8wmnnfnizrq1xrpt5geho",
+    //             "balance": "101090550791003523401275528777782",
+    //             "link": "46BDDD7107B08A2852F5D598137CB088D2697BE01CE0D8A99DD23FCCBAAAF68C",
+    //             "link_as_account": "nano_1joxuorihe6c73bhdoer4fyd348kf7xy1991u4nsunjzskxcoxnem7gx8k4o",
+    //             "signature": "FD423655742A5FF6D7DB2E83536F1B67AFF017C0A26CD7ABB1CFE5D0D5638527C5789CDFF61027C01ABC6CD724F104CAA45246A9F1C7DD7B313227875DE88A01",
+    //             "work": "e03cd856d9719463",
+    //             "subtype": "send"
+    //         }
+    //     }
+    // }
+
     // Remove from active confirmations after duration
     setTimeout(() => {
       setActiveConfirmations((prev) => prev.filter((c) => c !== confirmation));
-    }, Number(confirmation.message.election_info.duration) ?? 0);
+    }, Number(500) ?? 0);
   }, []);
 
   useEffect(() => {
+    console.log('Subscriptions:', subscriptions);
     if (subscriptions) {
       const confirmationSubscription = subscriptions.confirmations.subscribe({
         next: (confirmation) => {
+          console.log('Confirmation:', confirmation);
           if (parseNanoAmount(confirmation.message.amount) > 0) {
             addConfirmation(confirmation);
           }
