@@ -10,6 +10,7 @@ const GifLoader = () => {
         width={800}
         height={262}
         className="w-1/2 h-auto"
+        unoptimized
       />
       <div className="text-[30px] w-full text-center m-10">
         Loading... Ӿ ...

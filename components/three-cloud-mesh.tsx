@@ -6,7 +6,10 @@ import { TextureLoader } from 'three/src/loaders/TextureLoader';
 import { Mesh } from 'three';
 
 export const CloudMesh = () => {
-  const cloudMap = useLoader(TextureLoader, '/earth-assets/fair_clouds_4k.png');
+  const cloudMap = useLoader(
+    TextureLoader,
+    '/earth-assets-mini/fair_clouds_4k.png'
+  );
   const meshRef = useRef<Mesh>(null); // Create a reference to the mesh
 
   useFrame(() => {

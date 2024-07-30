@@ -57,10 +57,10 @@ const ThreeMesh: React.FC<ThreeMeshProps> = ({
   const sunRef = useRef<THREE.Mesh>(null);
 
   const props = useTexture({
-    map: '/earth-assets/earth_no_clouds_8k.jpg',
-    bumpMap: '/earth-assets/earth_elev_bump_8k.jpg',
-    specularMap: '/earth-assets/earth_water_8k.png',
-    emissiveMap: '/earth-assets/earth_night_8k.jpg'
+    map: '/earth-assets-mini/earth_no_clouds_8k.jpg',
+    bumpMap: '/earth-assets-mini/earth_elev_bump_8k.jpg',
+    specularMap: '/earth-assets-mini/earth_water_8k.png',
+    emissiveMap: '/earth-assets-mini/earth_night_8k.jpg'
   });
 
   const sunMaterial = useMemo(
