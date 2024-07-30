@@ -51,6 +51,7 @@ export const getStyleByNanoAmount = (amount: number) => {
   if (amount >= 10)
     return {
       color: 0x209ce9,
+      lineWidth: 2,
       hexColor: '#209ce9'
     };
   if (amount >= 1)

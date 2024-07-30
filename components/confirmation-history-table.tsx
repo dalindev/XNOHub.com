@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { NANO_LIVE_ENV } from '@/constants/nano-live-env';
 import { getRepName } from '@/lib/get-rep-name';
+import { truncateAddress } from '@/lib/truncate-address';
 
 export const ConfirmationHistoryTable = () => {
   const { confirmationHistory } = useConfirmations();
@@ -26,10 +27,6 @@ export const ConfirmationHistoryTable = () => {
     return new Date(parseInt(timestamp)).toLocaleTimeString();
   };
 
-  const truncateAddress = (address: string) => {
-    return `${address.slice(0, 10)}...${address.slice(-5)}`;
-  };
-
   const getDisplayedHistory = () => {
     if (isCollapsed) {
       return confirmationHistory.slice(0, collapsedItemCount);
@@ -38,12 +35,6 @@ export const ConfirmationHistoryTable = () => {
       (currentPage - 1) * itemsPerPage,
       currentPage * itemsPerPage
     );
-  };
-
-  const confirmationTimeStyle = (confirmationTime: number) => {
-    if (confirmationTime < 500) return 'text-green-500';
-    if (confirmationTime < 1000) return 'text-yellow-500';
-    return 'text-red-500';
   };
 
   return (
@@ -91,10 +82,12 @@ export const ConfirmationHistoryTable = () => {
             {getDisplayedHistory().map((confirmation, index) => {
               const amount = parseNanoAmount(confirmation.message.amount);
               const style = getStyleByNanoAmount(amount);
-              const confirmationTimeClasses = confirmationTimeStyle(500);
               const isDonation =
                 confirmation.message.block.link_as_account ===
                 NANO_LIVE_ENV.donationAccount;
+              const repName = getRepName(
+                confirmation.message.block.representative
+              );
               return (
                 <tr
                   key={confirmation.message.hash}
@@ -128,8 +121,15 @@ export const ConfirmationHistoryTable = () => {
                     <span style={{ color: style.hexColor }}>Ӿ {amount}</span>
                   </td>
                   <td className="p-1 md:p-2  hidden md:table-cell">
-                    <span className={`${confirmationTimeClasses}`}>
-                      {getRepName(confirmation.message.block.representative)}
+                    <span
+                      className={`${
+                        repName ? 'text-[#ffa31a]' : 'text-gray-400'
+                      }`}
+                    >
+                      {repName ??
+                        truncateAddress(
+                          confirmation.message.block.representative
+                        )}
                     </span>
                   </td>
                   <td className="p-1 md:p-2 hidden md:table-cell">
