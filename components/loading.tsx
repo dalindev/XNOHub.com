@@ -5,7 +5,7 @@ const GifLoader = () => {
   return (
     <div className="flex flex-col justify-center items-center h-screen">
       <Image
-        src="/xno_currencies.gif"
+        src="/xno_currencies_mini.gif"
         alt="Loading..."
         width={800}
         height={262}
