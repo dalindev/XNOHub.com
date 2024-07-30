@@ -69,7 +69,7 @@ export const ConfirmationHistoryTable = () => {
         </Button>
       </div>
       <div className="overflow-x-auto select-none text-gray-400">
-        <table className="min-w-full bg-transparent border border-transparent md:border-gray-300 text-[14px]">
+        <table className="min-w-full bg-transparent border border-transparent text-[14px]">
           <thead className="bg-transparent select-none">
             <tr>
               <th className="p-1 md:p-2 text-left hidden md:table-cell">
