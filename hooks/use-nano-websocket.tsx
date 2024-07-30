@@ -66,7 +66,6 @@ const useNanoWebsocket = () => {
             break;
           case 'confirmation':
             confirmationSubscription.next(res);
-            console.log('confirmation:', res);
             break;
           case 'stopped_election':
             stoppedElectionsSubscription.next(res);
@@ -108,7 +107,6 @@ const useNanoWebsocket = () => {
   }, [socket, principals]);
 
   useEffect(() => {
-    console.log('Attempting to connect to WebSocket:', wsUrl);
     const newSocket = webSocket<any>({
       url: wsUrl,
       openObserver: {
@@ -123,11 +121,11 @@ const useNanoWebsocket = () => {
       }
     });
 
-    newSocket.subscribe({
-      next: (msg) => console.log('Received message:', msg),
-      error: (err) => console.error('WebSocket error:', err),
-      complete: () => console.log('WebSocket connection completed')
-    });
+    // newSocket.subscribe({
+    //   next: (msg) => console.log('Received message:', msg),
+    //   error: (err) => console.error('WebSocket error:', err),
+    //   complete: () => console.log('WebSocket connection completed')
+    // });
 
     setSocket(newSocket);
 

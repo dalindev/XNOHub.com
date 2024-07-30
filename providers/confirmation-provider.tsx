@@ -76,7 +76,6 @@ export const ConfirmationProvider: React.FC<{ children: React.ReactNode }> = ({
     if (subscriptions) {
       const confirmationSubscription = subscriptions.confirmations.subscribe({
         next: (confirmation) => {
-          console.log('Confirmation:', confirmation);
           if (parseNanoAmount(confirmation.message.amount) > 0) {
             addConfirmation(confirmation);
           }
