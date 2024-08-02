@@ -1,7 +1,9 @@
 # Nano Network Globe Visualization
 
 ## Demo Video
-https://github.com/user-attachments/assets/8322efc5-1ebc-4fd2-ae76-c960f59b5430
+
+https://github.com/user-attachments/assets/ea4c65a6-878e-44d6-81cc-5bb8e87ee979
+
 
 ## Overview
 
