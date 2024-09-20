@@ -15,6 +15,8 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 import { NANO_LIVE_ENV } from '@/constants/nano-live-env';
 import { getRepName } from '@/lib/get-rep-name';
 import { truncateAddress } from '@/lib/truncate-address';
+import { formatRelativeTime } from '@/lib/format-relative-time'; // Add this import
+import { NanoConfirmation } from '@/types/index';
 
 export const ConfirmationHistoryTable = () => {
   const { confirmationHistory } = useConfirmations();
@@ -23,9 +25,10 @@ export const ConfirmationHistoryTable = () => {
   const itemsPerPage = 10;
   const collapsedItemCount = 2;
 
-  const formatTime = (timestamp: string) => {
-    return new Date(parseInt(timestamp)).toLocaleTimeString();
-  };
+  // Remove or comment out the formatTime function as we won't need it anymore
+  // const formatTime = (timestamp: string) => {
+  //   return new Date(parseInt(timestamp)).toLocaleTimeString();
+  // };
 
   const getDisplayedHistory = () => {
     if (isCollapsed) {
@@ -63,9 +66,7 @@ export const ConfirmationHistoryTable = () => {
         <table className="min-w-full bg-transparent border border-transparent text-[14px]">
           <thead className="bg-transparent select-none">
             <tr>
-              <th className="p-1 md:p-2 text-left hidden md:table-cell">
-                Time
-              </th>
+              <th className="p-1 md:p-2 text-left hidden md:table-cell">Age</th>
               <th className="p-1 md:p-2 text-left hidden md:table-cell">
                 Account
               </th>
@@ -79,7 +80,7 @@ export const ConfirmationHistoryTable = () => {
             </tr>
           </thead>
           <tbody>
-            {getDisplayedHistory().map((confirmation, index) => {
+            {getDisplayedHistory().map((confirmation: NanoConfirmation) => {
               const amount = parseNanoAmount(confirmation.message.amount);
               const style = getStyleByNanoAmount(amount);
               const isDonation =
@@ -93,8 +94,8 @@ export const ConfirmationHistoryTable = () => {
                   key={confirmation.message.hash}
                   className={isDonation ? 'bg-blue-600 text-white' : ''}
                 >
-                  <td className="p-1 md:p-2  hidden md:table-cell">
-                    {formatTime(confirmation.time)}
+                  <td className="p-1 md:p-2 hidden md:table-cell">
+                    {formatRelativeTime(parseInt(confirmation.time))}
                   </td>
                   <td className={`p-1 md:p-2 hidden md:table-cell`}>
                     <TooltipProvider
@@ -133,9 +134,14 @@ export const ConfirmationHistoryTable = () => {
                     </span>
                   </td>
                   <td className="p-1 md:p-2 hidden md:table-cell">
-                    {isDonation
-                      ? 'Donation💰'
-                      : confirmation.message.block.subtype.toLocaleUpperCase()}
+                    {isDonation ? (
+                      'Donation💰'
+                    ) : confirmation.message.block.subtype.toLocaleUpperCase() ===
+                      'SEND' ? (
+                      <span className="text-green-500">Send</span>
+                    ) : (
+                      <span className="text-red-500">Receive</span>
+                    )}
                   </td>
                 </tr>
               );

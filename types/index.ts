@@ -98,5 +98,22 @@ interface ConfirmationMessage {
 export interface NanoConfirmation {
   topic: string;
   time: string;
-  message: ConfirmationMessage;
+  message: {
+    account: string;
+    amount: string;
+    hash: string;
+    confirmation_type: string;
+    block: {
+      type: string;
+      account: string;
+      previous: string;
+      representative: string;
+      balance: string;
+      link: string;
+      link_as_account: string;
+      signature: string;
+      work: string;
+      subtype: string;
+    };
+  };
 }

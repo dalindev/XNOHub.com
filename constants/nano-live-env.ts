@@ -4,8 +4,9 @@ export const NANO_LIVE_ENV = {
   network: 'live',
   // wsUrl: 'wss://node.somenano.com/websocket',
   // wsUrl: 'wss://rainstorm.city/websocket',
-  // wsUrl: 'wss://bitrequest.app:8010/',
+  // wsUrl: 'wss://bitrequest.app:8010/websocket',
   wsUrl: 'wss://nanoslo.0x.no/websocket',
+  // wsUrl: 'wss://node.somenano.com/repeater',
   rpcUrl: 'https://nanoproxy.numsu.dev/proxy',
   principalsUrl: 'https://nanobrowse.com/api/reps_online',
   // https://node.somenano.com/proxy?action=representatives

@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Subject } from 'rxjs';
+import { Subject, interval } from 'rxjs';
 import { webSocket, WebSocketSubject } from 'rxjs/webSocket';
-import { IRepOnline } from '@/types/index';
-import { NanoConfirmation } from '@/types/index';
+import { IRepOnline, NanoConfirmation } from '@/types/index';
 import { NANO_LIVE_ENV } from '@/constants/nano-live-env';
 import { RepsData } from '@/data/defualtMergedRepsData';
+import { SampleConfirmationData2 } from '@/data/sampleConfirmationData';
 
 interface Subscriptions {
   votes: Subject<Vote>;
@@ -35,26 +35,39 @@ interface StoppedElection {
 
 const useNanoWebsocket = () => {
   const wsUrl = useMemo(() => NANO_LIVE_ENV.wsUrl, []);
-  // const principalsUrl = useMemo(() => NANO_LIVE_ENV.principalsUrl, []);
-  // const principalsUrl = NANO_LIVE_ENV.principalsUrl;
   const [socket, setSocket] = useState<WebSocketSubject<any> | null>(null);
   const [principals, setPrincipals] = useState<IRepOnline[]>(RepsData);
   const [subscriptions, setSubscriptions] = useState<Subscriptions | null>(
     null
   );
 
-  // const fetchPrincipals = useCallback(async () => {
-  //   try {
-  //     const response = await fetch(principalsUrl);
-  //     const data = await response.json();
-  //     setPrincipals(data);
-  //   } catch (error) {
-  //     console.error('Error fetching principals:', error);
-  //   }
-  // }, [principalsUrl]);
+  const isLocalDevelopment = process.env.NODE_ENV === 'development';
+
+  const simulateConfirmations = useCallback(() => {
+    if (isLocalDevelopment) {
+      const confirmationSubscription = new Subject<NanoConfirmation>();
+      let index = 0;
+
+      const intervalSubscription = interval(1000).subscribe(() => {
+        const confirmation = SampleConfirmationData2[index];
+        confirmationSubscription.next(confirmation);
+        index = (index + 1) % SampleConfirmationData2.length;
+      });
+
+      setSubscriptions({
+        votes: new Subject<Vote>(),
+        confirmations: confirmationSubscription,
+        stoppedElections: new Subject<StoppedElection>()
+      });
+
+      return () => {
+        intervalSubscription.unsubscribe();
+      };
+    }
+  }, [isLocalDevelopment]);
 
   const subscribe = useCallback(() => {
-    if (socket) {
+    if (socket && !isLocalDevelopment) {
       const voteSubscription = new Subject<Vote>();
       const confirmationSubscription = new Subject<NanoConfirmation>();
       const stoppedElectionsSubscription = new Subject<StoppedElection>();
@@ -104,44 +117,43 @@ const useNanoWebsocket = () => {
         stoppedElections: stoppedElectionsSubscription
       });
     }
-  }, [socket, principals]);
+  }, [socket, principals, isLocalDevelopment]);
 
   useEffect(() => {
-    const newSocket = webSocket<any>({
-      url: wsUrl,
-      openObserver: {
-        next: () => {
-          console.log('WebSocket connection established');
+    if (isLocalDevelopment) {
+      console.log('Using sample data for local development');
+      return simulateConfirmations();
+    } else {
+      const newSocket = webSocket<any>({
+        url: wsUrl,
+        openObserver: {
+          next: () => {
+            console.log('WebSocket connection established');
+          }
+        },
+        closeObserver: {
+          next: (closeEvent) => {
+            console.log('WebSocket connection closed:', closeEvent);
+          }
         }
-      },
-      closeObserver: {
-        next: (closeEvent) => {
-          console.log('WebSocket connection closed:', closeEvent);
+      });
+
+      setSocket(newSocket);
+
+      return () => {
+        if (newSocket) {
+          console.log('Closing WebSocket connection');
+          newSocket.complete();
         }
-      }
-    });
-
-    // newSocket.subscribe({
-    //   next: (msg) => console.log('Received message:', msg),
-    //   error: (err) => console.error('WebSocket error:', err),
-    //   complete: () => console.log('WebSocket connection completed')
-    // });
-
-    setSocket(newSocket);
-
-    return () => {
-      if (newSocket) {
-        console.log('Closing WebSocket connection');
-        newSocket.complete();
-      }
-    };
-  }, [wsUrl]);
+      };
+    }
+  }, [wsUrl, isLocalDevelopment, simulateConfirmations]);
 
   useEffect(() => {
-    if (socket && principals.length > 0) {
+    if (socket && principals.length > 0 && !isLocalDevelopment) {
       subscribe();
     }
-  }, [socket, principals, subscribe]);
+  }, [socket, principals, subscribe, isLocalDevelopment]);
 
   return { subscriptions, principals };
 };
