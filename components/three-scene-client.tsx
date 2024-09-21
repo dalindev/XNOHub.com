@@ -3,7 +3,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
-import Image from 'next/image';
 import * as THREE from 'three';
 import { IRepData } from '@/types/index';
 import ThreeMesh from '@/components/three-mesh';
@@ -28,11 +27,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
   const [simulationTime, setSimulationTime] = useState<Date>(
     serverDateTime || new Date()
   );
-  // const [timeOffset, setTimeOffset] = useState(0);
-  // const [isControlsVisible, setIsControlsVisible] = useState(false);
   const [hoveredNode, setHoveredNode] = useState<IRepData | null>(null);
-  const [selectedNode, setSelectedNode] = useState<IRepData | null>(null);
-
   const { confirmationHistory: confirmations } = useConfirmations();
 
   useEffect(() => {
@@ -54,86 +49,17 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
     }
   }, [confirmations]);
 
-  // const adjustTime = (date: Date, hoursOffset: number): Date => {
-  //   const newDate = new Date(date);
-  //   newDate.setUTCHours(newDate.getUTCHours() + hoursOffset);
-  //   return newDate;
-  // };
-
-  // const handleOffsetChange = (offset: number) => {
-  //   setTimeOffset((prevOffset) => {
-  //     const newOffset = prevOffset + offset;
-  //     setSimulationTime((prevTime) => adjustTime(prevTime, offset));
-  //     return newOffset;
-  //   });
-  // };
-
-  // const handleResetToCurrentTime = () => {
-  //   const currentTime = new Date();
-  //   setSimulationTime(currentTime);
-  //   setTimeOffset(0);
-  // };
-
   if (!serverDateTime) {
     return null;
   }
 
   return (
     <div className="relative w-screen h-screen">
-      {/* Collapsible Time controls */}
-      {/* <div className="absolute top-4 left-4 z-10 flex-col hidden">
-        <button
-          onClick={() => setIsControlsVisible(!isControlsVisible)}
-          className={`bg-transparent text-gray-400 px-4 py-2 w-full border-[1px] border-blue-600`}
-        >
-          {isControlsVisible ? 'Hide Time Controls' : 'Show Time Controls'}
-        </button>
-        <div
-          className={`bg-gray-800 bg-opacity-70 w-[275px] rounded-b-lg p-4 text-white transition-all duration-300 ease-in-out overflow-hidden ${
-            isControlsVisible
-              ? 'max-h-96 opacity-100'
-              : 'py-0 h-0 max-h-0 opacity-0'
-          }`}
-        >
-          <div className="flex flex-col gap-2">
-            <div className="flex justify-between">
-              <button
-                onClick={() => handleOffsetChange(-1)}
-                className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded"
-              >
-                -1 Hour
-              </button>
-              <button
-                onClick={() => handleOffsetChange(1)}
-                className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded"
-              >
-                +1 Hour
-              </button>
-            </div>
-            <div>Time Offset: {timeOffset} hours</div>
-            <div className="w-[500px]">{simulationTime.toUTCString()}</div>
-            <button
-              onClick={handleResetToCurrentTime}
-              className="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded w-full"
-            >
-              Reset to Current Time
-            </button>
-          </div>
-        </div>
-      </div> */}
-
       <div className="absolute top-1 md:top-4 left-4 md:left-10 z-10 flex-col">
         <span className="text-[40px] font-thin font-sans text-[#209ce9]">
           ӾNO
         </span>
         <span className="text-[40px] text-gray-200">Hub</span>
-        {/* <Image
-          src="/logo.png"
-          alt="xnohub.com"
-          width={120}
-          height={40}
-          className="border border-gray-300 rounded-[10px] select-none"
-        /> */}
       </div>
 
       <div className="absolute top-4 right-4 z-10">
@@ -170,7 +96,6 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
           repsGeoInfo={repsGeoInfo}
           manualTime={simulationTime}
           onNodeHover={setHoveredNode}
-          onNodeClick={setSelectedNode}
         />
         <CloudMesh />
         <DonationAnimation />

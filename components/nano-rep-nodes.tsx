@@ -7,11 +7,10 @@ interface NanoRepNodesProps {
   repsGeoInfo: IRepData[];
   earthRadius: number;
   onNodeHover: (nodeRepsGeoInfo: IRepData | null) => void;
-  onNodeClick: (nodeRepsGeoInfo: IRepData) => void;
 }
 
 const NanoRepNodes: React.FC<NanoRepNodesProps> = React.memo(
-  ({ repsGeoInfo, earthRadius, onNodeHover, onNodeClick }) => {
+  ({ repsGeoInfo, earthRadius, onNodeHover }) => {
     const earthRadiusRef = useRef(earthRadius);
 
     const nodes = useMemo(() => {
@@ -33,13 +32,6 @@ const NanoRepNodes: React.FC<NanoRepNodesProps> = React.memo(
       [onNodeHover]
     );
 
-    const handleNodeClick = useCallback(
-      (node: IRepData) => {
-        onNodeClick(node);
-      },
-      [onNodeClick]
-    );
-
     return (
       <group>
         {nodes.map((node, index) => (
@@ -48,7 +40,7 @@ const NanoRepNodes: React.FC<NanoRepNodesProps> = React.memo(
             node={node}
             earthRadius={earthRadiusRef.current}
             onHover={handleNodeHover}
-            onClick={handleNodeClick}
+            // onClick={handleNodeClick}
           />
         ))}
         <NetworkArcs nodes={nodes} earthRadius={earthRadiusRef.current} />
@@ -76,11 +68,10 @@ interface NodeProps {
   node: IRepData & { position: THREE.Vector3; color: THREE.Color };
   earthRadius: number;
   onHover: (nodeRepsGeoInfo: IRepData | null) => void;
-  onClick: (nodeRepsGeoInfo: IRepData) => void;
 }
 
 const Node: React.FC<NodeProps> = React.memo(
-  ({ node, earthRadius, onHover, onClick }) => {
+  ({ node, earthRadius, onHover }) => {
     const [hovered, setHovered] = React.useState(false);
 
     const barHeight = useMemo(() => {
@@ -127,21 +118,12 @@ const Node: React.FC<NodeProps> = React.memo(
       [onHover]
     );
 
-    const handleClick = useCallback(
-      (e: THREE.Event) => {
-        e.stopPropagation();
-        onClick(node);
-      },
-      [node, onClick]
-    );
-
     return (
       <group
         position={barPosition}
         quaternion={barQuaternion}
         onPointerOver={handlePointerOver}
         onPointerOut={handlePointerOut}
-        onClick={handleClick}
       >
         <mesh geometry={barGeometry}>
           <meshBasicMaterial
