@@ -15,6 +15,7 @@ import { NANO_LIVE_ENV } from '@/constants/nano-live-env';
 import { parseNanoAmount } from '@/lib/parse-nano-amount';
 import { Falcon9Animation } from '@/components/falcon9-animation';
 import { Vector3 } from 'three';
+import { scaleRocketCount } from '@/lib/scale-rocket-count'; // We'll create this function
 
 // Add this function to generate a random position on the globe
 function getRandomPositionOnGlobe(radius: number = 1.2): Vector3 {
@@ -58,6 +59,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
         latestConfirmation.message.block.link_as_account ===
         NANO_LIVE_ENV.donationAccount;
       const amount = parseNanoAmount(latestConfirmation.message.amount);
+      const isSend = latestConfirmation.message.block.subtype === 'send';
       if (isDonation) {
         // Trigger existing donation animation
         if ((window as any).triggerDonationAnimation) {
@@ -65,10 +67,14 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
         }
       }
 
-      if (amount > 1) {
-        // Generate a random position for the rocket launch
-        const position = getRandomPositionOnGlobe();
-        setLaunchQueue((prevQueue) => [...prevQueue, position]);
+      if (isSend) {
+        // Send only to avoid duplicate launches
+        const rocketCount = scaleRocketCount(amount);
+        if (rocketCount <= 0) return;
+        const newPositions = Array.from({ length: rocketCount }, () =>
+          getRandomPositionOnGlobe()
+        );
+        setLaunchQueue((prevQueue) => [...prevQueue, ...newPositions]);
       }
     }
   }, [confirmations]);

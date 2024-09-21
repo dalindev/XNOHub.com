@@ -41,8 +41,8 @@ export const Falcon9Animation: React.FC<Falcon9AnimationProps> = ({
   const maxDistance = earthRadius * 50;
   const initialSpeed = 0.01;
   const accelerationRate = 0.02;
-  const launchDelay = 5;
-  const FLAME_SCALE = 150; // Increased from 150
+  const launchDelay = 2;
+  const FLAME_SCALE = 150;
   const FLAME_SPACING = 20;
   const FLAME_COUNT = 3; // Number of flame planes per thruster
   const FLAME_LENGTH_MULTIPLIER = 4; // New constant for flame length
@@ -65,8 +65,6 @@ export const Falcon9Animation: React.FC<Falcon9AnimationProps> = ({
 
   useEffect(() => {
     if (obj) {
-      console.log('Falcon Heavy model loaded', obj);
-
       const falcon9Group = obj.clone() as Falcon9;
       falcon9Group.scale.set(0.001, 0.001, 0.001);
 
