@@ -36,7 +36,7 @@ export const ConfirmationProvider: React.FC<{ children: React.ReactNode }> = ({
 
     // Add to history
     setConfirmationHistory((prev) => {
-      const newHistory = [confirmation, ...prev].slice(0, 200); // Keep only the latest 200
+      const newHistory = [confirmation, ...prev].slice(0, 100); // Keep only the latest 100
       return newHistory;
     });
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useConfirmations } from '@/providers/confirmation-provider';
 import { parseNanoAmount } from '@/lib/parse-nano-amount';
 import { getStyleByNanoAmount } from '@/lib/get-style-by-nano-amount';
@@ -11,76 +11,70 @@ import {
   TooltipTrigger
 } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, ChevronUp } from 'lucide-react';
 import { NANO_LIVE_ENV } from '@/constants/nano-live-env';
 import { getRepName } from '@/lib/get-rep-name';
 import { truncateAddress } from '@/lib/truncate-address';
-import { formatRelativeTime } from '@/lib/format-relative-time'; // Add this import
+import { formatRelativeTime } from '@/lib/format-relative-time';
 import { NanoConfirmation } from '@/types/index';
+import { Maximize2, Minimize2 } from 'lucide-react';
 
 export const ConfirmationHistoryTable = () => {
   const { confirmationHistory } = useConfirmations();
-  const [currentPage, setCurrentPage] = useState(1);
-  const [isCollapsed, setIsCollapsed] = useState(true);
-  const itemsPerPage = 10;
-  const collapsedItemCount = 2;
+  const [isFullView, setIsFullView] = useState(false);
+  const [limitedHistory, setLimitedHistory] = useState<NanoConfirmation[]>([]);
 
-  // Remove or comment out the formatTime function as we won't need it anymore
-  // const formatTime = (timestamp: string) => {
-  //   return new Date(parseInt(timestamp)).toLocaleTimeString();
-  // };
+  useEffect(() => {
+    // Keep only the latest 100 records
+    setLimitedHistory(confirmationHistory.slice(0, 100));
+  }, [confirmationHistory]);
 
-  const getDisplayedHistory = () => {
-    if (isCollapsed) {
-      return confirmationHistory.slice(0, collapsedItemCount);
-    }
-    return confirmationHistory.slice(
-      (currentPage - 1) * itemsPerPage,
-      currentPage * itemsPerPage
-    );
+  const toggleView = () => {
+    setIsFullView(!isFullView);
   };
 
   return (
     <div className="space-y-4 md:px-0 w-full md:w-fit">
       <div className="flex justify-end min-w-full items-center">
         <Button
-          onClick={() => setIsCollapsed(!isCollapsed)}
+          onClick={toggleView}
           variant="outline"
           size="sm"
           className="flex select-none items-center gap-2 bg-transparent hover:bg-transparent hover:text-[#209ce9]"
         >
-          {isCollapsed ? (
+          {isFullView ? (
             <>
-              <ChevronDown className="w-4 h-4" />
-              Show More
+              <Minimize2 className="w-4 h-4" />
+              Min View
             </>
           ) : (
             <>
-              <ChevronUp className="w-4 h-4" />
-              Show Less
+              <Maximize2 className="w-4 h-4" />
+              Full View
             </>
           )}
         </Button>
       </div>
-      <div className="overflow-x-auto select-none text-gray-400">
+      <div className="overflow-hidden h-[80vh]">
         <table className="min-w-full bg-transparent border border-transparent text-[14px]">
-          <thead className="bg-transparent select-none">
+          <thead className="bg-transparent select-none text-gray-300">
             <tr>
-              <th className="p-1 md:p-2 text-left hidden md:table-cell">Age</th>
-              <th className="p-1 md:p-2 text-left hidden md:table-cell">
-                Account
-              </th>
+              {isFullView && (
+                <>
+                  <th className="p-1 md:p-2 text-left">Age</th>
+                  <th className="p-1 md:p-2 text-left">Account</th>
+                </>
+              )}
               <th className="p-1 md:p-2 text-left">Amount (Ӿ)</th>
-              <th className="p-1 md:p-2 text-left hidden md:table-cell">
-                Representative
-              </th>
-              <th className="p-1 md:p-2 text-left hidden md:table-cell">
-                Type
-              </th>
+              {isFullView && (
+                <>
+                  <th className="p-1 md:p-2 text-left">Representative</th>
+                  <th className="p-1 md:p-2 text-left">Type</th>
+                </>
+              )}
             </tr>
           </thead>
           <tbody>
-            {getDisplayedHistory().map((confirmation: NanoConfirmation) => {
+            {limitedHistory.map((confirmation: NanoConfirmation) => {
               const amount = parseNanoAmount(confirmation.message.amount);
               const style = getStyleByNanoAmount(amount);
               const isDonation =
@@ -94,95 +88,70 @@ export const ConfirmationHistoryTable = () => {
                   key={confirmation.message.hash}
                   className={isDonation ? 'bg-blue-600 text-white' : ''}
                 >
-                  <td className="p-1 md:p-2 hidden md:table-cell">
-                    {formatRelativeTime(parseInt(confirmation.time))}
-                  </td>
-                  <td className={`p-1 md:p-2 hidden md:table-cell`}>
-                    <TooltipProvider
-                      skipDelayDuration={100}
-                      delayDuration={0}
-                      disableHoverableContent={false}
-                    >
-                      <Tooltip>
-                        <TooltipTrigger>
-                          {' '}
-                          <span className="cursor-help">
-                            {truncateAddress(confirmation.message.account)}
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent className="bg-black">
-                          <span className="bg-black text-white border-1 border-gray-300 p-2 select-text">
-                            {confirmation.message.account}
-                          </span>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </td>
-                  <td className={`p-1 md:p-2 `}>
+                  {isFullView && (
+                    <>
+                      <td className="p-1 md:p-2 text-gray-400">
+                        {formatRelativeTime(parseInt(confirmation.time))}
+                      </td>
+                      <td className={`p-1 md:p-2`}>
+                        <TooltipProvider
+                          skipDelayDuration={100}
+                          delayDuration={0}
+                          disableHoverableContent={false}
+                        >
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <span className="cursor-help text-gray-400">
+                                {truncateAddress(confirmation.message.account)}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent className="bg-black">
+                              <span className="bg-black text-white border-1 border-gray-300 p-2 select-text">
+                                {confirmation.message.account}
+                              </span>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </td>
+                    </>
+                  )}
+                  <td className={`p-1 md:p-2 ${isFullView ? '' : 'w-full'}`}>
                     <span style={{ color: style.hexColor }}>Ӿ {amount}</span>
                   </td>
-                  <td className="p-1 md:p-2  hidden md:table-cell">
-                    <span
-                      className={`${
-                        repName ? 'text-[#ffa31a]' : 'text-gray-400'
-                      }`}
-                    >
-                      {repName ??
-                        truncateAddress(
-                          confirmation.message.block.representative
+                  {isFullView && (
+                    <>
+                      <td className="p-1 md:p-2">
+                        <span
+                          className={`${
+                            repName ? 'text-[#ffa31a]' : 'text-gray-400'
+                          }`}
+                        >
+                          {repName ??
+                            truncateAddress(
+                              confirmation.message.block.representative
+                            )}
+                        </span>
+                      </td>
+                      <td className="p-1 md:p-2">
+                        {isDonation ? (
+                          'Donation💰'
+                        ) : confirmation.message.block.subtype.toLocaleUpperCase() ===
+                          'SEND' ? (
+                          <span className="text-red-500">Send</span>
+                        ) : (
+                          <span className="text-green-500">Receive</span>
                         )}
-                    </span>
-                  </td>
-                  <td className="p-1 md:p-2 hidden md:table-cell">
-                    {isDonation ? (
-                      'Donation💰'
-                    ) : confirmation.message.block.subtype.toLocaleUpperCase() ===
-                      'SEND' ? (
-                      <span className="text-green-500">Send</span>
-                    ) : (
-                      <span className="text-red-500">Receive</span>
-                    )}
-                  </td>
+                      </td>
+                    </>
+                  )}
                 </tr>
               );
             })}
           </tbody>
         </table>
       </div>
-      {!isCollapsed && (
-        <div className="flex justify-between items-center mt-4 select-none text-gray-400">
-          <Button
-            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-            disabled={currentPage === 1}
-            className="p-1 md:px-3 py-0 h-8 text-[12px] md:text-[16px] bg-transparent hover:bg-green-600 text-white rounded disabled:bg-black"
-          >
-            <span className="hidden md:flex">Previous</span>
-            <span className="md:hidden">&lt;</span>
-          </Button>
-          <span className="text-[10px] md:text-[14px]">
-            Page {currentPage} of{' '}
-            {Math.ceil(confirmationHistory.length / itemsPerPage)}
-          </span>
-          <Button
-            onClick={() =>
-              setCurrentPage((prev) =>
-                Math.min(
-                  prev + 1,
-                  Math.ceil(confirmationHistory.length / itemsPerPage)
-                )
-              )
-            }
-            disabled={
-              currentPage ===
-              Math.ceil(confirmationHistory.length / itemsPerPage)
-            }
-            className="p-1 md:px-3 py-0 h-8 text-[12px] md:text-[16px] font-normal bg-transparent hover:bg-green-800 text-white rounded disabled:bg-black"
-          >
-            <span className="hidden md:flex">Next</span>
-            <span className="md:hidden">&gt;</span>
-          </Button>
-        </div>
-      )}
     </div>
   );
 };
+
+export default ConfirmationHistoryTable;
