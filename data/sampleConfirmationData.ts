@@ -5,7 +5,7 @@ export const SampleConfirmationData2 = [
     message: {
       account:
         'nano_16jrn1c67pk96mwxzxucp8981bdomioaqdcwqe33yk3jzb7g16krs3cmwoqe',
-      amount: '59408920000000000000000000000',
+      amount: '12359408920000000000000000000000',
       hash: '19B9C659F6B646F093F28130882EC6AC0FBEF3DEB12FD218A593AD32EAA00822',
       confirmation_type: 'active_quorum',
       block: {
@@ -33,7 +33,7 @@ export const SampleConfirmationData2 = [
     message: {
       account:
         'nano_1ncto1yztp7xu98othx6t5qfifo4qag1o6ziuqkkydzu88gqz5wnb5yspke8',
-      amount: '16022000000000000000000000000',
+      amount: '566616022000000000000000000000000',
       hash: '79594F400E4C72961758394E043F485147D7CD7958D80EEAF9C440998241EE92',
       confirmation_type: 'active_quorum',
       block: {
@@ -61,7 +61,7 @@ export const SampleConfirmationData2 = [
     message: {
       account:
         'nano_39w3w4tummsafe8sg3jwcbnqmrmqzsmmk9hdox4cusy7pcqqhtzhymhfc1s6',
-      amount: '400000000000000000000000000',
+      amount: '2732535400000000000000000000000000',
       hash: '6F8A4EFA0190EB825DC7889C38B5A9FB21B637F4710A1A490CB2EF2FFC07D191',
       confirmation_type: 'active_quorum',
       block: {
@@ -117,7 +117,7 @@ export const SampleConfirmationData2 = [
     message: {
       account:
         'nano_1a4isy9niqu4ta8snyhcn37d3u53prbtqkfcqnugwwmg4kpbkic4cjoqqi56',
-      amount: '400000000000000000000000000',
+      amount: '12766134245400000000000000000000000000',
       hash: '316E8C45D585068E547EC5F8E58E69BE9C24B88E29E5EC6D318405764CCC9024',
       confirmation_type: 'active_quorum',
       block: {
@@ -145,7 +145,7 @@ export const SampleConfirmationData2 = [
     message: {
       account:
         'nano_1a4isy9niqu4ta8snyhcn37d3u53prbtqkfcqnugwwmg4kpbkic4cjoqqi56',
-      amount: '400000000000000000000000000',
+      amount: '234400000000000000000000000000',
       hash: 'C2BC0138E45F80332AB97B9808D04A2403B5A75770CC636ADDE1041CB1F0F676',
       confirmation_type: 'active_quorum',
       block: {

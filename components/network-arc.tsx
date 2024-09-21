@@ -10,41 +10,68 @@ import {
   StyleByAmount
 } from '@/lib/get-style-by-nano-amount';
 
+// Adjustable parameters
+const BROADCAST_ARC_LIFT_RATE = 1.15; // Lift rate for outgoing arcs
+const CONFIRMATION_ARC_LIFT_RATE = 1.15; // Lift rate for returning arcs (lower for shorter arcs)
+const ARC_POINTS = 50;
+const BROADCAST_ARC_SEGMENT_LENGTH = 0.1;
+const CONFIRMATION_ARC_SEGMENT_LENGTH = 0.05;
+const BROADCAST_DURATION = 200;
+const CONFIRMATION_DURATION = 200;
+
 interface NetworkArcsProps {
   nodes: IRepData[];
   earthRadius: number;
 }
 
 interface IArc {
-  points: THREE.Vector3[];
+  broadcastPoints: THREE.Vector3[];
+  confirmationPoints: THREE.Vector3[];
   progress: number;
-  duration: number;
-  style: StyleByAmount;
+  broadcastDuration: number;
+  confirmationDuration: number;
+  broadcastStyle: StyleByAmount;
+  confirmationStyle: StyleByAmount;
   startTime: number;
+  isReturning: boolean;
 }
 
 const NetworkArcs: React.FC<NetworkArcsProps> = ({ nodes, earthRadius }) => {
   const { activeConfirmations } = useConfirmations();
   const [arcs, setArcs] = useState<IArc[]>([]);
 
+  const createArcStyles = (amount: number) => {
+    const baseStyle = getStyleByNanoAmount(amount);
+    return {
+      broadcast: {
+        ...baseStyle
+      },
+      confirmation: {
+        color: new THREE.Color('#00FF00'),
+        lineWidth: 1,
+        opacity: 0.6,
+        hexColor: '#00FF00'
+      }
+    };
+  };
+
   useEffect(() => {
     if (activeConfirmations.length === 0 || nodes.length < 2) return;
 
-    // "nano_1dyxqop7makeqwfddgij7moi5zu1zti5uug6ydweyu914z4n3rpkr8i6b8ah"
-
     const newArcs = activeConfirmations.flatMap((confirmation) => {
       const representativeAccount = confirmation.message.block.representative;
-      // const duration = Number(confirmation.message.election_info.duration);
-      const duration = 500;
       const amount = parseNanoAmount(confirmation.message.amount);
       const sourceNode =
         nodes.find((node) => node.account === representativeAccount) ??
-        nodes[Math.floor(Math.random() * nodes.length)]; // Fallback to a random node
+        nodes[Math.floor(Math.random() * nodes.length)];
       const sourcePos = latLongToVector3(
         sourceNode.latitude,
         sourceNode.longitude,
         earthRadius
       );
+
+      const { broadcast: broadcastStyle, confirmation: confirmationStyle } =
+        createArcStyles(amount);
 
       return nodes
         .filter((targetNode) => targetNode.account !== representativeAccount)
@@ -54,23 +81,52 @@ const NetworkArcs: React.FC<NetworkArcsProps> = ({ nodes, earthRadius }) => {
             targetNode.longitude,
             earthRadius
           );
-          const points = createGreatCircleArc(
+          const broadcastPoints = createGreatCircleArc(
             sourcePos,
             targetPos,
-            earthRadius
+            earthRadius,
+            ARC_POINTS,
+            BROADCAST_ARC_LIFT_RATE
+          );
+          const confirmationPoints = createGreatCircleArc(
+            targetPos,
+            sourcePos,
+            earthRadius,
+            ARC_POINTS,
+            CONFIRMATION_ARC_LIFT_RATE
           );
 
+          const randomDurationMultiplier = 0.25 + Math.random() * 1.5;
+
           return {
-            points,
+            broadcastPoints,
+            confirmationPoints,
             progress: 0,
-            duration: duration / 1000,
-            style: getStyleByNanoAmount(amount),
-            startTime: Date.now()
+            broadcastDuration:
+              (BROADCAST_DURATION * randomDurationMultiplier) / 1000,
+            confirmationDuration:
+              (CONFIRMATION_DURATION * randomDurationMultiplier) / 1000,
+            broadcastStyle,
+            confirmationStyle,
+            startTime: Date.now(),
+            isReturning: false
           };
         });
     });
 
-    setArcs((currentArcs) => [...currentArcs, ...newArcs]);
+    setArcs((currentArcs) => [
+      ...currentArcs,
+      ...newArcs.map(
+        (arc) =>
+          ({
+            ...arc,
+            confirmationStyle: {
+              ...arc.confirmationStyle,
+              color: arc.confirmationStyle.color.getHex() // Convert Color to number
+            }
+          } as IArc)
+      )
+    ]);
   }, [activeConfirmations, nodes, earthRadius]);
 
   useFrame((state, delta) => {
@@ -78,10 +134,28 @@ const NetworkArcs: React.FC<NetworkArcsProps> = ({ nodes, earthRadius }) => {
       currentArcs
         .map((arc) => {
           const elapsedTime = (Date.now() - arc.startTime) / 1000;
-          const newProgress = Math.min(elapsedTime / arc.duration, 1);
+          const duration = arc.isReturning
+            ? arc.confirmationDuration
+            : arc.broadcastDuration;
+          let newProgress = elapsedTime / duration;
+
+          if (newProgress >= 1) {
+            if (arc.isReturning) {
+              return null; // Remove completed arcs
+            } else {
+              // Start the return journey
+              return {
+                ...arc,
+                progress: 0,
+                startTime: Date.now(),
+                isReturning: true
+              };
+            }
+          }
+
           return { ...arc, progress: newProgress };
         })
-        .filter((arc) => arc.progress < 1)
+        .filter((arc): arc is IArc => arc !== null)
     );
   });
 
@@ -89,10 +163,17 @@ const NetworkArcs: React.FC<NetworkArcsProps> = ({ nodes, earthRadius }) => {
     <group>
       {arcs.map((arc, index) => (
         <AnimatedArc
-          key={index}
-          points={arc.points}
+          key={`${index}-${arc.isReturning ? 'return' : 'outgoing'}`}
+          points={
+            arc.isReturning ? arc.confirmationPoints : arc.broadcastPoints
+          }
           progress={arc.progress}
-          style={arc.style}
+          style={arc.isReturning ? arc.confirmationStyle : arc.broadcastStyle}
+          segmentLength={
+            arc.isReturning
+              ? getRandomSegmentLength(CONFIRMATION_ARC_SEGMENT_LENGTH)
+              : getRandomSegmentLength(BROADCAST_ARC_SEGMENT_LENGTH)
+          }
         />
       ))}
     </group>
@@ -118,8 +199,8 @@ const createGreatCircleArc = (
   start: THREE.Vector3,
   end: THREE.Vector3,
   radius: number,
-  numPoints: number = 25,
-  liftRate: number = 1.05
+  numPoints: number = 50,
+  maxLiftRate: number = 1.2
 ): THREE.Vector3[] => {
   const points: THREE.Vector3[] = [];
   const startNormal = start.clone().normalize();
@@ -128,21 +209,23 @@ const createGreatCircleArc = (
   for (let i = 0; i <= numPoints; i++) {
     const t = i / numPoints;
     const dot = startNormal.dot(endNormal);
-    const omega = Math.acos(Math.min(Math.max(dot, -1), 1)); // Clamp dot product to [-1, 1]
+    const omega = Math.acos(Math.min(Math.max(dot, -1), 1));
     const sinOmega = Math.sin(omega);
 
     if (sinOmega === 0) {
-      // Start and end points are the same or opposite
       points.push(start.clone());
     } else {
       const weight0 = Math.sin((1 - t) * omega) / sinOmega;
       const weight1 = Math.sin(t * omega) / sinOmega;
 
+      // Calculate a lift factor that's highest in the middle and lowest at the ends
+      const liftFactor = Math.sin(t * Math.PI) * (maxLiftRate - 1) + 1;
+
       const point = new THREE.Vector3()
         .addScaledVector(startNormal, weight0)
         .addScaledVector(endNormal, weight1)
         .normalize()
-        .multiplyScalar(radius * liftRate * (1 + 0.2 * Math.sin(t * Math.PI))); // Add some height variation
+        .multiplyScalar(radius * liftFactor);
       points.push(point);
     }
   }
@@ -154,15 +237,15 @@ interface AnimatedArcProps {
   points: THREE.Vector3[];
   progress: number;
   style: StyleByAmount;
+  segmentLength: number;
 }
 
 const AnimatedArc: React.FC<AnimatedArcProps> = ({
   points,
   progress,
-  style: { color, opacity = 0.8, lineWidth = 1 }
+  style: { color, opacity = 0.8, lineWidth = 1 },
+  segmentLength
 }) => {
-  const segmentLength = 0.1; // Length of the moving segment as a fraction of the total arc length
-
   const visibleSegment = useMemo(() => {
     const totalLength = getTotalArcLength(points);
     const currentPosition = progress * totalLength;
@@ -244,6 +327,18 @@ const getPointsForSegment = (
   }
 
   return segmentPoints;
+};
+
+const getRandomDuration = (baseDuration: number) => {
+  // Generate a random factor between 0.5 and 1.5 (±50% variation)
+  const randomFactor = 0.5 + Math.random() * 1;
+  return baseDuration * randomFactor;
+};
+
+const getRandomSegmentLength = (baseSegmentLength: number) => {
+  // Generate a random factor between 0.5 and 1.5 (±50% variation)
+  const randomFactor = 0.5 + Math.random();
+  return baseSegmentLength * randomFactor;
 };
 
 export default NetworkArcs;
