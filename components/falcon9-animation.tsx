@@ -29,13 +29,17 @@ interface Falcon9 extends THREE.Group {
 interface Falcon9AnimationProps {
   onComplete: () => void;
   initialPosition?: Vector3; // Add this prop
+  isRocketView: boolean;
+  cameraRef: React.RefObject<THREE.PerspectiveCamera>;
 }
 
 export const Falcon9Animation: React.FC<Falcon9AnimationProps> = ({
   onComplete,
-  initialPosition // Add this prop
+  initialPosition, // Add this prop
+  isRocketView,
+  cameraRef
 }) => {
-  const { scene } = useThree();
+  const { scene, camera } = useThree();
   const falcon9Ref = useRef<Falcon9>();
   const earthRadius = 1;
   const maxDistance = earthRadius * 50;
@@ -181,6 +185,18 @@ export const Falcon9Animation: React.FC<Falcon9AnimationProps> = ({
           });
         }
       });
+
+      if (isRocketView && cameraRef.current) {
+        // Calculate the position slightly behind and above the rocket
+        const offset = new THREE.Vector3(0, 0.05, -0.1);
+        offset.applyQuaternion(rocket.quaternion);
+        const cameraPosition = rocket.position.clone().add(offset);
+
+        // Set the camera position and look at the center of the Earth
+        cameraRef.current.position.copy(cameraPosition);
+        cameraRef.current.lookAt(new THREE.Vector3(0, 0, 0));
+        cameraRef.current.updateProjectionMatrix();
+      }
     }
   });
 

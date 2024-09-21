@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Stars } from '@react-three/drei';
+import { OrbitControls, Stars, PerspectiveCamera } from '@react-three/drei';
 import * as THREE from 'three';
 import { IRepData } from '@/types/index';
 import ThreeMesh from '@/components/three-mesh';
@@ -16,6 +16,11 @@ import { parseNanoAmount } from '@/lib/parse-nano-amount';
 import { Falcon9Animation } from '@/components/falcon9-animation';
 import { Vector3 } from 'three';
 import { scaleRocketCount } from '@/lib/scale-rocket-count'; // We'll create this function
+import { Button } from '@/components/ui/button';
+import { Rocket } from 'lucide-react';
+import { Globe } from 'lucide-react'; // Import the globe icon
+import { ChevronRight } from 'lucide-react'; // Import the right chevron icon
+import { Eye } from 'lucide-react'; // Import the eye icon
 
 // Add this function to generate a random position on the globe
 function getRandomPositionOnGlobe(radius: number = 1.2): Vector3 {
@@ -45,6 +50,11 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
   const [hoveredNode, setHoveredNode] = useState<IRepData | null>(null);
   const { confirmationHistory: confirmations } = useConfirmations();
   const [launchQueue, setLaunchQueue] = useState<Vector3[]>([]);
+  const [isRocketView, setIsRocketView] = useState(false);
+  const cameraRef = useRef<THREE.PerspectiveCamera>(null);
+  const [activeRocketIndex, setActiveRocketIndex] = useState<number | null>(
+    null
+  ); // Track the active rocket index
 
   useEffect(() => {
     if (serverDateTime) {
@@ -79,6 +89,27 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
     }
   }, [confirmations]);
 
+  const toggleRocketView = () => {
+    setIsRocketView(!isRocketView);
+  };
+
+  useEffect(() => {
+    if (launchQueue.length > 0 && activeRocketIndex === null) {
+      setActiveRocketIndex(0); // Set the first rocket as active
+    }
+  }, [launchQueue]);
+
+  const handleNextRocket = () => {
+    if (launchQueue.length > 0) {
+      setActiveRocketIndex((prevIndex) => {
+        // Cycle through rockets
+        const nextIndex =
+          (prevIndex !== null ? prevIndex + 1 : 0) % launchQueue.length;
+        return nextIndex;
+      });
+    }
+  };
+
   if (!serverDateTime) {
     return null;
   }
@@ -86,28 +117,71 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
   return (
     <div className="relative w-screen h-screen">
       <div className="absolute top-1 md:top-4 left-4 md:left-10 z-10 flex-col">
-        <span className="text-[40px] font-thin font-sans text-[#209ce9]">
+        <span className="text-[30px] md:text-[40px] font-thin font-sans text-[#209ce9]">
           ӾNO
         </span>
-        <span className="text-[40px] text-gray-200">Hub</span>
+        <span className="text-[30px] md:text-[40px] text-gray-200">Hub</span>
       </div>
 
-      <div className="absolute top-4 right-4 z-10">
+      <div className="absolute top-4 right-4 z-10 flex flex-row gap-2 pointer-events-none">
+        <div className="bottom-4 right-4 z-10 flex flex-col gap-2">
+          {launchQueue.length > 0 && ( // Conditionally render the button
+            <>
+              <Button
+                onClick={toggleRocketView}
+                variant="outline"
+                size="sm"
+                className="flex select-none items-center gap-2 bg-transparent hover:bg-transparent hover:text-[#209ce9] pointer-events-auto"
+              >
+                {isRocketView ? (
+                  <Globe className="w-4 h-4 text-blue-400" /> // Use the globe icon for default view
+                ) : (
+                  <Rocket className="w-4 h-4 text-red-600" />
+                )}
+                <span className="hidden md:inline">
+                  {isRocketView ? 'Default View' : 'Rocket View'}
+                </span>
+              </Button>
+              {/* Display active rockets count */}
+              <Button
+                onClick={handleNextRocket} // Button to switch to the next rocket
+                variant="outline"
+                size="sm"
+                className="flex select-none items-center gap-2 bg-transparent hover:bg-transparent hover:text-[#209ce9] pointer-events-auto"
+              >
+                <Eye className="w-4 h-4 text-green-400" />{' '}
+                {/* Use the eye icon */}
+                <span className="hidden md:inline">Next Falcon</span>
+              </Button>
+            </>
+          )}
+          <div>
+            <div className="text-white font-semibold flex flex-row gap-2 justify-center items-center">
+              <span className="hidden md:inline">Active</span>
+              <Rocket className="w-5 h-5 text-red-600" /> {launchQueue.length}
+            </div>{' '}
+          </div>
+        </div>
         <ConfirmationHistoryTable />
       </div>
 
-      {/* Canvas */}
       <Canvas
         camera={{
           fov: 45,
           position: [0, 2, 4]
         }}
-        className="w-full h-full cursor-move"
+        className="w-full h-full cursor-move pointer-events-auto"
       >
+        <PerspectiveCamera
+          makeDefault
+          ref={cameraRef}
+          fov={45}
+          position={[0, 2, 4]}
+        />
         <OrbitControls
-          enableRotate={true}
+          enableRotate={!isRocketView}
           rotateSpeed={0.5}
-          enableZoom={true}
+          enableZoom={!isRocketView}
           zoomSpeed={0.6}
           enablePan={false}
         />
@@ -138,7 +212,23 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
               setLaunchQueue((prevQueue) =>
                 prevQueue.filter((_, i) => i !== index)
               );
+              // Only reset active rocket if it completes and is the active one
+              if (activeRocketIndex === index) {
+                setActiveRocketIndex((prevIndex) => {
+                  // If there are still rockets left, set to the next one
+                  if (
+                    prevIndex !== null &&
+                    prevIndex < launchQueue.length - 1
+                  ) {
+                    return prevIndex; // Stay on the same rocket
+                  }
+                  return null; // Reset if no rockets left
+                });
+              }
             }}
+            isRocketView={isRocketView}
+            cameraRef={cameraRef}
+            active={activeRocketIndex === index} // Pass active state to the animation
           />
         ))}
       </Canvas>
