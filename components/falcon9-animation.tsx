@@ -13,14 +13,20 @@ interface Falcon9 extends THREE.Group {
   rotation: THREE.Euler;
 }
 
-export const Falcon9Animation: React.FC = () => {
+interface Falcon9AnimationProps {
+  onComplete: () => void;
+}
+
+export const Falcon9Animation: React.FC<Falcon9AnimationProps> = ({
+  onComplete
+}) => {
   const { scene } = useThree();
   const falcon9Ref = useRef<Falcon9>();
   const earthRadius = 1;
   const maxDistance = earthRadius * 50;
   const initialSpeed = 0.01;
   const accelerationRate = 0.02;
-  const launchDelay = 10;
+  const launchDelay = 1;
   const FLAME_SCALE = 150; // Increased from 150
   const FLAME_SPACING = 20;
   const BODY_ROTATION_SPEED = 0.05;
@@ -133,6 +139,7 @@ export const Falcon9Animation: React.FC = () => {
         } else {
           scene.remove(rocket);
           setPhase(2);
+          onComplete(); // Call onComplete when the animation is finished
         }
       }
 

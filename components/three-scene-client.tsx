@@ -15,6 +15,19 @@ import { NANO_LIVE_ENV } from '@/constants/nano-live-env';
 import { parseNanoAmount } from '@/lib/parse-nano-amount';
 import { Falcon9Animation } from '@/components/falcon9-animation';
 import { getStyleByNanoAmount } from '@/lib/get-style-by-nano-amount';
+import { Vector3 } from 'three';
+
+// Add this function to generate a random position on the globe
+function getRandomPositionOnGlobe(radius: number = 1.01): Vector3 {
+  const phi = Math.random() * Math.PI * 2;
+  const theta = Math.acos(Math.random() * 2 - 1);
+
+  const x = radius * Math.sin(theta) * Math.cos(phi);
+  const y = radius * Math.sin(theta) * Math.sin(phi);
+  const z = radius * Math.cos(theta);
+
+  return new Vector3(x, y, z);
+}
 
 interface ThreeSceneClientProps {
   repsGeoInfo: IRepData[];
@@ -31,6 +44,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
   );
   const [hoveredNode, setHoveredNode] = useState<IRepData | null>(null);
   const { confirmationHistory: confirmations } = useConfirmations();
+  const [launchQueue, setLaunchQueue] = useState<Vector3[]>([]);
 
   useEffect(() => {
     if (serverDateTime) {
@@ -51,13 +65,11 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
           (window as any).triggerDonationAnimation(amount);
         }
       }
+
       if (amount > 1) {
-        // Trigger Falcon9 launch
-        if ((window as any).triggerFalcon9Launch) {
-          console.log('Falcon 9 launch detected');
-          (window as any).triggerFalcon9Launch();
-          console.log('Launching 1 Falcon9!');
-        }
+        // Generate a random position for the rocket launch
+        const position = getRandomPositionOnGlobe();
+        setLaunchQueue((prevQueue) => [...prevQueue, position]);
       }
     }
   }, [confirmations]);
@@ -112,7 +124,17 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
         />
         <CloudMesh />
         <DonationAnimation />
-        <Falcon9Animation />
+        {/* <Falcon9Animation /> */}
+        {launchQueue.map((position, index) => (
+          <Falcon9Animation
+            key={index}
+            onComplete={() => {
+              setLaunchQueue((prevQueue) =>
+                prevQueue.filter((_, i) => i !== index)
+              );
+            }}
+          />
+        ))}
       </Canvas>
 
       {/* Donation Image Popover */}

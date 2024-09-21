@@ -14,10 +14,10 @@ import {
 const BROADCAST_ARC_LIFT_RATE = 1.15; // Lift rate for outgoing arcs
 const CONFIRMATION_ARC_LIFT_RATE = 1.15; // Lift rate for returning arcs (lower for shorter arcs)
 const ARC_POINTS = 50;
-const BROADCAST_ARC_SEGMENT_LENGTH = 0.1;
-const CONFIRMATION_ARC_SEGMENT_LENGTH = 0.05;
-const BROADCAST_DURATION = 1000;
-const CONFIRMATION_DURATION = 1000;
+const BROADCAST_ARC_SEGMENT_LENGTH = 0.3;
+const CONFIRMATION_ARC_SEGMENT_LENGTH = 0.1;
+const BROADCAST_DURATION = 150;
+const CONFIRMATION_DURATION = 250;
 
 interface NetworkArcsProps {
   nodes: IRepData[];
@@ -47,10 +47,7 @@ const NetworkArcs: React.FC<NetworkArcsProps> = ({ nodes, earthRadius }) => {
         ...baseStyle
       },
       confirmation: {
-        color: new THREE.Color('#00FF00'),
-        lineWidth: 1,
-        opacity: 0.6,
-        hexColor: '#00FF00'
+        ...baseStyle
       }
     };
   };
@@ -114,19 +111,7 @@ const NetworkArcs: React.FC<NetworkArcsProps> = ({ nodes, earthRadius }) => {
         });
     });
 
-    setArcs((currentArcs) => [
-      ...currentArcs,
-      ...newArcs.map(
-        (arc) =>
-          ({
-            ...arc,
-            confirmationStyle: {
-              ...arc.confirmationStyle,
-              color: arc.confirmationStyle.color.getHex() // Convert Color to number
-            }
-          } as IArc)
-      )
-    ]);
+    setArcs((currentArcs) => [...currentArcs, ...newArcs]);
   }, [activeConfirmations, nodes, earthRadius]);
 
   useFrame((state, delta) => {
