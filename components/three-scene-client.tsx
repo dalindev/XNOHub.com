@@ -14,11 +14,10 @@ import { DonationAnimation } from '@/components/donation-animation';
 import { NANO_LIVE_ENV } from '@/constants/nano-live-env';
 import { parseNanoAmount } from '@/lib/parse-nano-amount';
 import { Falcon9Animation } from '@/components/falcon9-animation';
-import { getStyleByNanoAmount } from '@/lib/get-style-by-nano-amount';
 import { Vector3 } from 'three';
 
 // Add this function to generate a random position on the globe
-function getRandomPositionOnGlobe(radius: number = 1.01): Vector3 {
+function getRandomPositionOnGlobe(radius: number = 1.2): Vector3 {
   const phi = Math.random() * Math.PI * 2;
   const theta = Math.acos(Math.random() * 2 - 1);
 
@@ -128,6 +127,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
         {launchQueue.map((position, index) => (
           <Falcon9Animation
             key={index}
+            initialPosition={position}
             onComplete={() => {
               setLaunchQueue((prevQueue) =>
                 prevQueue.filter((_, i) => i !== index)

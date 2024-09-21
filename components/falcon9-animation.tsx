@@ -7,6 +7,19 @@ import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader';
 import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader';
 import { TextureLoader } from 'three';
 import * as THREE from 'three';
+import { Vector3 } from 'three';
+
+// Add this function at the top of the file, outside the component
+function getRandomPositionOnGlobe(radius: number = 1.1): Vector3 {
+  const phi = Math.random() * Math.PI * 2;
+  const theta = Math.acos(Math.random() * 2 - 1);
+
+  const x = radius * Math.sin(theta) * Math.cos(phi);
+  const y = radius * Math.sin(theta) * Math.sin(phi);
+  const z = radius * Math.cos(theta);
+
+  return new Vector3(x, y, z);
+}
 
 interface Falcon9 extends THREE.Group {
   position: THREE.Vector3;
@@ -15,10 +28,12 @@ interface Falcon9 extends THREE.Group {
 
 interface Falcon9AnimationProps {
   onComplete: () => void;
+  initialPosition?: Vector3; // Add this prop
 }
 
 export const Falcon9Animation: React.FC<Falcon9AnimationProps> = ({
-  onComplete
+  onComplete,
+  initialPosition // Add this prop
 }) => {
   const { scene } = useThree();
   const falcon9Ref = useRef<Falcon9>();
@@ -26,10 +41,9 @@ export const Falcon9Animation: React.FC<Falcon9AnimationProps> = ({
   const maxDistance = earthRadius * 50;
   const initialSpeed = 0.01;
   const accelerationRate = 0.02;
-  const launchDelay = 1;
+  const launchDelay = 5;
   const FLAME_SCALE = 150; // Increased from 150
   const FLAME_SPACING = 20;
-  const BODY_ROTATION_SPEED = 0.05;
   const FLAME_COUNT = 3; // Number of flame planes per thruster
   const FLAME_LENGTH_MULTIPLIER = 4; // New constant for flame length
 
@@ -63,8 +77,15 @@ export const Falcon9Animation: React.FC<Falcon9AnimationProps> = ({
         }
       });
 
-      falcon9Group.position.set(0, earthRadius + 0.21, 0);
-      falcon9Group.rotation.z = 0;
+      const launchPosition =
+        initialPosition || getRandomPositionOnGlobe(earthRadius * 1.2);
+      falcon9Group.position.copy(launchPosition);
+
+      // Calculate the rotation to face the center of the Earth
+      const up = launchPosition.clone().normalize();
+      const axis = new THREE.Vector3(0, 1, 0).cross(up).normalize();
+      const angle = Math.acos(new THREE.Vector3(0, 1, 0).dot(up));
+      falcon9Group.quaternion.setFromAxisAngle(axis, angle);
 
       const createFlameGroup = (x: number) => {
         const flameGroup = new THREE.Group();
@@ -107,15 +128,13 @@ export const Falcon9Animation: React.FC<Falcon9AnimationProps> = ({
       scene.add(falcon9Group);
       falcon9Ref.current = falcon9Group;
     }
-  }, [obj, scene, texture, flameTexture]);
+  }, [obj, scene, texture, flameTexture, initialPosition]);
 
   useFrame((state, delta) => {
     setElapsedTime((prevTime) => prevTime + delta);
 
     if (falcon9Ref.current) {
       const rocket = falcon9Ref.current;
-
-      rocket.rotation.y += BODY_ROTATION_SPEED * delta;
 
       if (phase === 0 && elapsedTime >= launchDelay) {
         setPhase(1);
@@ -126,16 +145,16 @@ export const Falcon9Animation: React.FC<Falcon9AnimationProps> = ({
 
         if (distanceFromCenter < maxDistance) {
           const currentSpeed =
-            initialSpeed + accelerationRate * (elapsedTime - launchDelay);
+            initialSpeed +
+            getRandomizedAcceleration() * (elapsedTime - launchDelay);
           const direction = rocket.position.clone().normalize();
           rocket.position.add(direction.multiplyScalar(currentSpeed * delta));
 
-          const targetRotation = Math.atan2(direction.x, direction.y);
-          rocket.rotation.z = THREE.MathUtils.lerp(
-            rocket.rotation.z,
-            -targetRotation,
-            delta * 2
-          );
+          // Update the rotation to always face away from the center
+          const up = rocket.position.clone().normalize();
+          const axis = new THREE.Vector3(0, 1, 0).cross(up).normalize();
+          const angle = Math.acos(new THREE.Vector3(0, 1, 0).dot(up));
+          rocket.quaternion.setFromAxisAngle(axis, angle);
         } else {
           scene.remove(rocket);
           setPhase(2);
@@ -166,6 +185,12 @@ export const Falcon9Animation: React.FC<Falcon9AnimationProps> = ({
       });
     }
   });
+
+  // Add this method to randomize acceleration rate
+  const getRandomizedAcceleration = () => {
+    const randomFactor = 0.5 + Math.random() * 1; // 0.5 to 1.5
+    return accelerationRate * randomFactor;
+  };
 
   return null;
 };
