@@ -8,6 +8,7 @@ import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader';
 import { TextureLoader } from 'three';
 import * as THREE from 'three';
 import { Vector3 } from 'three';
+import { Html } from '@react-three/drei'; // Import Html for text overlay
 
 // Add this function at the top of the file, outside the component
 function getRandomPositionOnGlobe(radius: number = 1.1): Vector3 {
@@ -28,21 +29,23 @@ interface Falcon9 extends THREE.Group {
 
 interface Falcon9AnimationProps {
   onComplete: () => void;
-  initialPosition?: Vector3; // Add this prop
+  initialPosition?: Vector3;
   isRocketView: boolean;
   cameraRef: React.RefObject<THREE.PerspectiveCamera>;
+  setDistanceFromEarth: (distance: number) => void; // Add this prop
 }
 
 export const Falcon9Animation: React.FC<Falcon9AnimationProps> = ({
   onComplete,
-  initialPosition, // Add this prop
+  initialPosition,
   isRocketView,
-  cameraRef
+  cameraRef,
+  setDistanceFromEarth // Destructure the prop
 }) => {
-  const { scene, camera } = useThree();
+  const { scene } = useThree();
   const falcon9Ref = useRef<Falcon9>();
   const earthRadius = 1;
-  const maxDistance = earthRadius * 50;
+  const maxDistance = earthRadius * 1000;
   const initialSpeed = 0.01;
   const accelerationRate = 0.02;
   const launchDelay = 2;
@@ -146,9 +149,23 @@ export const Falcon9Animation: React.FC<Falcon9AnimationProps> = ({
         const distanceFromCenter = rocket.position.length();
 
         if (distanceFromCenter < maxDistance) {
-          const currentSpeed =
-            initialSpeed +
-            getRandomizedAcceleration() * (elapsedTime - launchDelay);
+          let currentSpeed;
+          if (distanceFromCenter <= 35) {
+            currentSpeed =
+              initialSpeed +
+              getRandomizedAcceleration() * (elapsedTime - launchDelay); // No power of two
+          } else if (distanceFromCenter > 35 && distanceFromCenter <= 200) {
+            currentSpeed =
+              initialSpeed +
+              getRandomizedAcceleration() *
+                Math.pow(elapsedTime - launchDelay, 1.5); // Use power of two for distance > 200
+          } else {
+            currentSpeed =
+              initialSpeed +
+              getRandomizedAcceleration() *
+                Math.pow(elapsedTime - launchDelay, 2); // Use power of two for distance > 200
+          }
+
           const direction = rocket.position.clone().normalize();
           rocket.position.add(direction.multiplyScalar(currentSpeed * delta));
 
@@ -197,6 +214,12 @@ export const Falcon9Animation: React.FC<Falcon9AnimationProps> = ({
         cameraRef.current.lookAt(new THREE.Vector3(0, 0, 0));
         cameraRef.current.updateProjectionMatrix();
       }
+
+      // Update distance state only if this rocket is the active one
+      if (isRocketView) {
+        const distance = rocket.position.length();
+        setDistanceFromEarth(distance); // Use the setter function to update distance
+      }
     }
   });
 
@@ -206,5 +229,5 @@ export const Falcon9Animation: React.FC<Falcon9AnimationProps> = ({
     return accelerationRate * randomFactor;
   };
 
-  return null;
+  return null; // Remove the overlay rendering from here
 };

@@ -61,7 +61,7 @@ export const SampleConfirmationData2 = [
     message: {
       account:
         'nano_39w3w4tummsafe8sg3jwcbnqmrmqzsmmk9hdox4cusy7pcqqhtzhymhfc1s6',
-      amount: '2732535400000000000000000000000000',
+      amount: '732535400000000000000000000000000',
       hash: '6F8A4EFA0190EB825DC7889C38B5A9FB21B637F4710A1A490CB2EF2FFC07D191',
       confirmation_type: 'active_quorum',
       block: {
@@ -117,7 +117,7 @@ export const SampleConfirmationData2 = [
     message: {
       account:
         'nano_1a4isy9niqu4ta8snyhcn37d3u53prbtqkfcqnugwwmg4kpbkic4cjoqqi56',
-      amount: '16134245400000000000000000000000000',
+      amount: '34245400000000000000000000000000',
       hash: '316E8C45D585068E547EC5F8E58E69BE9C24B88E29E5EC6D318405764CCC9024',
       confirmation_type: 'active_quorum',
       block: {
@@ -135,7 +135,7 @@ export const SampleConfirmationData2 = [
         signature:
           '72BDE4E196A0A41D4525DC3FE3FD1A62FEE6917FEBDE88FA8568A880CEF1BA2A1D9C2FC09050A98C7601CD3CAEFFA92EDE4AF269988C8A653EB0EFD76FA9B00F',
         work: '6c64a27df51a02ef',
-        subtype: 'receive'
+        subtype: 'send'
       }
     }
   },

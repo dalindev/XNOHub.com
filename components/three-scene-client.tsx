@@ -1,8 +1,13 @@
 'use client';
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Stars, PerspectiveCamera } from '@react-three/drei';
+import {
+  OrbitControls,
+  Stars,
+  PerspectiveCamera,
+  Html
+} from '@react-three/drei';
 import * as THREE from 'three';
 import { IRepData } from '@/types/index';
 import ThreeMesh from '@/components/three-mesh';
@@ -15,14 +20,11 @@ import { NANO_LIVE_ENV } from '@/constants/nano-live-env';
 import { parseNanoAmount } from '@/lib/parse-nano-amount';
 import { Falcon9Animation } from '@/components/falcon9-animation';
 import { Vector3 } from 'three';
-import { scaleRocketCount } from '@/lib/scale-rocket-count'; // We'll create this function
+import { scaleRocketCount } from '@/lib/scale-rocket-count';
 import { Button } from '@/components/ui/button';
-import { Rocket } from 'lucide-react';
-import { Globe } from 'lucide-react'; // Import the globe icon
-import { ChevronRight } from 'lucide-react'; // Import the right chevron icon
-import { Eye } from 'lucide-react'; // Import the eye icon
+import { Rocket, Eye, Globe } from 'lucide-react';
+import RocketAnimationManager from '@/components/rocket-animation-manager';
 
-// Add this function to generate a random position on the globe
 function getRandomPositionOnGlobe(radius: number = 1.2): Vector3 {
   const phi = Math.random() * Math.PI * 2;
   const theta = Math.acos(Math.random() * 2 - 1);
@@ -43,6 +45,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
   repsGeoInfo,
   serverDateTime
 }) => {
+  const EarthRadiusInKm = 6357; // Earth's equatorial radius in kilometers
   const lightRef = useRef<THREE.DirectionalLight>(null);
   const [simulationTime, setSimulationTime] = useState<Date>(
     serverDateTime || new Date()
@@ -55,6 +58,29 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
   const [activeRocketIndex, setActiveRocketIndex] = useState<number | null>(
     null
   ); // Track the active rocket index
+  const [rocketCount, setRocketCount] = useState(0);
+  const rocketManagerRef = useRef<{
+    addRocket: (position: Vector3) => void;
+  } | null>(null);
+  const [distanceFromEarth, setDistanceFromEarth] = useState<number>(0); // State to hold distance
+
+  const toggleRocketView = useCallback(() => {
+    setIsRocketView((prev) => !prev);
+    if (!isRocketView && rocketCount > 0) {
+      setActiveRocketIndex(0);
+    } else {
+      setActiveRocketIndex(null);
+    }
+  }, [rocketCount, isRocketView]);
+
+  const moveToNextRocket = useCallback(() => {
+    if (isRocketView && rocketCount > 0) {
+      setActiveRocketIndex((prevIndex) => {
+        if (prevIndex === null) return 0;
+        return (prevIndex + 1) % rocketCount;
+      });
+    }
+  }, [isRocketView, rocketCount]);
 
   useEffect(() => {
     if (serverDateTime) {
@@ -78,37 +104,32 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
       }
 
       if (isSend) {
-        // Send only to avoid duplicate launches
-        const rocketCount = scaleRocketCount(amount);
-        if (rocketCount <= 0) return;
-        const newPositions = Array.from({ length: rocketCount }, () =>
-          getRandomPositionOnGlobe()
-        );
-        setLaunchQueue((prevQueue) => [...prevQueue, ...newPositions]);
+        const newRocketCount = scaleRocketCount(amount);
+        for (let i = 0; i < newRocketCount; i++) {
+          const randomPosition = getRandomPositionOnGlobe();
+          rocketManagerRef.current?.addRocket(randomPosition);
+        }
       }
     }
   }, [confirmations]);
 
-  const toggleRocketView = () => {
-    setIsRocketView(!isRocketView);
+  const handleRocketComplete = (id: string) => {
+    setRocketCount((prevCount) => prevCount - 1);
   };
+
+  const handleRocketCountChange = useCallback((count: number) => {
+    setRocketCount(count);
+    if (count === 0) {
+      setIsRocketView(false);
+      setActiveRocketIndex(null);
+    }
+  }, []);
 
   useEffect(() => {
     if (launchQueue.length > 0 && activeRocketIndex === null) {
-      setActiveRocketIndex(0); // Set the first rocket as active
+      setActiveRocketIndex(0); // Set the first rocket as active only if it's null
     }
-  }, [launchQueue]);
-
-  const handleNextRocket = () => {
-    if (launchQueue.length > 0) {
-      setActiveRocketIndex((prevIndex) => {
-        // Cycle through rockets
-        const nextIndex =
-          (prevIndex !== null ? prevIndex + 1 : 0) % launchQueue.length;
-        return nextIndex;
-      });
-    }
-  };
+  }, [launchQueue, activeRocketIndex]); // Add activeRocketIndex to dependencies
 
   if (!serverDateTime) {
     return null;
@@ -123,44 +144,37 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
         <span className="text-[30px] md:text-[40px] text-gray-200">Hub</span>
       </div>
 
-      <div className="absolute top-4 right-4 z-10 flex flex-row gap-2 pointer-events-none">
-        <div className="bottom-4 right-4 z-10 flex flex-col gap-2">
-          {launchQueue.length > 0 && ( // Conditionally render the button
-            <>
-              <Button
-                onClick={toggleRocketView}
-                variant="outline"
-                size="sm"
-                className="flex select-none items-center gap-2 bg-transparent hover:bg-transparent hover:text-[#209ce9] pointer-events-auto"
-              >
-                {isRocketView ? (
-                  <Globe className="w-4 h-4 text-blue-400" /> // Use the globe icon for default view
-                ) : (
-                  <Rocket className="w-4 h-4 text-red-600" />
-                )}
-                <span className="hidden md:inline">
-                  {isRocketView ? 'Default View' : 'Rocket View'}
-                </span>
-              </Button>
-              {/* Display active rockets count */}
-              <Button
-                onClick={handleNextRocket} // Button to switch to the next rocket
-                variant="outline"
-                size="sm"
-                className="flex select-none items-center gap-2 bg-transparent hover:bg-transparent hover:text-[#209ce9] pointer-events-auto"
-              >
-                <Eye className="w-4 h-4 text-green-400" />{' '}
-                {/* Use the eye icon */}
-                <span className="hidden md:inline">Next Falcon</span>
-              </Button>
-            </>
+      <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
+        <div className="flex flex-row gap-2">
+          <Button
+            onClick={toggleRocketView}
+            variant="outline"
+            size="sm"
+            className="flex select-none items-center gap-2 bg-transparent hover:bg-transparent hover:text-[#209ce9]"
+          >
+            {isRocketView ? (
+              <Globe className="w-4 h-4 text-blue-400" />
+            ) : (
+              <Rocket className="w-4 h-4 text-red-600" />
+            )}
+            <span className="hidden md:inline text-center">
+              {isRocketView ? 'Abort Mission' : 'Rocket View'}
+            </span>
+          </Button>
+          {isRocketView && (
+            <Button
+              onClick={moveToNextRocket}
+              variant="outline"
+              size="sm"
+              className="flex select-none items-center gap-2 bg-transparent hover:bg-transparent hover:text-[#209ce9]"
+            >
+              <Eye className="w-4 h-4" />
+              <span className="hidden md:inline">Next Rocket</span>
+            </Button>
           )}
-          <div>
-            <div className="text-white font-semibold flex flex-row gap-2 justify-center items-center">
-              <span className="hidden md:inline">Active</span>
-              <Rocket className="w-5 h-5 text-red-600" /> {launchQueue.length}
-            </div>{' '}
-          </div>
+        </div>
+        <div className="flex items-center gap-2 text-white">
+          Active <Rocket className="w-4 h-4 text-red-600" /> {rocketCount}
         </div>
         <ConfirmationHistoryTable />
       </div>
@@ -203,34 +217,15 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
         />
         <CloudMesh />
         <DonationAnimation />
-        {/* <Falcon9Animation /> */}
-        {launchQueue.map((position, index) => (
-          <Falcon9Animation
-            key={index}
-            initialPosition={position}
-            onComplete={() => {
-              setLaunchQueue((prevQueue) =>
-                prevQueue.filter((_, i) => i !== index)
-              );
-              // Only reset active rocket if it completes and is the active one
-              if (activeRocketIndex === index) {
-                setActiveRocketIndex((prevIndex) => {
-                  // If there are still rockets left, set to the next one
-                  if (
-                    prevIndex !== null &&
-                    prevIndex < launchQueue.length - 1
-                  ) {
-                    return prevIndex; // Stay on the same rocket
-                  }
-                  return null; // Reset if no rockets left
-                });
-              }
-            }}
-            isRocketView={isRocketView}
-            cameraRef={cameraRef}
-            active={activeRocketIndex === index} // Pass active state to the animation
-          />
-        ))}
+        <RocketAnimationManager
+          ref={rocketManagerRef}
+          cameraRef={cameraRef}
+          onRocketComplete={handleRocketComplete}
+          onRocketCountChange={handleRocketCountChange}
+          isRocketView={isRocketView}
+          activeRocketIndex={activeRocketIndex}
+          setDistanceFromEarth={setDistanceFromEarth} // Pass the setter function
+        />
       </Canvas>
 
       {/* Donation Image Popover */}
@@ -251,6 +246,84 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
           </div>
         )}
       </div>
+
+      {isRocketView && (
+        <div className="absolute bottom-4 left-4 right-4 md:right-auto z-10 bg-black md:bg-opacity-80 p-2 md:p-3 rounded-lg font-mono text-sm md:text-base text-center shadow-lg border-2 border-[#4A90E2] max-w-full md:max-w-[500px]">
+          <div className="flex items-center justify-center mb-1 md:mb-2">
+            <span
+              className="text-xl md:text-2xl mr-1 md:mr-2"
+              role="img"
+              aria-label="Earth"
+            >
+              🌍
+            </span>
+            <span className="text-[#4A90E2] text-xs md:text-sm">
+              Earth: {(distanceFromEarth * EarthRadiusInKm).toFixed(0)} km (
+              {distanceFromEarth.toFixed(1)})
+            </span>
+          </div>
+
+          <div className="text-xs md:text-base my-1 md:my-2">
+            {distanceFromEarth <= 2 && (
+              <span className="text-yellow-300">
+                "Fast, feeless, and ready for liftoff! 🚀"
+              </span>
+            )}
+
+            {distanceFromEarth > 2 && distanceFromEarth <= 5 && (
+              <span className="text-green-400">
+                "1 ӾNO = 1 ӾNO, even in space! 💎🙌"
+              </span>
+            )}
+
+            {distanceFromEarth > 5 && distanceFromEarth <= 15 && (
+              <span className="text-blue-300">
+                "BROCCOLISH 🥦 All the way to the Mars!"
+              </span>
+            )}
+
+            {distanceFromEarth > 15 && distanceFromEarth <= 25 && (
+              <span className="text-purple-400">
+                "Nano: Proof-of-work? We left that back on Earth. 🌍✨"
+              </span>
+            )}
+
+            {distanceFromEarth > 25 && distanceFromEarth <= 35 && (
+              <span className="text-pink-400">
+                "The further we go, the smaller our fees get. Oh wait... 😎"
+              </span>
+            )}
+
+            {distanceFromEarth > 35 && distanceFromEarth <= 200 && (
+              <span className="text-orange-400">
+                "Warp speed initiated. Nano's block lattice is unstoppable! 🌀"
+              </span>
+            )}
+
+            {distanceFromEarth > 200 && distanceFromEarth <= 350 && (
+              <span className="text-pink-400">
+                "Not even cosmic inflation can inflate Nano's supply! 💥"
+              </span>
+            )}
+
+            {distanceFromEarth > 350 && distanceFromEarth <= 500 && (
+              <span className="text-[#4A90E2] font-bold">
+                "Zero fees across the universe, Nano is boundless. 💫🌌"
+              </span>
+            )}
+
+            {distanceFromEarth > 500 && (
+              <span className="text-red-500 font-bold text-base md:text-lg animate-pulse">
+                "Nano IS Nano 🗿"
+              </span>
+            )}
+          </div>
+
+          <div className="mt-1 md:mt-2 text-[10px] md:text-xs text-gray-400">
+            Fun fact: This Falcon 9 runs on pure Nano. No fees, no fuel! ⚡
+          </div>
+        </div>
+      )}
     </div>
   );
 };
