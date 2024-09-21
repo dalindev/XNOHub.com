@@ -13,6 +13,8 @@ import { useConfirmations } from '@/providers/confirmation-provider';
 import { DonationAnimation } from '@/components/donation-animation';
 import { NANO_LIVE_ENV } from '@/constants/nano-live-env';
 import { parseNanoAmount } from '@/lib/parse-nano-amount';
+import { Falcon9Animation } from '@/components/falcon9-animation';
+import { getStyleByNanoAmount } from '@/lib/get-style-by-nano-amount';
 
 interface ThreeSceneClientProps {
   repsGeoInfo: IRepData[];
@@ -42,9 +44,20 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
       const isDonation =
         latestConfirmation.message.block.link_as_account ===
         NANO_LIVE_ENV.donationAccount;
-      if (isDonation && (window as any).triggerDonationAnimation) {
-        const amount = parseNanoAmount(latestConfirmation.message.amount);
-        (window as any).triggerDonationAnimation(amount);
+      const amount = parseNanoAmount(latestConfirmation.message.amount);
+      if (isDonation) {
+        // Trigger existing donation animation
+        if ((window as any).triggerDonationAnimation) {
+          (window as any).triggerDonationAnimation(amount);
+        }
+      }
+      if (amount > 1) {
+        // Trigger Falcon9 launch
+        if ((window as any).triggerFalcon9Launch) {
+          console.log('Falcon 9 launch detected');
+          (window as any).triggerFalcon9Launch();
+          console.log('Launching 1 Falcon9!');
+        }
       }
     }
   }, [confirmations]);
@@ -99,6 +112,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
         />
         <CloudMesh />
         <DonationAnimation />
+        <Falcon9Animation />
       </Canvas>
 
       {/* Donation Image Popover */}

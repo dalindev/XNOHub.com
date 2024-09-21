@@ -48,7 +48,7 @@ const useNanoWebsocket = () => {
       const confirmationSubscription = new Subject<NanoConfirmation>();
       let index = 0;
 
-      const intervalSubscription = interval(1000).subscribe(() => {
+      const intervalSubscription = interval(10000).subscribe(() => {
         const confirmation = SampleConfirmationData2[index];
         confirmationSubscription.next(confirmation);
         index = (index + 1) % SampleConfirmationData2.length;

@@ -16,8 +16,8 @@ const CONFIRMATION_ARC_LIFT_RATE = 1.15; // Lift rate for returning arcs (lower 
 const ARC_POINTS = 50;
 const BROADCAST_ARC_SEGMENT_LENGTH = 0.1;
 const CONFIRMATION_ARC_SEGMENT_LENGTH = 0.05;
-const BROADCAST_DURATION = 200;
-const CONFIRMATION_DURATION = 200;
+const BROADCAST_DURATION = 1000;
+const CONFIRMATION_DURATION = 1000;
 
 interface NetworkArcsProps {
   nodes: IRepData[];
