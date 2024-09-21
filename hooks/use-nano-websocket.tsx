@@ -41,7 +41,8 @@ const useNanoWebsocket = () => {
     null
   );
 
-  const isLocalDevelopment = process.env.NODE_ENV === 'development';
+  const isLocalDevelopment = process.env.NEXT_PUBLIC_USE_SAMPLE_DATA === 'true';
+  console.log('Is local development:', isLocalDevelopment);
 
   const simulateConfirmations = useCallback(() => {
     if (isLocalDevelopment) {
