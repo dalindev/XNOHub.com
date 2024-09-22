@@ -2,12 +2,7 @@
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Canvas } from '@react-three/fiber';
-import {
-  OrbitControls,
-  Stars,
-  PerspectiveCamera,
-  Html
-} from '@react-three/drei';
+import { OrbitControls, Stars, PerspectiveCamera } from '@react-three/drei';
 import * as THREE from 'three';
 import { IRepData } from '@/types/index';
 import ThreeMesh from '@/components/three-mesh';
@@ -18,7 +13,6 @@ import { useConfirmations } from '@/providers/confirmation-provider';
 import { DonationAnimation } from '@/components/donation-animation';
 import { NANO_LIVE_ENV } from '@/constants/nano-live-env';
 import { parseNanoAmount } from '@/lib/parse-nano-amount';
-import { Falcon9Animation } from '@/components/falcon9-animation';
 import { Vector3 } from 'three';
 import { scaleRocketCount } from '@/lib/scale-rocket-count';
 import { Button } from '@/components/ui/button';
@@ -104,7 +98,11 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
       }
 
       if (isSend) {
-        const newRocketCount = scaleRocketCount(amount);
+        const newRocketCount = Math.max(
+          scaleRocketCount(amount),
+          rocketCount === 0 ? 1 : 0
+        );
+
         for (let i = 0; i < newRocketCount; i++) {
           const randomPosition = getRandomPositionOnGlobe();
           rocketManagerRef.current?.addRocket(randomPosition);
@@ -131,6 +129,18 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
     }
   }, [launchQueue, activeRocketIndex]); // Add activeRocketIndex to dependencies
 
+  // New function to reset to Earth view
+  const resetToEarthView = () => {
+    setIsRocketView(false);
+
+    setTimeout(() => {
+      if (cameraRef.current) {
+        cameraRef.current.position.set(0, 0, 5);
+        cameraRef.current.lookAt(new THREE.Vector3(0, 0, 0)); // Look at the center of the Earth
+      }
+    }, 100);
+  };
+
   if (!serverDateTime) {
     return null;
   }
@@ -146,6 +156,17 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
 
       <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
         <div className="flex flex-row gap-2">
+          {/* New button to reset to Earth view */}
+          {distanceFromEarth > 10 && (
+            <Button
+              onClick={resetToEarthView}
+              variant="outline"
+              size="sm"
+              className="flex select-none items-center gap-2 bg-transparent hover:bg-transparent hover:text-[#209ce9]"
+            >
+              Back to Earth
+            </Button>
+          )}
           <Button
             onClick={toggleRocketView}
             variant="outline"
@@ -224,7 +245,8 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
           onRocketCountChange={handleRocketCountChange}
           isRocketView={isRocketView}
           activeRocketIndex={activeRocketIndex}
-          setDistanceFromEarth={setDistanceFromEarth} // Pass the setter function
+          setActiveRocketIndex={setActiveRocketIndex}
+          setDistanceFromEarth={setDistanceFromEarth}
         />
       </Canvas>
 
@@ -248,10 +270,10 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
       </div>
 
       {isRocketView && (
-        <div className="absolute bottom-4 left-4 right-4 md:right-auto z-10 bg-black md:bg-opacity-80 p-2 md:p-3 rounded-lg font-mono text-sm md:text-base text-center shadow-lg border-2 border-[#4A90E2] max-w-full md:max-w-[500px]">
+        <div className="absolute bottom-4 left-4 right-4 md:right-auto z-10 bg-black md:bg-opacity-80 p-2 md:p-3 rounded-lg font-mono text-sm md:text-base text-center shadow-lg border-2 border-[#4A90E2] max-w-full md:max-w-[550px]">
           <div className="flex items-center justify-center mb-1 md:mb-2">
             <span
-              className="text-xl md:text-2xl mr-1 md:mr-2"
+              className="text-lg md:text-xl mr-1 md:mr-2"
               role="img"
               aria-label="Earth"
             >
@@ -263,58 +285,68 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
             </span>
           </div>
 
-          <div className="text-xs md:text-base my-1 md:my-2">
+          <div className="text-sm md:text-base my-1 md:my-2">
             {distanceFromEarth <= 2 && (
               <span className="text-yellow-300">
-                "Fast, feeless, and ready for liftoff! 🚀"
+                &quot;Fast, feeless, green, and ready for liftoff! 🚀&quot;
               </span>
             )}
 
             {distanceFromEarth > 2 && distanceFromEarth <= 5 && (
               <span className="text-green-400">
-                "1 ӾNO = 1 ӾNO, even in space! 💎🙌"
+                &quot;1 ӾNO = 1 ӾNO, even in space! 👩‍🚀 🛸&quot;
               </span>
             )}
 
-            {distanceFromEarth > 5 && distanceFromEarth <= 15 && (
+            {distanceFromEarth > 5 && distanceFromEarth <= 10 && (
               <span className="text-blue-300">
-                "BROCCOLISH 🥦 All the way to the Mars!"
+                &quot;BROCCOLISH 🥦 All the way to the Mars!&quot;
               </span>
             )}
 
-            {distanceFromEarth > 15 && distanceFromEarth <= 25 && (
+            {distanceFromEarth > 10 && distanceFromEarth <= 20 && (
               <span className="text-purple-400">
-                "Nano: Proof-of-work? We left that back on Earth. 🌍✨"
+                &quot;Nano: Proof-of-work? We left that back on Earth 🌍&quot;
               </span>
             )}
 
-            {distanceFromEarth > 25 && distanceFromEarth <= 35 && (
+            {distanceFromEarth > 20 && distanceFromEarth <= 30 && (
               <span className="text-pink-400">
-                "The further we go, the smaller our fees get. Oh wait... 😎"
+                &quot;The further we go, the smaller our fees get. Oh wait...
+                Nano is feeless 😎&quot;
               </span>
             )}
 
-            {distanceFromEarth > 35 && distanceFromEarth <= 200 && (
+            {distanceFromEarth > 30 && distanceFromEarth <= 100 && (
               <span className="text-orange-400">
-                "Warp speed initiated. Nano's block lattice is unstoppable! 🌀"
+                &quot;🚨 Nano speed initiated 🚨. Nano&apos;s block lattice is
+                unstoppable! 🌀&quot;
               </span>
             )}
 
             {distanceFromEarth > 200 && distanceFromEarth <= 350 && (
               <span className="text-pink-400">
-                "Not even cosmic inflation can inflate Nano's supply! 💥"
+                &quot;Not even cosmic inflation can inflate Nano&apos;s supply!
+                💥&quot;
               </span>
             )}
 
             {distanceFromEarth > 350 && distanceFromEarth <= 500 && (
               <span className="text-[#4A90E2] font-bold">
-                "Zero fees across the universe, Nano is boundless. 💫🌌"
+                &quot;Zero fees across the universe, Nano is boundless. 💫
+                🌌&quot;
               </span>
             )}
 
-            {distanceFromEarth > 500 && (
-              <span className="text-red-500 font-bold text-base md:text-lg animate-pulse">
-                "Nano IS Nano 🗿"
+            {distanceFromEarth > 500 && distanceFromEarth <= 600 && (
+              <span className="text-green-400 font-bold animate-pulse">
+                &quot;Nano IS Nano 🗿&quot;
+              </span>
+            )}
+
+            {distanceFromEarth > 600 && (
+              <span className="text-red-500 font-bold animate-pulse">
+                &quot;USER-35077: What if ... falls to 2k 💀&quot;
               </span>
             )}
           </div>

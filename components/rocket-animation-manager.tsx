@@ -21,7 +21,8 @@ interface RocketAnimationManagerProps {
   onRocketCountChange: (count: number) => void;
   isRocketView: boolean;
   activeRocketIndex: number | null;
-  setDistanceFromEarth: (distance: number) => void; // Add this prop
+  setActiveRocketIndex: (index: number | null) => void;
+  setDistanceFromEarth: (distance: number) => void;
 }
 
 export interface RocketAnimationManagerRef {
@@ -39,7 +40,8 @@ const RocketAnimationManager = forwardRef<
       onRocketCountChange,
       isRocketView,
       activeRocketIndex,
-      setDistanceFromEarth // Destructure the prop
+      setActiveRocketIndex,
+      setDistanceFromEarth
     },
     ref
   ) => {
@@ -57,12 +59,32 @@ const RocketAnimationManager = forwardRef<
 
     const removeRocket = useCallback(
       (id: string) => {
-        setRockets((prevRockets) =>
-          prevRockets.filter((rocket) => rocket.id !== id)
-        );
+        setRockets((prevRockets) => {
+          const index = prevRockets.findIndex((rocket) => rocket.id === id);
+          if (index === -1) return prevRockets;
+
+          const newRockets = prevRockets.filter((_, i) => i !== index);
+
+          // Update activeRocketIndex if necessary
+          if (activeRocketIndex !== null) {
+            if (index === activeRocketIndex) {
+              // If the removed rocket was the active one, move to the last rocket in the array
+              if (newRockets.length > 0) {
+                setActiveRocketIndex(newRockets.length - 1);
+              } else {
+                setActiveRocketIndex(null);
+              }
+            } else if (index < activeRocketIndex) {
+              // If a rocket before the active one was removed, decrement the index
+              setActiveRocketIndex(activeRocketIndex - 1);
+            }
+          }
+
+          return newRockets;
+        });
         onRocketComplete(id);
       },
-      [onRocketComplete]
+      [activeRocketIndex, setActiveRocketIndex, onRocketComplete]
     );
 
     useEffect(() => {
@@ -82,7 +104,7 @@ const RocketAnimationManager = forwardRef<
             onComplete={() => removeRocket(rocket.id)}
             isRocketView={isRocketView && index === activeRocketIndex}
             cameraRef={cameraRef}
-            setDistanceFromEarth={setDistanceFromEarth} // Pass the setter function
+            setDistanceFromEarth={setDistanceFromEarth}
           />
         ))}
       </>

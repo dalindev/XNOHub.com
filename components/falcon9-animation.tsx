@@ -151,15 +151,18 @@ export const Falcon9Animation: React.FC<Falcon9AnimationProps> = ({
         if (distanceFromCenter < maxDistance) {
           let currentSpeed;
           if (distanceFromCenter <= 35) {
+            // Stage 1
             currentSpeed =
               initialSpeed +
-              getRandomizedAcceleration() * (elapsedTime - launchDelay); // No power of two
-          } else if (distanceFromCenter > 35 && distanceFromCenter <= 200) {
+              getRandomizedAcceleration() * (elapsedTime - launchDelay) * 1.5;
+          } else if (distanceFromCenter > 35 && distanceFromCenter <= 75) {
+            // Stage 2
             currentSpeed =
               initialSpeed +
               getRandomizedAcceleration() *
                 Math.pow(elapsedTime - launchDelay, 1.5); // Use power of two for distance > 200
           } else {
+            // Stage 3
             currentSpeed =
               initialSpeed +
               getRandomizedAcceleration() *

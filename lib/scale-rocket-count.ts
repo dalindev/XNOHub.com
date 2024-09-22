@@ -8,8 +8,10 @@ export function scaleRocketCount(amount: number): number {
   } else if (amount >= 10000) {
     return 6;
   } else if (amount >= 1000) {
+    return 4;
+  } else if (amount >= 100) {
     return 2;
-  } else if (amount >= 0) {
+  } else if (amount >= 10) {
     return 1;
   } else {
     return 0;

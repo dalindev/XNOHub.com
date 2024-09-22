@@ -84,7 +84,7 @@ export const ConfirmationHistoryTable: React.FC<
           )}
         </Button>
       </div>
-      <div className="overflow-hidden max-h-[75vh] md:max-w-[600px] md:ml-auto justify-end flex">
+      <div className="overflow-hidden max-h-[75vh] md:max-w-[700px] lg:max-w-[800px] md:ml-auto justify-end flex">
         <table className="w-fit bg-transparent border border-transparent text-[14px]">
           <thead className="bg-transparent select-none text-gray-300">
             <tr>
