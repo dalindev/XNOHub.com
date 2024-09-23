@@ -8,7 +8,10 @@
     "start": "next start",
     "lint": "next lint",
     "ts": "tsc --noEmit",
-    "format": "prettier --ignore-path .gitignore --write \"**/*.+(js|ts|json)\""
+    "format": "prettier --ignore-path .gitignore --write \"**/*.+(js|ts|json)\"",
+    "clean": "rm -rf .next && pnpm store prune && next telemetry disable && rm -rf .eslintcache",
+    "clean:full": "pnpm clean && rm -rf node_modules && pnpm store prune",
+    "prepare": "pnpm run ts && pnpm run lint"
   },
   "dependencies": {
     "@headlessui/react": "^1.7.15",
