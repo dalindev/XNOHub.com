@@ -1237,7 +1237,7 @@ export const SampleConfirmationData2 = [
     message: {
       account:
         'nano_3nntmoi1gwobpkwg7odxrqk7mso1dk7fjp1d3cfbfzgu5c3yxj6iq77p9n4o',
-      amount: '13335000000000000000000000000000000',
+      amount: '1333000000000000000000000000000000',
       hash: 'D036225358C17FB49CACA1740197E0B872E81DE2F29E00A685A5CA1828060474',
       confirmation_type: 'active_quorum',
       block: {
