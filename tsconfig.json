@@ -33,7 +33,8 @@
       "@/data/*": ["data/*"],
       "@/api/*": ["api/*"],
       "@/constants/*": ["constants/*"],
-      "@/providers/*": ["providers/*"]
+      "@/providers/*": ["providers/*"],
+      "@/banano/*": ["banano/*"]
     }
   },
   "include": [
