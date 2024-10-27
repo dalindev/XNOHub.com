@@ -352,7 +352,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
           </div>
 
           <div className="mt-1 md:mt-2 text-[10px] md:text-xs text-gray-400">
-            Fun fact: This Falcon 9 runs on pure Nano. No fees, no fuel! ⚡
+            Fun fact: This Falcon Heavy runs on pure Nano. No fees, no fuel! ⚡
           </div>
         </div>
       )}
