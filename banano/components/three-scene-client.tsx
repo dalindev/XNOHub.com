@@ -10,8 +10,8 @@ import { CloudMesh } from '@/components/three-cloud-mesh';
 import { BananoConfirmationHistoryTable } from '@/banano/components/banano-confirmation-history-table';
 import { DonationImagePopover } from '@/banano/components/donation-image-popover';
 import { useBananoConfirmations } from '@/banano/providers/banano-confirmation-provider';
-import { DonationAnimation } from '@/components/donation-animation';
-import { NANO_LIVE_ENV } from '@/constants/nano-live-env';
+import { DonationAnimation } from '@/banano/components/donation-animation';
+import { BANANO_LIVE_ENV } from '@/banano/constants/banano-live-env';
 import { parseBananoAmount } from '@/banano/lib/parse-banano-amount';
 import { Vector3 } from 'three';
 import { bananoScaleRocketCount } from '@/banano/lib/banano-scale-rocket-count';
@@ -87,7 +87,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
     if (latestConfirmation) {
       const isDonation =
         latestConfirmation.message.block.link_as_account ===
-        NANO_LIVE_ENV.donationAccount;
+        BANANO_LIVE_ENV.donationAccount;
       const amount = parseBananoAmount(latestConfirmation.message.amount);
       const isSend = latestConfirmation.message.block.subtype === 'send';
       if (isDonation) {
@@ -147,7 +147,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
 
   return (
     <div className="relative w-screen h-screen">
-      <div className="absolute top-1 md:top-4 left-4 md:left-10 z-10 flex-col">
+      <div className="absolute top-1 md:top-4 left-4 md:left-10 z-10 flex-col select-none">
         <span className="text-[30px] md:text-[40px] font-thin font-sans text-yellow-300">
           BAN
         </span>

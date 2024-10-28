@@ -147,7 +147,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
 
   return (
     <div className="relative w-screen h-screen">
-      <div className="absolute top-1 md:top-4 left-4 md:left-10 z-10 flex-col">
+      <div className="absolute top-1 md:top-4 left-4 md:left-10 z-10 flex-col select-none">
         <span className="text-[30px] md:text-[40px] font-thin font-sans text-[#209ce9]">
           ӾNO
         </span>

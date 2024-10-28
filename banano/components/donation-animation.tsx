@@ -214,14 +214,14 @@ export const DonationAnimation: React.FC = () => {
 
 // Helper function to get meteor count and size based on donation amount
 const getMeteorCountAndSize = (amount: number): [number, number] => {
-  if (amount >= 10000) return [30, 0.5];
-  if (amount >= 1000) return [20, 0.4];
-  if (amount >= 100) return [10, 0.35];
-  if (amount >= 10) return [7, 0.35];
-  if (amount >= 5) return [5, 0.3];
-  if (amount >= 1) return [3, 0.3];
-  if (amount >= 0.1) return [2, 0.25];
-  if (amount >= 0.01) return [1, 0.2];
-  if (amount >= 0.001) return [1, 0.15];
+  if (amount >= 100000) return [30, 0.5];
+  if (amount >= 10000) return [20, 0.4];
+  if (amount >= 1000) return [10, 0.35];
+  if (amount >= 500) return [7, 0.35];
+  if (amount >= 100) return [5, 0.3];
+  if (amount >= 50) return [3, 0.3];
+  if (amount >= 10) return [2, 0.25];
+  if (amount >= 5) return [1, 0.2];
+  if (amount >= 1) return [1, 0.15];
   return [1, 0.1];
 };
