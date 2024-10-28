@@ -5,19 +5,19 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Stars, PerspectiveCamera } from '@react-three/drei';
 import * as THREE from 'three';
 import { IRepData } from '@/types/index';
-import ThreeMesh from '@/components/three-mesh';
+import ThreeMesh from '@/banano/components/three-mesh';
 import { CloudMesh } from '@/components/three-cloud-mesh';
-import { ConfirmationHistoryTable } from '@/components/confirmation-history-table';
-import { DonationImagePopover } from '@/components/donation-image-popover';
-import { useConfirmations } from '@/providers/confirmation-provider';
-import { DonationAnimation } from '@/components/donation-animation';
-import { NANO_LIVE_ENV } from '@/constants/nano-live-env';
-import { parseNanoAmount } from '@/lib/parse-nano-amount';
+import { BananoConfirmationHistoryTable } from '@/banano/components/banano-confirmation-history-table';
+import { DonationImagePopover } from '@/banano/components/donation-image-popover';
+import { useBananoConfirmations } from '@/banano/providers/banano-confirmation-provider';
+import { DonationAnimation } from '@/banano/components/donation-animation';
+import { BANANO_LIVE_ENV } from '@/banano/constants/banano-live-env';
+import { parseBananoAmount } from '@/banano/lib/parse-banano-amount';
 import { Vector3 } from 'three';
-import { scaleRocketCount } from '@/lib/scale-rocket-count';
+import { bananoScaleRocketCount } from '@/banano/lib/banano-scale-rocket-count';
 import { Button } from '@/components/ui/button';
 import { Rocket, Eye, Globe } from 'lucide-react';
-import RocketAnimationManager from '@/components/rocket-animation-manager';
+import RocketAnimationManager from '@/banano/components/rocket-animation-manager';
 
 function getRandomPositionOnGlobe(radius: number = 1.2): Vector3 {
   const phi = Math.random() * Math.PI * 2;
@@ -45,7 +45,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
     serverDateTime || new Date()
   );
   const [hoveredNode, setHoveredNode] = useState<IRepData | null>(null);
-  const { confirmationHistory: confirmations } = useConfirmations();
+  const { confirmationHistory: confirmations } = useBananoConfirmations();
   const [launchQueue, setLaunchQueue] = useState<Vector3[]>([]);
   const [isRocketView, setIsRocketView] = useState(false);
   const cameraRef = useRef<THREE.PerspectiveCamera>(null);
@@ -87,8 +87,8 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
     if (latestConfirmation) {
       const isDonation =
         latestConfirmation.message.block.link_as_account ===
-        NANO_LIVE_ENV.donationAccount;
-      const amount = parseNanoAmount(latestConfirmation.message.amount);
+        BANANO_LIVE_ENV.donationAccount;
+      const amount = parseBananoAmount(latestConfirmation.message.amount);
       const isSend = latestConfirmation.message.block.subtype === 'send';
       if (isDonation) {
         // Trigger existing donation animation
@@ -99,7 +99,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
 
       if (isSend) {
         const newRocketCount = Math.max(
-          scaleRocketCount(amount),
+          bananoScaleRocketCount(amount),
           rocketCount === 0 ? 1 : 0
         );
 
@@ -148,8 +148,8 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
   return (
     <div className="relative w-screen h-screen">
       <div className="absolute top-1 md:top-4 left-4 md:left-10 z-10 flex-col select-none">
-        <span className="text-[30px] md:text-[40px] font-thin font-sans text-[#209ce9]">
-          ӾNO
+        <span className="text-[30px] md:text-[40px] font-thin font-sans text-yellow-300">
+          BAN
         </span>
         <span className="text-[30px] md:text-[40px] text-gray-200">Hub</span>
       </div>
@@ -197,7 +197,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
         <div className="flex items-center gap-2 text-white">
           Active <Rocket className="w-4 h-4 text-red-600" /> {rocketCount}
         </div>
-        <ConfirmationHistoryTable />
+        <BananoConfirmationHistoryTable />
       </div>
 
       <Canvas
@@ -270,7 +270,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
       </div>
 
       {isRocketView && (
-        <div className="absolute bottom-4 left-4 right-4 md:right-auto z-10 bg-black md:bg-opacity-80 p-2 md:p-3 rounded-lg font-mono text-sm md:text-base text-center shadow-lg border-2 border-[#4A90E2] max-w-full md:max-w-[550px]">
+        <div className="absolute bottom-4 left-4 right-4 md:right-auto z-10 bg-black md:bg-opacity-80 p-2 md:p-3 rounded-lg font-mono text-sm md:text-base text-center shadow-lg border-2 border-yellow-300 max-w-full md:max-w-[550px]">
           <div className="flex items-center justify-center mb-1 md:mb-2">
             <span
               className="text-lg md:text-xl mr-1 md:mr-2"
@@ -279,7 +279,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
             >
               🌍
             </span>
-            <span className="text-[#4A90E2] text-xs md:text-sm">
+            <span className="text-yellow-300 text-xs md:text-sm">
               Earth: {(distanceFromEarth * EarthRadiusInKm).toFixed(0)} km (
               {distanceFromEarth.toFixed(1)})
             </span>
@@ -294,33 +294,33 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
 
             {distanceFromEarth > 2 && distanceFromEarth <= 5 && (
               <span className="text-green-400">
-                &quot;1 ӾNO = 1 ӾNO, even in space! 👩‍🚀 🛸&quot;
+                &quot;1 BAN 🍌 = 1 BAN 🍌, even in space! 👩‍🚀 🛸&quot;
               </span>
             )}
 
             {distanceFromEarth > 5 && distanceFromEarth <= 10 && (
               <span className="text-blue-300">
-                &quot;BROCCOLISH 🥦 All the way to the Mars!&quot;
+                &quot;🍌 All the way to the Mars!&quot;
               </span>
             )}
 
             {distanceFromEarth > 10 && distanceFromEarth <= 20 && (
               <span className="text-purple-400">
-                &quot;Nano: Proof-of-work? We left that back on Earth 🌍&quot;
+                &quot;Banano: Proof-of-work? We left that back on Earth 🌍&quot;
               </span>
             )}
 
             {distanceFromEarth > 20 && distanceFromEarth <= 30 && (
               <span className="text-pink-400">
                 &quot;The further we go, the smaller our fees get. Oh wait...
-                Nano is feeless 😎&quot;
+                Banano is feeless 😎&quot;
               </span>
             )}
 
             {distanceFromEarth > 30 && distanceFromEarth <= 100 && (
               <span className="text-orange-400">
-                &quot;🚨 Nano speed initiated 🚨. Nano&apos;s block lattice is
-                unstoppable! 🌀&quot;
+                &quot;🚨 Banano speed initiated 🚨. Banano&apos;s block lattice
+                is unstoppable! 🌀&quot;
               </span>
             )}
 
@@ -333,26 +333,21 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
 
             {distanceFromEarth > 350 && distanceFromEarth <= 500 && (
               <span className="text-[#4A90E2] font-bold">
-                &quot;Zero fees across the universe, Nano is boundless. 💫
+                &quot;Zero fees across the universe, Banano is boundless. 💫
                 🌌&quot;
               </span>
             )}
 
-            {distanceFromEarth > 500 && distanceFromEarth <= 600 && (
+            {distanceFromEarth > 500 && (
               <span className="text-green-400 font-bold animate-pulse">
-                &quot;Nano IS Nano 🗿&quot;
-              </span>
-            )}
-
-            {distanceFromEarth > 600 && (
-              <span className="text-red-500 font-bold animate-pulse">
-                &quot;USER-35077: What if ... falls to 2k 💀&quot;
+                &quot;Banano is Banano 🍌&quot;
               </span>
             )}
           </div>
 
           <div className="mt-1 md:mt-2 text-[10px] md:text-xs text-gray-400">
-            Fun fact: This Falcon Heavy runs on pure Nano. No fees, no fuel! ⚡
+            Fun fact: This Falcon Heavy runs on pure Banano. No fees, no fuel,
+            just 🍌
           </div>
         </div>
       )}

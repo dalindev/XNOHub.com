@@ -28,6 +28,9 @@ export interface IRepOnline {
   votingweight: number;
   weight_formatted: string;
   weight_percent: number;
+  location?: string | null;
+  latitude?: number;
+  longitude?: number;
 }
 
 // Final type for RepsOnline
