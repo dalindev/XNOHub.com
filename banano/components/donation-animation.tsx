@@ -2,64 +2,100 @@
 
 import React, { useRef, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { useTexture } from '@react-three/drei';
+import { useTexture, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 
-interface Meteor extends THREE.Mesh {
+interface Banana extends THREE.Group {
   velocity: THREE.Vector3;
 }
 
 export const DonationAnimation: React.FC = () => {
   const { scene } = useThree();
-  const meteorsRef = useRef<Meteor[]>([]);
+  const bananasRef = useRef<Banana[]>([]);
   const earthRadius = 1;
 
   // Load the meteor texture
   const props = useTexture({
-    moon: '/moon_1k.jpg',
     sun: '/fire_meteor.png'
   });
 
+  // Load the 3D model
+  const bananaModel = useGLTF('/banano/donation/banana.glb');
+
   useFrame(() => {
-    meteorsRef.current.forEach((meteor, index) => {
-      meteor.position.add(meteor.velocity);
-      if (meteor.position.length() < earthRadius) {
-        scene.remove(meteor);
-        meteorsRef.current.splice(index, 1);
-        createExplosion(meteor.position);
+    bananasRef.current.forEach((banana, index) => {
+      banana.position.add(banana.velocity);
+      banana.rotateX(0.02); // Add some rotation to the banana
+      if (banana.position.length() < earthRadius) {
+        scene.remove(banana);
+        bananasRef.current.splice(index, 1);
+        createExplosion(banana.position);
       }
     });
   });
 
-  const createMeteor = (size: number): void => {
-    const meteorGeometry = new THREE.SphereGeometry(size, 32, 32);
-    const meteorMaterial = new THREE.MeshPhongMaterial({
-      map: props.moon,
-      color: 0xb8aea3,
-      shininess: 25,
-      specular: 0x333333,
-      transparent: false,
-      side: THREE.FrontSide
-    });
+  const createBanana = (size: number): void => {
+    const bananaGroup = new THREE.Group() as any;
+    const globalScale = 0.008; // Adjust this value to make all bananas smaller/larger
+    const speed = 0.025;
 
-    const meteor = new THREE.Mesh(meteorGeometry, meteorMaterial) as any;
+    // Clone the banana model for each instance
+    const banana = bananaModel.scene.clone();
 
+    // Scale the banana model with the global scale factor
+    banana.scale.setScalar(size * globalScale);
+    bananaGroup.add(banana);
+
+    // Position the banana in space
     const theta = Math.random() * Math.PI * 2;
     const phi = Math.acos(Math.random() * 2 - 1);
-    meteor.position.set(
+    bananaGroup.position.set(
       4 * Math.sin(phi) * Math.cos(theta),
       4 * Math.sin(phi) * Math.sin(theta),
       4 * Math.cos(phi)
     );
 
-    meteor.velocity = new THREE.Vector3()
-      .subVectors(new THREE.Vector3(), meteor.position)
-      .normalize()
-      .multiplyScalar(0.04);
+    // Random initial rotation
+    bananaGroup.rotation.x = Math.random() * Math.PI;
+    bananaGroup.rotation.y = Math.random() * Math.PI;
+    bananaGroup.rotation.z = Math.random() * Math.PI;
 
-    scene.add(meteor);
-    meteorsRef.current.push(meteor);
+    bananaGroup.velocity = new THREE.Vector3()
+      .subVectors(new THREE.Vector3(), bananaGroup.position)
+      .normalize()
+      .multiplyScalar(speed);
+
+    scene.add(bananaGroup);
+    bananasRef.current.push(bananaGroup);
   };
+
+  const triggerDonationAnimation = (amount: number): void => {
+    const [bananaCount, bananaSize] = getBananaCountAndSize(amount);
+
+    for (let i = 0; i < bananaCount; i++) {
+      createBanana(bananaSize);
+    }
+  };
+
+  useEffect(() => {
+    (window as any).triggerDonationAnimation = triggerDonationAnimation;
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      bananaModel.scene.traverse((object) => {
+        if ((object as THREE.Mesh).isMesh) {
+          const mesh = object as THREE.Mesh;
+          mesh.geometry.dispose();
+          if (Array.isArray(mesh.material)) {
+            mesh.material.forEach((material) => material.dispose());
+          } else {
+            mesh.material.dispose();
+          }
+        }
+      });
+    };
+  }, []);
 
   const createExplosion = (position: THREE.Vector3): void => {
     const explosionGroup = new THREE.Group();
@@ -197,31 +233,19 @@ export const DonationAnimation: React.FC = () => {
     animate();
   };
 
-  const triggerDonationAnimation = (amount: number): void => {
-    const [meteorCount, meteorSize] = getMeteorCountAndSize(amount);
-
-    for (let i = 0; i < meteorCount; i++) {
-      createMeteor(meteorSize);
-    }
-  };
-
-  useEffect(() => {
-    (window as any).triggerDonationAnimation = triggerDonationAnimation;
-  }, []);
-
   return null;
 };
 
-// Helper function to get meteor count and size based on donation amount
-const getMeteorCountAndSize = (amount: number): [number, number] => {
-  if (amount >= 100000) return [30, 0.5];
-  if (amount >= 10000) return [20, 0.4];
-  if (amount >= 1000) return [10, 0.35];
-  if (amount >= 500) return [7, 0.35];
-  if (amount >= 100) return [5, 0.3];
-  if (amount >= 50) return [3, 0.3];
-  if (amount >= 10) return [2, 0.25];
-  if (amount >= 5) return [1, 0.2];
+// Adjusted size values for bananas - reduced all sizes by ~70%
+const getBananaCountAndSize = (amount: number): [number, number] => {
+  if (amount >= 100000) return [30, 0.4];
+  if (amount >= 10000) return [20, 0.32];
+  if (amount >= 1000) return [10, 0.28];
+  if (amount >= 500) return [7, 0.26];
+  if (amount >= 100) return [5, 0.24];
+  if (amount >= 50) return [3, 0.22];
+  if (amount >= 10) return [2, 0.2];
+  if (amount >= 5) return [1, 0.18];
   if (amount >= 1) return [1, 0.15];
-  return [1, 0.1];
+  return [1, 0.12];
 };
