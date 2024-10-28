@@ -475,7 +475,9 @@ export const RepsData = [
     votingweight: 17274484,
     weight_formatted: '0.90%',
     weight_percent: 0.9,
-    location: 'Bananorlando City'
+    location: 'Bananorlando City',
+    latitude: 28.3368,
+    longitude: -81.5158
   },
   {
     account: 'ban_34sce59x8zca8heegpwwkig3r87upqtfgxahmqtpupirs1yhkgwk739aqc8z',
@@ -493,7 +495,9 @@ export const RepsData = [
     votingweight: 14284130,
     weight_formatted: '0.74%',
     weight_percent: 0.74,
-    location: 'Occitanie, FR'
+    location: 'Occitanie, FR',
+    latitude: 43.5843,
+    longitude: 2.8433
   },
   {
     account: 'ban_3yip4x7tccmayjim1h6mjof46hhjfgukn86gs8ic87b8ig6r9jtptogp8skc',
@@ -511,7 +515,9 @@ export const RepsData = [
     votingweight: 12286545,
     weight_formatted: '0.64%',
     weight_percent: 0.64,
-    location: null
+    location: null,
+    latitude: 59.3293,
+    longitude: 18.0686
   },
   {
     account: 'ban_1gt4ti4gnzjre341pqakzme8z94atcyuuawoso8gqwdx5m4a77wu1mxxighh',
@@ -529,7 +535,9 @@ export const RepsData = [
     votingweight: 11868307,
     weight_formatted: '0.62%',
     weight_percent: 0.62,
-    location: null
+    location: null,
+    latitude: 59.3293,
+    longitude: 18.0686
   },
   {
     account: 'ban_1bestrep6gq14bt4bi7w446m9knc6matfad7qcii7edeb33iipooh46dotdz',

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Subject, interval } from 'rxjs';
 import { webSocket, WebSocketSubject } from 'rxjs/webSocket';
 import { IRepOnline, NanoConfirmation } from '@/types/index';
-import { BANANO_LIVE_ENV } from '@/constants/banano-live-env';
+import { BANANO_LIVE_ENV } from '@/banano/constants/banano-live-env';
 import { RepsData } from '@/banano/data/defualtMergedBananoRepsData';
 import { SampleConfirmationData2 } from '@/data/sampleConfirmationData';
 
@@ -50,7 +50,7 @@ const useBananoWebsocket = () => {
   }, [wsUrl]);
 
   const simulateConfirmations = useCallback(() => {
-    const SimulationInterval = 500; // ms
+    const SimulationInterval = 2000; // ms
     if (isLocalDevelopment) {
       const confirmationSubscription = new Subject<NanoConfirmation>();
       let index = 0;
@@ -87,6 +87,7 @@ const useBananoWebsocket = () => {
             voteSubscription.next(res);
             break;
           case 'confirmation':
+            console.log('confirmation', res);
             confirmationSubscription.next(res);
             break;
           case 'stopped_election':

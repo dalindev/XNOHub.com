@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import ThreeSceneClient from './three-scene-client';
-import { RepsData } from '@/data/defualtMergedRepsData';
+import ThreeSceneClient from '@/banano/components/three-scene-client';
+import { RepsData } from '@/banano/data/defualtMergedBananoRepsData';
 
 const ThreeSceneClientWrapper: React.FC = () => {
   const [serverDateTime, setServerDateTime] = useState<Date | null>(null);
@@ -12,7 +12,7 @@ const ThreeSceneClientWrapper: React.FC = () => {
   }, []);
 
   if (RepsData.length === 0) {
-    return <div className="font-[40px]">Loading data... Ӿ Ӿ Ӿ ...</div>;
+    return <div className="font-[40px]">Connecting to Banano network...</div>;
   }
 
   return (
