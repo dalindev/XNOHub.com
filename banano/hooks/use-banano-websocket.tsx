@@ -50,7 +50,7 @@ const useBananoWebsocket = () => {
   }, [wsUrl]);
 
   const simulateConfirmations = useCallback(() => {
-    const SimulationInterval = 500; // ms
+    const SimulationInterval = 311; // ms
     if (isLocalDevelopment) {
       const confirmationSubscription = new Subject<NanoConfirmation>();
       let index = 0;

@@ -14,10 +14,10 @@ import {
 const BROADCAST_ARC_LIFT_RATE = 1.15; // Lift rate for outgoing arcs
 const CONFIRMATION_ARC_LIFT_RATE = 1.15; // Lift rate for returning arcs (lower for shorter arcs)
 const ARC_POINTS = 50;
-const BROADCAST_ARC_SEGMENT_LENGTH = 0.3;
+const BROADCAST_ARC_SEGMENT_LENGTH = 0.4;
 const CONFIRMATION_ARC_SEGMENT_LENGTH = 0.1;
-const BROADCAST_DURATION = 150;
-const CONFIRMATION_DURATION = 250;
+const BROADCAST_DURATION = 100;
+const CONFIRMATION_DURATION = 100;
 
 interface NetworkArcsProps {
   nodes: IRepData[];
