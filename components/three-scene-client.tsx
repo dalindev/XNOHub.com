@@ -11,13 +11,13 @@ import { ConfirmationHistoryTable } from '@/components/confirmation-history-tabl
 import { DonationImagePopover } from '@/components/donation-image-popover';
 import { useConfirmations } from '@/providers/confirmation-provider';
 import { DonationAnimation } from '@/components/donation-animation';
-import { NANO_LIVE_ENV } from '@/constants/nano-live-env';
 import { parseNanoAmount } from '@/lib/parse-nano-amount';
 import { Vector3 } from 'three';
 import { scaleRocketCount } from '@/lib/scale-rocket-count';
 import { Button } from '@/components/ui/button';
 import { Rocket, Eye, Globe } from 'lucide-react';
 import RocketAnimationManager from '@/components/rocket-animation-manager';
+import { APP_CONFIG } from '@/constants/config';
 
 function getRandomPositionOnGlobe(radius: number = 1.2): Vector3 {
   const phi = Math.random() * Math.PI * 2;
@@ -87,7 +87,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
     if (latestConfirmation) {
       const isDonation =
         latestConfirmation.message.block.link_as_account ===
-        NANO_LIVE_ENV.donationAccount;
+        APP_CONFIG.donations.nano;
       const amount = parseNanoAmount(latestConfirmation.message.amount);
       const isSend = latestConfirmation.message.block.subtype === 'send';
       if (isDonation) {

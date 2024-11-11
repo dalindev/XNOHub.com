@@ -11,12 +11,12 @@ import {
   TooltipTrigger
 } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
-import { NANO_LIVE_ENV } from '@/constants/nano-live-env';
 import { getRepName } from '@/lib/get-rep-name';
 import { truncateAddress } from '@/lib/truncate-address';
 import { formatRelativeTime } from '@/lib/format-relative-time';
 import { NanoConfirmation } from '@/types/index';
 import { Maximize2, Minimize2, ChevronDown, ChevronUp } from 'lucide-react';
+import { APP_CONFIG } from '@/constants/config';
 
 interface ConfirmationHistoryTableProps {}
 
@@ -48,7 +48,7 @@ export const ConfirmationHistoryTable: React.FC<
   };
 
   return (
-    <div className="space-y-4 w-full md:w-auto pointer-events-none">
+    <div className="space-y-4 w-full md:w-auto pointer-events-none select-none">
       <div className="flex justify-end items-center gap-2 pointer-events-auto">
         <Button
           onClick={toggleRowCount}
@@ -110,7 +110,7 @@ export const ConfirmationHistoryTable: React.FC<
                 const style = getStyleByNanoAmount(amount);
                 const isDonation =
                   confirmation.message.block.link_as_account ===
-                  NANO_LIVE_ENV.donationAccount;
+                  APP_CONFIG.donations.nano;
                 const repName = getRepName(
                   confirmation.message.block.representative
                 );

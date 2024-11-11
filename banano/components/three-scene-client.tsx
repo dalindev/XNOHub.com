@@ -11,7 +11,7 @@ import { BananoConfirmationHistoryTable } from '@/banano/components/banano-confi
 import { DonationImagePopover } from '@/banano/components/donation-image-popover';
 import { useBananoConfirmations } from '@/banano/providers/banano-confirmation-provider';
 import { DonationAnimation } from '@/banano/components/donation-animation';
-import { BANANO_LIVE_ENV } from '@/banano/constants/banano-live-env';
+import { APP_CONFIG } from '@/constants/config';
 import { parseBananoAmount } from '@/banano/lib/parse-banano-amount';
 import { Vector3 } from 'three';
 import { bananoScaleRocketCount } from '@/banano/lib/banano-scale-rocket-count';
@@ -87,7 +87,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
     if (latestConfirmation) {
       const isDonation =
         latestConfirmation.message.block.link_as_account ===
-        BANANO_LIVE_ENV.donationAccount;
+        APP_CONFIG.donations.banano;
       const amount = parseBananoAmount(latestConfirmation.message.amount);
       const isSend = latestConfirmation.message.block.subtype === 'send';
       if (isDonation) {
