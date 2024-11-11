@@ -13,7 +13,7 @@ const GifLoader = () => {
         unoptimized
       />
       <div className="text-[30px] w-full text-center m-10">
-        Loading... Ӿ ...
+        Connecting to NanoCurrency Network... 💰
       </div>
     </div>
   );
