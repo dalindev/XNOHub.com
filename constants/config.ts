@@ -24,8 +24,8 @@ export const APP_CONFIG = {
   // WebSocket settings
   websocket: {
     urls: {
-      nano: process.env.NEXT_PUBLIC_WS_URL,
-      banano: process.env.NEXT_PUBLIC_BANANO_WS_URL
+      nano: process.env.NEXT_PUBLIC_WS_URL ?? '',
+      banano: process.env.NEXT_PUBLIC_BANANO_WS_URL ?? ''
     }
   },
 
