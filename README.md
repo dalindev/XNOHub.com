@@ -155,3 +155,28 @@ This project is licensed under the MIT License. See the LICENSE file for more de
 ## 📫 Contact
 
 X (Twitter): [@dalinhuang](https://x.com/dalinhuang)
+
+## Social Media Images
+
+The following image assets are required for social media sharing:
+
+- `public/og-image.png`: OpenGraph image (1200x630px)
+  - Format: PNG/JPEG
+  - Max size: 8MB
+  - Used by: Facebook, LinkedIn, Discord
+
+- `public/twitter-card.png`: Twitter card image (1200x600px)
+  - Format: PNG
+  - Max size: 5MB
+  - Used by: Twitter/X
+
+- `public/xno-preview.gif`: Animated preview (800x400px)
+  - Format: GIF
+  - Max size: 5MB
+  - Used as alternative preview
+
+Image requirements:
+- Keep file sizes optimized
+- Include logo and relevant visualization
+- Use clear, high-contrast visuals
+- Test with Twitter Card Validator and Facebook Sharing Debugger

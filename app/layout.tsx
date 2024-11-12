@@ -1,8 +1,12 @@
 import { Analytics } from '@vercel/analytics/react';
+import { Metadata } from 'next';
 
 import '@/app/globals.css';
 
-export const metadata = {
+export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_BASE_URL || 'https://your-domain.com'
+  ),
   title: 'NanoCurrency (XNO) Representative Network Visualization',
   description:
     'Interactive 3D visualization of the NanoCurrency (XNO) representative network. Explore real-time node distribution, voting weight, and network health of the Nano digital currency ecosystem.',
@@ -14,6 +18,10 @@ export const metadata = {
     'Nano Network',
     'Nano Representatives',
     'XNO Network',
+    'SpaceX',
+    'Starlink',
+    'Falcon Heavy',
+    'Starlink Satellite',
     'Nano Nodes',
     'Digital Currency',
     'Digital Cash',
@@ -29,14 +37,14 @@ export const metadata = {
   openGraph: {
     title: 'NanoCurrency (XNO) Network Visualization',
     description:
-      'Explore the NanoCurrency (XNO) representative network in an interactive 3D visualization. View real-time node distribution and voting weight.',
+      'Explore the NanoCurrency (XNO) representative network in an interactive 3D visualization',
     type: 'website',
     locale: 'en_US',
     images: [
       {
-        url: '/xno_currencies_mini.gif',
-        width: 800,
-        height: 262,
+        url: '/open-graph/xnohub.png',
+        width: 1200,
+        height: 630,
         alt: 'NanoCurrency Network Visualization'
       }
     ]
@@ -46,7 +54,15 @@ export const metadata = {
     title: 'NanoCurrency (XNO) Network Visualization',
     description:
       'Interactive 3D visualization of the NanoCurrency (XNO) representative network',
-    images: ['/xno_currencies_mini.gif']
+    creator: '@dalinhuang',
+    images: [
+      {
+        url: '/open-graph/xnohub.png',
+        width: 1200,
+        height: 630,
+        alt: 'NanoCurrency Network Visualization'
+      }
+    ]
   }
 };
 
