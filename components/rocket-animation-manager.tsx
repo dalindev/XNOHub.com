@@ -7,7 +7,7 @@ import React, {
   useImperativeHandle
 } from 'react';
 import { Vector3 } from 'three';
-import { Falcon9Animation } from '@/components/falcon9-animation';
+import { FalconHeavyAnimation } from '@/components/falcon-heavy-animation';
 
 interface RocketData {
   id: string;
@@ -98,7 +98,7 @@ const RocketAnimationManager = forwardRef<
     return (
       <>
         {rockets.map((rocket, index) => (
-          <Falcon9Animation
+          <FalconHeavyAnimation
             key={rocket.id}
             initialPosition={rocket.position}
             onComplete={() => removeRocket(rocket.id)}

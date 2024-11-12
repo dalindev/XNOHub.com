@@ -2,7 +2,12 @@
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Stars, PerspectiveCamera } from '@react-three/drei';
+import {
+  OrbitControls,
+  Stars,
+  PerspectiveCamera,
+  Stats
+} from '@react-three/drei';
 import * as THREE from 'three';
 import { IRepData } from '@/types/index';
 import ThreeMesh from '@/components/three-mesh';
@@ -207,6 +212,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
         }}
         className="w-full h-full cursor-move pointer-events-auto"
       >
+        {APP_CONFIG.debug.frameRateDisplay && <Stats />}
         <PerspectiveCamera
           makeDefault
           ref={cameraRef}
