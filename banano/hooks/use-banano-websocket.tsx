@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Subject, interval } from 'rxjs';
 import { webSocket, WebSocketSubject } from 'rxjs/webSocket';
 import { IRepOnline, NanoConfirmation } from '@/types/index';
-import { BANANO_LIVE_ENV } from '@/banano/constants/banano-live-env';
+import { APP_CONFIG } from '@/constants/config';
 import { RepsData } from '@/banano/data/defualtMergedBananoRepsData';
 import { SampleConfirmationData2 } from '@/data/sampleConfirmationData';
 
@@ -34,7 +34,7 @@ interface StoppedElection {
 }
 
 const useBananoWebsocket = () => {
-  const wsUrl = useMemo(() => BANANO_LIVE_ENV.wsUrl, []);
+  const wsUrl = useMemo(() => APP_CONFIG.websocket.urls.banano, []);
   const [socket, setSocket] = useState<WebSocketSubject<any> | null>(null);
   const [principals, setPrincipals] = useState<IRepOnline[]>(RepsData);
   const [subscriptions, setSubscriptions] = useState<Subscriptions | null>(
@@ -42,15 +42,11 @@ const useBananoWebsocket = () => {
   );
 
   const isLocalDevelopment = useMemo(() => {
-    return (
-      !wsUrl ||
-      process.env.NEXT_PUBLIC_USE_SAMPLE_DATA === undefined ||
-      process.env.NEXT_PUBLIC_USE_SAMPLE_DATA === 'true'
-    );
+    return !wsUrl || APP_CONFIG.debug.useSampleData;
   }, [wsUrl]);
 
   const simulateConfirmations = useCallback(() => {
-    const SimulationInterval = 311; // ms
+    const SimulationInterval = APP_CONFIG.simulation.interval; // ms
     if (isLocalDevelopment) {
       const confirmationSubscription = new Subject<NanoConfirmation>();
       let index = 0;

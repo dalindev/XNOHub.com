@@ -71,6 +71,15 @@ module.exports = {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
       },
+      height: {
+        'screen-dvh': '100dvh',
+      },
+      minHeight: {
+        'screen-dvh': '100dvh',
+      },
+      maxHeight: {
+        'screen-dvh': '100dvh',
+      },
     },
   },
   plugins: [require("tailwindcss-animate")],

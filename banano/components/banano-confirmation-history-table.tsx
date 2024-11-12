@@ -11,7 +11,7 @@ import {
   TooltipTrigger
 } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
-import { BANANO_LIVE_ENV } from '@/banano/constants/banano-live-env';
+import { APP_CONFIG } from '@/constants/config';
 import { getBananoRepName } from '@/banano/lib/get-banano-rep-name';
 import { truncateAddress } from '@/lib/truncate-address';
 import { formatRelativeTime } from '@/lib/format-relative-time';
@@ -115,7 +115,7 @@ export const BananoConfirmationHistoryTable: React.FC<
                 const style = getStyleByBananoAmount(amount);
                 const isDonation =
                   confirmation.message.block.link_as_account ===
-                  BANANO_LIVE_ENV.donationAccount;
+                  APP_CONFIG.donations.banano;
                 const repName = getBananoRepName(
                   confirmation.message.block.representative
                 );

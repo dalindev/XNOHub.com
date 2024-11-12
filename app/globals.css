@@ -65,5 +65,16 @@
   }
   body {
     @apply bg-background text-foreground;
+    min-height: 100vh; /* Fallback for older browsers */
+    min-height: 100dvh; /* Dynamic viewport height */
+    max-height: 100vh; /* Fallback for older browsers */
+    max-height: 100dvh; /* Dynamic viewport height */
+    overflow: hidden;
   }
+}
+
+.main-wrapper {
+  height: 100vh; /* Fallback */
+  height: 100dvh; /* Dynamic viewport height */
+  overflow: hidden;
 }

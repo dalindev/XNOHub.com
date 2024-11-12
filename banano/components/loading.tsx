@@ -11,7 +11,7 @@ const GifLoader = () => {
         className="w-1/2 h-auto"
       />
       <div className="text-[30px] w-full text-center m-10">
-        Loading... 🍌🍌🍌 ...
+        Connecting to Banano... 🍌🍌🍌
       </div>
     </div>
   );

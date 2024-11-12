@@ -2,9 +2,9 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Subject, interval } from 'rxjs';
 import { webSocket, WebSocketSubject } from 'rxjs/webSocket';
 import { IRepOnline, NanoConfirmation } from '@/types/index';
-import { NANO_LIVE_ENV } from '@/constants/nano-live-env';
 import { RepsData } from '@/data/defualtMergedRepsData';
 import { SampleConfirmationData2 } from '@/data/sampleConfirmationData';
+import { APP_CONFIG } from '@/constants/config';
 
 interface Subscriptions {
   votes: Subject<Vote>;
@@ -34,7 +34,7 @@ interface StoppedElection {
 }
 
 const useNanoWebsocket = () => {
-  const wsUrl = useMemo(() => NANO_LIVE_ENV.wsUrl, []);
+  const wsUrl = useMemo(() => APP_CONFIG.websocket.urls.nano, []);
   const [socket, setSocket] = useState<WebSocketSubject<any> | null>(null);
   const [principals, setPrincipals] = useState<IRepOnline[]>(RepsData);
   const [subscriptions, setSubscriptions] = useState<Subscriptions | null>(
@@ -42,26 +42,21 @@ const useNanoWebsocket = () => {
   );
 
   const isLocalDevelopment = useMemo(() => {
-    return (
-      !wsUrl ||
-      process.env.NEXT_PUBLIC_USE_SAMPLE_DATA === undefined ||
-      process.env.NEXT_PUBLIC_USE_SAMPLE_DATA === 'true'
-    );
+    return !wsUrl || APP_CONFIG.debug.useSampleData;
   }, [wsUrl]);
 
   const simulateConfirmations = useCallback(() => {
-    const SimulationInterval = 413; // ms
     if (isLocalDevelopment) {
       const confirmationSubscription = new Subject<NanoConfirmation>();
       let index = 0;
 
-      const intervalSubscription = interval(SimulationInterval).subscribe(
-        () => {
-          const confirmation = SampleConfirmationData2[index];
-          confirmationSubscription.next(confirmation);
-          index = (index + 1) % SampleConfirmationData2.length;
-        }
-      );
+      const intervalSubscription = interval(
+        APP_CONFIG.simulation.interval
+      ).subscribe(() => {
+        const confirmation = SampleConfirmationData2[index];
+        confirmationSubscription.next(confirmation);
+        index = (index + 1) % SampleConfirmationData2.length;
+      });
 
       setSubscriptions({
         votes: new Subject<Vote>(),

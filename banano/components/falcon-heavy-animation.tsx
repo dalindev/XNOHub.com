@@ -21,12 +21,12 @@ function getRandomPositionOnGlobe(radius: number = 1.1): Vector3 {
   return new Vector3(x, y, z);
 }
 
-interface Falcon9 extends THREE.Group {
+interface FalconHeavy extends THREE.Group {
   position: THREE.Vector3;
   rotation: THREE.Euler;
 }
 
-interface Falcon9AnimationProps {
+interface FalconHeavyAnimationProps {
   onComplete: () => void;
   initialPosition?: Vector3;
   isRocketView: boolean;
@@ -34,7 +34,7 @@ interface Falcon9AnimationProps {
   setDistanceFromEarth: (distance: number) => void; // Add this prop
 }
 
-export const Falcon9Animation: React.FC<Falcon9AnimationProps> = ({
+export const FalconHeavyAnimation: React.FC<FalconHeavyAnimationProps> = ({
   onComplete,
   initialPosition,
   isRocketView,
@@ -42,7 +42,7 @@ export const Falcon9Animation: React.FC<Falcon9AnimationProps> = ({
   setDistanceFromEarth // Destructure the prop
 }) => {
   const { scene } = useThree();
-  const falcon9Ref = useRef<Falcon9>();
+  const falconHeavyRef = useRef<FalconHeavy>();
   const earthRadius = 1;
   const maxDistance = earthRadius * 1000;
   const initialSpeed = 0.01;
@@ -56,25 +56,31 @@ export const Falcon9Animation: React.FC<Falcon9AnimationProps> = ({
   const [phase, setPhase] = useState(0);
   const [elapsedTime, setElapsedTime] = useState(0);
 
-  const materials = useLoader(MTLLoader, '/falcon9/SpaceX-Falcon-Heavy.mtl');
+  const materials = useLoader(
+    MTLLoader,
+    '/falcon-heavy/SpaceX-Falcon-Heavy.mtl'
+  );
   const obj = useLoader(
     OBJLoader,
-    '/falcon9/SpaceX-Falcon-Heavy.obj',
+    '/falcon-heavy/SpaceX-Falcon-Heavy.obj',
     (loader) => {
       materials.preload();
       loader.setMaterials(materials);
     }
   );
 
-  const texture = useLoader(TextureLoader, '/falcon9/falcon_heavy_diff.jpg');
-  const flameTexture = useLoader(TextureLoader, '/banano/flame.png');
+  const texture = useLoader(
+    TextureLoader,
+    '/falcon-heavy/falcon_heavy_diff.jpg'
+  );
+  const flameTexture = useLoader(TextureLoader, '/banano/red-flame.png');
 
   useEffect(() => {
     if (obj) {
-      const falcon9Group = obj.clone() as Falcon9;
-      falcon9Group.scale.set(0.001, 0.001, 0.001);
+      const falconHeavyGroup = obj.clone() as FalconHeavy;
+      falconHeavyGroup.scale.set(0.001, 0.001, 0.001);
 
-      falcon9Group.traverse((child) => {
+      falconHeavyGroup.traverse((child) => {
         if (child instanceof THREE.Mesh) {
           child.material.map = texture;
           child.material.needsUpdate = true;
@@ -83,13 +89,13 @@ export const Falcon9Animation: React.FC<Falcon9AnimationProps> = ({
 
       const launchPosition =
         initialPosition || getRandomPositionOnGlobe(earthRadius * 1.2);
-      falcon9Group.position.copy(launchPosition);
+      falconHeavyGroup.position.copy(launchPosition);
 
       // Calculate the rotation to face the center of the Earth
       const up = launchPosition.clone().normalize();
       const axis = new THREE.Vector3(0, 1, 0).cross(up).normalize();
       const angle = Math.acos(new THREE.Vector3(0, 1, 0).dot(up));
-      falcon9Group.quaternion.setFromAxisAngle(axis, angle);
+      falconHeavyGroup.quaternion.setFromAxisAngle(axis, angle);
 
       const createFlameGroup = (x: number) => {
         const flameGroup = new THREE.Group();
@@ -127,18 +133,18 @@ export const Falcon9Animation: React.FC<Falcon9AnimationProps> = ({
         createFlameGroup(FLAME_SPACING)
       ];
 
-      flameGroups.forEach((group) => falcon9Group.add(group));
+      flameGroups.forEach((group) => falconHeavyGroup.add(group));
 
-      scene.add(falcon9Group);
-      falcon9Ref.current = falcon9Group;
+      scene.add(falconHeavyGroup);
+      falconHeavyRef.current = falconHeavyGroup;
     }
   }, [obj, scene, texture, flameTexture, initialPosition]);
 
   useFrame((state, delta) => {
     setElapsedTime((prevTime) => prevTime + delta);
 
-    if (falcon9Ref.current) {
-      const rocket = falcon9Ref.current;
+    if (falconHeavyRef.current) {
+      const rocket = falconHeavyRef.current;
 
       if (phase === 0 && elapsedTime >= launchDelay) {
         setPhase(1);
