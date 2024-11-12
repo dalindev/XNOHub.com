@@ -1,6 +1,12 @@
 'use client';
 
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, {
+  useRef,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo
+} from 'react';
 import { Canvas } from '@react-three/fiber';
 import {
   OrbitControls,
@@ -64,6 +70,10 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
     addRocket: (position: Vector3) => void;
   } | null>(null);
   const [distanceFromEarth, setDistanceFromEarth] = useState<number>(0); // State to hold distance
+  const [isStarlinkView, setIsStarlinkView] = useState(false);
+  const [activeStarlinkIndex, setActiveStarlinkIndex] = useState<number | null>(
+    null
+  );
 
   const toggleRocketView = useCallback(() => {
     setIsRocketView((prev) => !prev);
@@ -82,6 +92,25 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
       });
     }
   }, [isRocketView, rocketCount]);
+
+  const toggleStarlinkView = useCallback(() => {
+    setIsStarlinkView((prev) => !prev);
+    if (!isStarlinkView) {
+      setActiveStarlinkIndex(0);
+    } else {
+      setActiveStarlinkIndex(null);
+    }
+    setIsRocketView(false); // Disable rocket view when entering starlink view
+  }, [isStarlinkView]);
+
+  const moveToNextStarlink = useCallback(() => {
+    if (isStarlinkView) {
+      setActiveStarlinkIndex((prev) => {
+        if (prev === null) return 0;
+        return (prev + 1) % 6; // Assuming 6 satellites
+      });
+    }
+  }, [isStarlinkView]);
 
   useEffect(() => {
     if (serverDateTime) {
@@ -148,6 +177,18 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
     }, 100);
   };
 
+  // Memoize OrbitControls props
+  const orbitControlsProps = useMemo(
+    () => ({
+      enableRotate: !isRocketView && !isStarlinkView,
+      rotateSpeed: 0.5,
+      enableZoom: !isRocketView && !isStarlinkView,
+      zoomSpeed: 0.6,
+      enablePan: false
+    }),
+    [isRocketView, isStarlinkView]
+  );
+
   if (!serverDateTime) {
     return null;
   }
@@ -172,6 +213,44 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
               className="flex select-none items-center gap-2 bg-transparent hover:bg-transparent hover:text-[#209ce9]"
             >
               Back to Earth
+            </Button>
+          )}
+          <Button
+            onClick={toggleStarlinkView}
+            variant="outline"
+            size="sm"
+            className="flex select-none items-center gap-2 bg-transparent hover:bg-transparent hover:text-[#209ce9]"
+          >
+            {isStarlinkView ? (
+              <Globe className="w-4 h-4 text-blue-400" />
+            ) : (
+              <svg
+                className="w-4 h-4 text-blue-400"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0-11V3"
+                />
+              </svg>
+            )}
+            <span className="hidden md:inline">
+              {isStarlinkView ? 'Earth View' : 'StarLink View'}
+            </span>
+          </Button>
+          {isStarlinkView && (
+            <Button
+              onClick={moveToNextStarlink}
+              variant="outline"
+              size="sm"
+              className="flex select-none items-center gap-2 bg-transparent hover:bg-transparent hover:text-[#209ce9]"
+            >
+              <Eye className="w-4 h-4" />
+              <span className="hidden md:inline">Next StarLink</span>
             </Button>
           )}
           <Button
@@ -221,13 +300,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
           fov={45}
           position={[0, 2, 4]}
         />
-        <OrbitControls
-          enableRotate={!isRocketView}
-          rotateSpeed={0.5}
-          enableZoom={!isRocketView}
-          zoomSpeed={0.6}
-          enablePan={false}
-        />
+        <OrbitControls {...orbitControlsProps} />
         <Stars
           radius={300}
           depth={60}
@@ -245,7 +318,13 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
           onNodeHover={setHoveredNode}
         />
         <CloudMesh />
-        <StarlinkMesh count={6} />
+        {/* Always render StarlinkMesh */}
+        <StarlinkMesh
+          count={6}
+          isStarlinkView={isStarlinkView}
+          activeStarlinkIndex={activeStarlinkIndex}
+          cameraRef={cameraRef}
+        />
         <DonationAnimation />
         <RocketAnimationManager
           ref={rocketManagerRef}
