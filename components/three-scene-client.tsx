@@ -1,6 +1,12 @@
 'use client';
 
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, {
+  useRef,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo
+} from 'react';
 import { Canvas } from '@react-three/fiber';
 import {
   OrbitControls,
@@ -171,6 +177,54 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
     }, 100);
   };
 
+  // Memoize camera settings
+  const cameraSettings = useMemo(
+    () => ({
+      fov: 45,
+      position: [0, 2, 4] as [number, number, number]
+    }),
+    []
+  );
+
+  // Memoize Stars props
+  const starsProps = useMemo(
+    () => ({
+      radius: 300,
+      depth: 60,
+      count: 20000,
+      factor: 7,
+      saturation: 0,
+      fade: true
+    }),
+    []
+  );
+
+  // Memoize light settings
+  const lightSettings = useMemo(
+    () => ({
+      directional: {
+        color: 0xffffff,
+        intensity: 2
+      },
+      ambient: {
+        intensity: 0.1
+      }
+    }),
+    []
+  );
+
+  // Memoize OrbitControls props
+  const orbitControlsProps = useMemo(
+    () => ({
+      enableRotate: !isRocketView && !isStarlinkView,
+      rotateSpeed: 0.5,
+      enableZoom: !isRocketView && !isStarlinkView,
+      zoomSpeed: 0.6,
+      enablePan: false
+    }),
+    [isRocketView, isStarlinkView]
+  );
+
   if (!serverDateTime) {
     return null;
   }
@@ -269,36 +323,32 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
       </div>
 
       <Canvas
-        camera={{
-          fov: 45,
-          position: [0, 2, 4]
-        }}
+        camera={cameraSettings}
         className="w-full h-full cursor-move pointer-events-auto"
+        performance={{ min: 0.5 }} // Add performance optimization
+        dpr={[1, 2]} // Limit pixel ratio for better performance
+        gl={{
+          antialias: true,
+          powerPreference: 'high-performance',
+          alpha: false // Disable alpha for better performance
+        }}
       >
         {APP_CONFIG.debug.frameRateDisplay && <Stats />}
-        <PerspectiveCamera
-          makeDefault
-          ref={cameraRef}
-          fov={45}
-          position={[0, 2, 4]}
+        <PerspectiveCamera makeDefault ref={cameraRef} {...cameraSettings} />
+        <OrbitControls {...orbitControlsProps} />
+
+        {/* Use memo'd Stars props */}
+        <Stars {...starsProps} />
+
+        {/* Use memo'd light settings */}
+        <directionalLight
+          ref={lightRef}
+          color={lightSettings.directional.color}
+          intensity={lightSettings.directional.intensity}
         />
-        <OrbitControls
-          enableRotate={!isRocketView && !isStarlinkView}
-          rotateSpeed={0.5}
-          enableZoom={!isRocketView && !isStarlinkView}
-          zoomSpeed={0.6}
-          enablePan={false}
-        />
-        <Stars
-          radius={300}
-          depth={60}
-          count={20000}
-          factor={7}
-          saturation={0}
-          fade={true}
-        />
-        <directionalLight ref={lightRef} color={0xffffff} intensity={2} />
-        <ambientLight intensity={0.1} />
+        <ambientLight intensity={lightSettings.ambient.intensity} />
+
+        {/* Conditionally render components based on view state */}
         <ThreeMesh
           lightRefs={[lightRef]}
           repsGeoInfo={repsGeoInfo}
@@ -306,13 +356,17 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
           onNodeHover={setHoveredNode}
         />
         <CloudMesh />
+
+        {/* Always render StarlinkMesh */}
         <StarlinkMesh
           count={6}
           isStarlinkView={isStarlinkView}
           activeStarlinkIndex={activeStarlinkIndex}
           cameraRef={cameraRef}
         />
+
         <DonationAnimation />
+
         <RocketAnimationManager
           ref={rocketManagerRef}
           cameraRef={cameraRef}
