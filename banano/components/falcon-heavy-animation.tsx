@@ -73,7 +73,7 @@ export const FalconHeavyAnimation: React.FC<FalconHeavyAnimationProps> = ({
     TextureLoader,
     '/falcon-heavy/falcon_heavy_diff.jpg'
   );
-  const flameTexture = useLoader(TextureLoader, '/banano/flame.png');
+  const flameTexture = useLoader(TextureLoader, '/banano/red-flame.png');
 
   useEffect(() => {
     if (obj) {

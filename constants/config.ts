@@ -8,13 +8,17 @@ export const ENV_CONFIG = {
 export const APP_CONFIG = {
   // Simulation settings
   simulation: {
-    interval: Number(process.env.NEXT_PUBLIC_SIMULATION_INTERVAL_MS) || 100
+    interval: Number(process.env.NEXT_PUBLIC_SIMULATION_INTERVAL_MS ?? 500)
   },
 
   // Debug & development features
   debug: {
-    frameRateDisplay: process.env.NEXT_PUBLIC_FRAME_RATE_DISPLAY === 'true',
-    useSampleData: process.env.NEXT_PUBLIC_USE_SAMPLE_DATA === 'true'
+    frameRateDisplay: process.env.NEXT_PUBLIC_FRAME_RATE_DISPLAY
+      ? process.env.NEXT_PUBLIC_FRAME_RATE_DISPLAY === 'true'
+      : false,
+    useSampleData: process.env.NEXT_PUBLIC_USE_SAMPLE_DATA
+      ? process.env.NEXT_PUBLIC_USE_SAMPLE_DATA === 'true'
+      : true
   },
 
   // WebSocket settings

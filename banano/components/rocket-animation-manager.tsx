@@ -7,7 +7,7 @@ import React, {
   useImperativeHandle
 } from 'react';
 import { Vector3 } from 'three';
-import { FalconHeavyAnimation } from '@/components/falcon-heavy-animation';
+import { FalconHeavyAnimation } from '@/banano/components/falcon-heavy-animation';
 
 interface RocketData {
   id: string;
