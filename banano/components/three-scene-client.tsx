@@ -2,7 +2,12 @@
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Stars, PerspectiveCamera } from '@react-three/drei';
+import {
+  OrbitControls,
+  Stars,
+  PerspectiveCamera,
+  Stats
+} from '@react-three/drei';
 import * as THREE from 'three';
 import { IRepData } from '@/types/index';
 import ThreeMesh from '@/banano/components/three-mesh';
@@ -18,6 +23,8 @@ import { bananoScaleRocketCount } from '@/banano/lib/banano-scale-rocket-count';
 import { Button } from '@/components/ui/button';
 import { Rocket, Eye, Globe } from 'lucide-react';
 import RocketAnimationManager from '@/banano/components/rocket-animation-manager';
+import { StarlinkMesh } from '@/components/starlink-mesh';
+import { BananoRocketViewText } from '@/banano/components/banano-rocket-view-text';
 
 function getRandomPositionOnGlobe(radius: number = 1.2): Vector3 {
   const phi = Math.random() * Math.PI * 2;
@@ -207,6 +214,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
         }}
         className="w-full h-full cursor-move pointer-events-auto"
       >
+        {APP_CONFIG.debug.frameRateDisplay && <Stats />}
         <PerspectiveCamera
           makeDefault
           ref={cameraRef}
@@ -237,6 +245,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
           onNodeHover={setHoveredNode}
         />
         <CloudMesh />
+        <StarlinkMesh count={6} />
         <DonationAnimation />
         <RocketAnimationManager
           ref={rocketManagerRef}
@@ -270,86 +279,10 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
       </div>
 
       {isRocketView && (
-        <div className="absolute bottom-4 left-4 right-4 md:right-auto z-10 bg-black md:bg-opacity-80 p-2 md:p-3 rounded-lg font-mono text-sm md:text-base text-center shadow-lg border-2 border-yellow-300 max-w-full md:max-w-[550px]">
-          <div className="flex items-center justify-center mb-1 md:mb-2">
-            <span
-              className="text-lg md:text-xl mr-1 md:mr-2"
-              role="img"
-              aria-label="Earth"
-            >
-              🌍
-            </span>
-            <span className="text-yellow-300 text-xs md:text-sm">
-              Earth: {(distanceFromEarth * EarthRadiusInKm).toFixed(0)} km (
-              {distanceFromEarth.toFixed(1)})
-            </span>
-          </div>
-
-          <div className="text-sm md:text-base my-1 md:my-2">
-            {distanceFromEarth <= 2 && (
-              <span className="text-yellow-300">
-                &quot;Fast, feeless, green, and ready for liftoff! 🚀&quot;
-              </span>
-            )}
-
-            {distanceFromEarth > 2 && distanceFromEarth <= 5 && (
-              <span className="text-green-400">
-                &quot;1 BAN 🍌 = 1 BAN 🍌, even in space! 👩‍🚀 🛸&quot;
-              </span>
-            )}
-
-            {distanceFromEarth > 5 && distanceFromEarth <= 10 && (
-              <span className="text-blue-300">
-                &quot;🍌 All the way to the Mars!&quot;
-              </span>
-            )}
-
-            {distanceFromEarth > 10 && distanceFromEarth <= 20 && (
-              <span className="text-purple-400">
-                &quot;Banano: Proof-of-work? We left that back on Earth 🌍&quot;
-              </span>
-            )}
-
-            {distanceFromEarth > 20 && distanceFromEarth <= 30 && (
-              <span className="text-pink-400">
-                &quot;The further we go, the smaller our fees get. Oh wait...
-                Banano is feeless 😎&quot;
-              </span>
-            )}
-
-            {distanceFromEarth > 30 && distanceFromEarth <= 100 && (
-              <span className="text-orange-400">
-                &quot;🚨 Banano speed initiated 🚨. Banano&apos;s block lattice
-                is unstoppable! 🌀&quot;
-              </span>
-            )}
-
-            {distanceFromEarth > 200 && distanceFromEarth <= 350 && (
-              <span className="text-pink-400">
-                &quot;Not even cosmic inflation can inflate Nano&apos;s supply!
-                💥&quot;
-              </span>
-            )}
-
-            {distanceFromEarth > 350 && distanceFromEarth <= 500 && (
-              <span className="text-[#4A90E2] font-bold">
-                &quot;Zero fees across the universe, Banano is boundless. 💫
-                🌌&quot;
-              </span>
-            )}
-
-            {distanceFromEarth > 500 && (
-              <span className="text-green-400 font-bold animate-pulse">
-                &quot;Banano is Banano 🍌&quot;
-              </span>
-            )}
-          </div>
-
-          <div className="mt-1 md:mt-2 text-[10px] md:text-xs text-gray-400">
-            Fun fact: This Falcon Heavy runs on pure Banano. No fees, no fuel,
-            just 🍌
-          </div>
-        </div>
+        <BananoRocketViewText
+          distanceFromEarth={distanceFromEarth}
+          EarthRadiusInKm={EarthRadiusInKm}
+        />
       )}
     </div>
   );

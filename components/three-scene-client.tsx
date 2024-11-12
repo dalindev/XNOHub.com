@@ -23,6 +23,8 @@ import { Button } from '@/components/ui/button';
 import { Rocket, Eye, Globe } from 'lucide-react';
 import RocketAnimationManager from '@/components/rocket-animation-manager';
 import { APP_CONFIG } from '@/constants/config';
+import { StarlinkMesh } from '@/components/starlink-mesh';
+import { RocketViewText } from '@/components/rocket-view-text';
 
 function getRandomPositionOnGlobe(radius: number = 1.2): Vector3 {
   const phi = Math.random() * Math.PI * 2;
@@ -62,6 +64,10 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
     addRocket: (position: Vector3) => void;
   } | null>(null);
   const [distanceFromEarth, setDistanceFromEarth] = useState<number>(0); // State to hold distance
+  const [isStarlinkView, setIsStarlinkView] = useState(false);
+  const [activeStarlinkIndex, setActiveStarlinkIndex] = useState<number | null>(
+    null
+  );
 
   const toggleRocketView = useCallback(() => {
     setIsRocketView((prev) => !prev);
@@ -80,6 +86,25 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
       });
     }
   }, [isRocketView, rocketCount]);
+
+  const toggleStarlinkView = useCallback(() => {
+    setIsStarlinkView((prev) => !prev);
+    if (!isStarlinkView) {
+      setActiveStarlinkIndex(0);
+    } else {
+      setActiveStarlinkIndex(null);
+    }
+    setIsRocketView(false); // Disable rocket view when entering starlink view
+  }, [isStarlinkView]);
+
+  const moveToNextStarlink = useCallback(() => {
+    if (isStarlinkView) {
+      setActiveStarlinkIndex((prev) => {
+        if (prev === null) return 0;
+        return (prev + 1) % 6; // Assuming 6 satellites
+      });
+    }
+  }, [isStarlinkView]);
 
   useEffect(() => {
     if (serverDateTime) {
@@ -173,6 +198,44 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
             </Button>
           )}
           <Button
+            onClick={toggleStarlinkView}
+            variant="outline"
+            size="sm"
+            className="flex select-none items-center gap-2 bg-transparent hover:bg-transparent hover:text-[#209ce9]"
+          >
+            {isStarlinkView ? (
+              <Globe className="w-4 h-4 text-blue-400" />
+            ) : (
+              <svg
+                className="w-4 h-4 text-blue-400"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0-11V3"
+                />
+              </svg>
+            )}
+            <span className="hidden md:inline">
+              {isStarlinkView ? 'Earth View' : 'StarLink View'}
+            </span>
+          </Button>
+          {isStarlinkView && (
+            <Button
+              onClick={moveToNextStarlink}
+              variant="outline"
+              size="sm"
+              className="flex select-none items-center gap-2 bg-transparent hover:bg-transparent hover:text-[#209ce9]"
+            >
+              <Eye className="w-4 h-4" />
+              <span className="hidden md:inline">Next StarLink</span>
+            </Button>
+          )}
+          <Button
             onClick={toggleRocketView}
             variant="outline"
             size="sm"
@@ -220,9 +283,9 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
           position={[0, 2, 4]}
         />
         <OrbitControls
-          enableRotate={!isRocketView}
+          enableRotate={!isRocketView && !isStarlinkView}
           rotateSpeed={0.5}
-          enableZoom={!isRocketView}
+          enableZoom={!isRocketView && !isStarlinkView}
           zoomSpeed={0.6}
           enablePan={false}
         />
@@ -243,6 +306,12 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
           onNodeHover={setHoveredNode}
         />
         <CloudMesh />
+        <StarlinkMesh
+          count={6}
+          isStarlinkView={isStarlinkView}
+          activeStarlinkIndex={activeStarlinkIndex}
+          cameraRef={cameraRef}
+        />
         <DonationAnimation />
         <RocketAnimationManager
           ref={rocketManagerRef}
@@ -276,91 +345,10 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
       </div>
 
       {isRocketView && (
-        <div className="absolute bottom-4 left-4 right-4 md:right-auto z-10 bg-black md:bg-opacity-80 p-2 md:p-3 rounded-lg font-mono text-sm md:text-base text-center shadow-lg border-2 border-[#4A90E2] max-w-full md:max-w-[550px]">
-          <div className="flex items-center justify-center mb-1 md:mb-2">
-            <span
-              className="text-lg md:text-xl mr-1 md:mr-2"
-              role="img"
-              aria-label="Earth"
-            >
-              🌍
-            </span>
-            <span className="text-[#4A90E2] text-xs md:text-sm">
-              Earth: {(distanceFromEarth * EarthRadiusInKm).toFixed(0)} km (
-              {distanceFromEarth.toFixed(1)})
-            </span>
-          </div>
-
-          <div className="text-sm md:text-base my-1 md:my-2">
-            {distanceFromEarth <= 2 && (
-              <span className="text-yellow-300">
-                &quot;Fast, feeless, green, and ready for liftoff! 🚀&quot;
-              </span>
-            )}
-
-            {distanceFromEarth > 2 && distanceFromEarth <= 5 && (
-              <span className="text-green-400">
-                &quot;1 ӾNO = 1 ӾNO, even in space! 👩‍🚀 🛸&quot;
-              </span>
-            )}
-
-            {distanceFromEarth > 5 && distanceFromEarth <= 10 && (
-              <span className="text-blue-300">
-                &quot;BROCCOLISH 🥦 All the way to the Mars!&quot;
-              </span>
-            )}
-
-            {distanceFromEarth > 10 && distanceFromEarth <= 20 && (
-              <span className="text-purple-400">
-                &quot;Nano: Proof-of-work? We left that back on Earth 🌍&quot;
-              </span>
-            )}
-
-            {distanceFromEarth > 20 && distanceFromEarth <= 30 && (
-              <span className="text-pink-400">
-                &quot;The further we go, the smaller our fees get. Oh wait...
-                Nano is feeless 😎&quot;
-              </span>
-            )}
-
-            {distanceFromEarth > 30 && distanceFromEarth <= 100 && (
-              <span className="text-orange-400">
-                &quot;🚨 Nano speed initiated 🚨. Nano&apos;s block lattice is
-                unstoppable! 🌀&quot;
-              </span>
-            )}
-
-            {distanceFromEarth > 200 && distanceFromEarth <= 350 && (
-              <span className="text-pink-400">
-                &quot;Not even cosmic inflation can inflate Nano&apos;s supply!
-                💥&quot;
-              </span>
-            )}
-
-            {distanceFromEarth > 350 && distanceFromEarth <= 500 && (
-              <span className="text-[#4A90E2] font-bold">
-                &quot;Zero fees across the universe, Nano is boundless. 💫
-                🌌&quot;
-              </span>
-            )}
-
-            {distanceFromEarth > 500 && distanceFromEarth <= 600 && (
-              <span className="text-green-400 font-bold animate-pulse">
-                &quot;Nano IS Nano 🗿&quot;
-              </span>
-            )}
-
-            {distanceFromEarth > 600 && (
-              <span className="text-red-500 font-bold animate-pulse">
-                &quot;USER-35077: What if ... falls to 2k 💀&quot;
-              </span>
-            )}
-          </div>
-
-          <div className="mt-1 md:mt-2 text-[10px] md:text-xs text-gray-400">
-            Fun fact: This Falcon Heavy runs on pure Nano. No fees, no fuel! ⚡
-          </div>
-        </div>
+        <RocketViewText
+          distanceFromEarth={distanceFromEarth}
+          EarthRadiusInKm={EarthRadiusInKm}
+        />
       )}
     </div>
   );
