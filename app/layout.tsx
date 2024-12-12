@@ -4,15 +4,15 @@ import { Metadata } from 'next';
 import '@/app/globals.css';
 
 export const metadata: Metadata = {
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_BASE_URL || 'https://your-domain.com'
-  ),
   title: 'NanoCurrency (XNO) Representative Network Visualization',
   description:
     'Interactive 3D visualization of the NanoCurrency (XNO) representative network. Explore real-time node distribution, voting weight, and network health of the Nano digital currency ecosystem.',
   keywords: [
     'NanoCurrency',
     'XNO',
+    'Ӿ',
+    'ӾNO',
+    'XNOHub',
     'Nano Digital Currency',
     'Nano Cryptocurrency',
     'Nano Network',
@@ -42,9 +42,9 @@ export const metadata: Metadata = {
     locale: 'en_US',
     images: [
       {
-        url: '/open-graph/xnohub.png',
-        width: 1200,
-        height: 630,
+        url: 'https://xnohub.com/open-graph/xnohub.png',
+        width: 650,
+        height: 400,
         alt: 'NanoCurrency Network Visualization'
       }
     ]
@@ -57,9 +57,9 @@ export const metadata: Metadata = {
     creator: '@dalinhuang',
     images: [
       {
-        url: '/open-graph/xnohub.png',
-        width: 1200,
-        height: 630,
+        url: 'https://xnohub.com/open-graph/xnohub.png',
+        width: 650,
+        height: 400,
         alt: 'NanoCurrency Network Visualization'
       }
     ]
