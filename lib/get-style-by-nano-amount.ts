@@ -57,12 +57,12 @@ export const getStyleByNanoAmount = (amount: number) => {
   if (amount >= 0.1)
     return {
       color: 0x91fbd5,
-      opacity: 0.6,
+      opacity: 0.7,
       hexColor: '#A9A9A9'
     };
   return {
     color: 0xceffdb,
-    opacity: 0.1,
+    opacity: 0.5,
     hexColor: '#808080'
   };
 };
