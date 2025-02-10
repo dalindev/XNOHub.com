@@ -31,6 +31,7 @@ import RocketAnimationManager from '@/components/rocket-animation-manager';
 import { APP_CONFIG } from '@/constants/config';
 import { StarlinkMesh } from '@/components/starlink-mesh';
 import { RocketViewText } from '@/components/rocket-view-text';
+// import { AuroraEffect } from '@/components/aurora-effect';
 
 function getRandomPositionOnGlobe(radius: number = 1.2): Vector3 {
   const phi = Math.random() * Math.PI * 2;
@@ -371,6 +372,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
           onNodeHover={setHoveredNode}
         />
         <CloudMesh />
+        {/* <AuroraEffect /> */}
 
         {/* Always render StarlinkMesh */}
         <StarlinkMesh
