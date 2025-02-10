@@ -31,6 +31,7 @@ import RocketAnimationManager from '@/components/rocket-animation-manager';
 import { APP_CONFIG } from '@/constants/config';
 import { StarlinkMesh } from '@/components/starlink-mesh';
 import { RocketViewText } from '@/components/rocket-view-text';
+// import { AuroraEffect } from '@/components/aurora-effect';
 
 function getRandomPositionOnGlobe(radius: number = 1.2): Vector3 {
   const phi = Math.random() * Math.PI * 2;
@@ -77,6 +78,10 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
 
   const toggleRocketView = useCallback(() => {
     setIsRocketView((prev) => !prev);
+    // Clear other view states when entering/exiting rocket view
+    setIsStarlinkView(false);
+    setActiveStarlinkIndex(null);
+
     if (!isRocketView && rocketCount > 0) {
       setActiveRocketIndex(0);
     } else {
@@ -95,12 +100,15 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
 
   const toggleStarlinkView = useCallback(() => {
     setIsStarlinkView((prev) => !prev);
+    // Clear other view states when entering/exiting starlink view
+    setIsRocketView(false);
+    setActiveRocketIndex(null);
+
     if (!isStarlinkView) {
       setActiveStarlinkIndex(0);
     } else {
       setActiveStarlinkIndex(null);
     }
-    setIsRocketView(false); // Disable rocket view when entering starlink view
   }, [isStarlinkView]);
 
   const moveToNextStarlink = useCallback(() => {
@@ -111,6 +119,20 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
       });
     }
   }, [isStarlinkView]);
+
+  const resetToEarthView = useCallback(() => {
+    // Clear all view states
+    setIsStarlinkView(false);
+    setIsRocketView(false);
+    setActiveStarlinkIndex(null);
+    setActiveRocketIndex(null);
+
+    // Reset camera position
+    if (cameraRef.current) {
+      cameraRef.current.position.set(0, 0, 5);
+      cameraRef.current.lookAt(new THREE.Vector3(0, 0, 0));
+    }
+  }, []);
 
   useEffect(() => {
     if (serverDateTime) {
@@ -164,18 +186,6 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
       setActiveRocketIndex(0); // Set the first rocket as active only if it's null
     }
   }, [launchQueue, activeRocketIndex]); // Add activeRocketIndex to dependencies
-
-  // New function to reset to Earth view
-  const resetToEarthView = () => {
-    setIsRocketView(false);
-
-    setTimeout(() => {
-      if (cameraRef.current) {
-        cameraRef.current.position.set(0, 0, 5);
-        cameraRef.current.lookAt(new THREE.Vector3(0, 0, 0)); // Look at the center of the Earth
-      }
-    }, 100);
-  };
 
   // Memoize camera settings
   const cameraSettings = useMemo(
@@ -239,27 +249,29 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
       </div>
 
       <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
-        <div className="flex flex-row gap-2">
-          {/* New button to reset to Earth view */}
-          {distanceFromEarth > 10 && (
+        {/* View Control Buttons - Always stay right-aligned */}
+        <div className="flex flex-row gap-2 justify-end">
+          {/* Earth View Button - Only show when in StarLink or Rocket view */}
+          {(isStarlinkView || isRocketView) && (
             <Button
               onClick={resetToEarthView}
               variant="outline"
               size="sm"
               className="flex select-none items-center gap-2 bg-transparent hover:bg-transparent hover:text-[#209ce9]"
             >
-              Back to Earth
+              <Globe className="w-4 h-4 text-blue-400" />
+              <span className="hidden md:inline">Earth View</span>
             </Button>
           )}
-          <Button
-            onClick={toggleStarlinkView}
-            variant="outline"
-            size="sm"
-            className="flex select-none items-center gap-2 bg-transparent hover:bg-transparent hover:text-[#209ce9]"
-          >
-            {isStarlinkView ? (
-              <Globe className="w-4 h-4 text-blue-400" />
-            ) : (
+
+          {/* StarLink View Button - Only show in Earth view */}
+          {!isStarlinkView && !isRocketView && (
+            <Button
+              onClick={toggleStarlinkView}
+              variant="outline"
+              size="sm"
+              className="flex select-none items-center gap-2 bg-transparent hover:bg-transparent hover:text-[#209ce9]"
+            >
               <svg
                 className="w-4 h-4 text-blue-400"
                 viewBox="0 0 24 24"
@@ -273,11 +285,11 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
                   d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0-11V3"
                 />
               </svg>
-            )}
-            <span className="hidden md:inline">
-              {isStarlinkView ? 'Earth View' : 'StarLink View'}
-            </span>
-          </Button>
+              <span className="hidden md:inline">StarLink View</span>
+            </Button>
+          )}
+
+          {/* Next StarLink Button - Only show in StarLink view */}
           {isStarlinkView && (
             <Button
               onClick={moveToNextStarlink}
@@ -289,22 +301,22 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
               <span className="hidden md:inline">Next StarLink</span>
             </Button>
           )}
-          <Button
-            onClick={toggleRocketView}
-            variant="outline"
-            size="sm"
-            className="flex select-none items-center gap-2 bg-transparent hover:bg-transparent hover:text-[#209ce9]"
-          >
-            {isRocketView ? (
-              <Globe className="w-4 h-4 text-blue-400" />
-            ) : (
+
+          {/* Rocket View Button - Only show in Earth view when rockets are available */}
+          {!isStarlinkView && !isRocketView && rocketCount > 0 && (
+            <Button
+              onClick={toggleRocketView}
+              variant="outline"
+              size="sm"
+              className="flex select-none items-center gap-2 bg-transparent hover:bg-transparent hover:text-[#209ce9]"
+            >
               <Rocket className="w-4 h-4 text-red-600" />
-            )}
-            <span className="hidden md:inline text-center">
-              {isRocketView ? 'Abort Mission' : 'Rocket View'}
-            </span>
-          </Button>
-          {isRocketView && (
+              <span className="hidden md:inline">Rocket View</span>
+            </Button>
+          )}
+
+          {/* Next Rocket Button - Only show in Rocket view */}
+          {isRocketView && rocketCount > 1 && (
             <Button
               onClick={moveToNextRocket}
               variant="outline"
@@ -316,10 +328,14 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
             </Button>
           )}
         </div>
-        <div className="flex items-center gap-2 text-white">
-          Active <Rocket className="w-4 h-4 text-red-600" /> {rocketCount}
+
+        {/* Rocket Count and Table Container */}
+        <div className="flex flex-col gap-2 items-end">
+          <div className="flex items-center gap-2 text-white">
+            Active <Rocket className="w-4 h-4 text-red-600" /> {rocketCount}
+          </div>
+          <ConfirmationHistoryTable />
         </div>
-        <ConfirmationHistoryTable />
       </div>
 
       <Canvas
@@ -356,6 +372,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
           onNodeHover={setHoveredNode}
         />
         <CloudMesh />
+        {/* <AuroraEffect /> */}
 
         {/* Always render StarlinkMesh */}
         <StarlinkMesh

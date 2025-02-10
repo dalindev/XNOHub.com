@@ -1,9 +1,4 @@
-import {
-  ICityGeo,
-  IPrincipalGeoInfo,
-  IRepData,
-  IRepOnline
-} from '@/types/index';
+import { IRepData, IRepOnline } from '@/types/index';
 
 const topCitiesGeo = [
   { lat: -25.7461, lon: 28.1881 }, // Capital city of South Africa (administrative capital)

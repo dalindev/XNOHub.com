@@ -16,8 +16,11 @@ const CONFIRMATION_ARC_LIFT_RATE = 1.15; // Lift rate for returning arcs (lower 
 const ARC_POINTS = 50;
 const BROADCAST_ARC_SEGMENT_LENGTH = 0.3;
 const CONFIRMATION_ARC_SEGMENT_LENGTH = 0.1;
-const BROADCAST_DURATION = 150;
+const BROADCAST_DURATION = 125;
 const CONFIRMATION_DURATION = 225;
+
+// Node selection parameter
+const TARGET_NODES_PERCENTAGE = 0.67; // Use 10% of available nodes
 
 interface NetworkArcsProps {
   nodes: IRepData[];
@@ -70,48 +73,65 @@ const NetworkArcs: React.FC<NetworkArcsProps> = ({ nodes, earthRadius }) => {
       const { broadcast: broadcastStyle, confirmation: confirmationStyle } =
         createArcStyles(amount);
 
-      return nodes
-        .filter((targetNode) => targetNode.account !== representativeAccount)
-        .map((targetNode) => {
-          const targetPos = latLongToVector3(
-            targetNode.latitude,
-            targetNode.longitude,
-            earthRadius
-          );
-          const broadcastPoints = createGreatCircleArc(
-            sourcePos,
-            targetPos,
-            earthRadius,
-            ARC_POINTS,
-            BROADCAST_ARC_LIFT_RATE
-          );
-          const confirmationPoints = createGreatCircleArc(
-            targetPos,
-            sourcePos,
-            earthRadius,
-            ARC_POINTS,
-            CONFIRMATION_ARC_LIFT_RATE
-          );
+      // Filter out the source node and randomly select a subset of target nodes
+      const eligibleNodes = nodes.filter(
+        (targetNode) => targetNode.account !== representativeAccount
+      );
 
-          const randomDurationMultiplier = 0.25 + Math.random() * 1.5;
+      // Calculate number of target nodes based on percentage
+      const numTargetNodes = Math.max(
+        1,
+        Math.floor(eligibleNodes.length * TARGET_NODES_PERCENTAGE)
+      );
 
-          return {
-            broadcastPoints,
-            confirmationPoints,
-            progress: 0,
-            broadcastDuration:
-              (BROADCAST_DURATION * randomDurationMultiplier) / 1000,
-            confirmationDuration:
-              (CONFIRMATION_DURATION * randomDurationMultiplier) / 1000,
-            broadcastStyle,
-            confirmationStyle,
-            startTime: Date.now(),
-            isReturning: false
-          };
-        });
+      const selectedNodes = shuffleArray<IRepData>(eligibleNodes).slice(
+        0,
+        numTargetNodes
+      );
+
+      return selectedNodes.map((targetNode) => {
+        const targetPos = latLongToVector3(
+          targetNode.latitude,
+          targetNode.longitude,
+          earthRadius
+        );
+        const broadcastPoints = createGreatCircleArc(
+          sourcePos,
+          targetPos,
+          earthRadius,
+          ARC_POINTS,
+          BROADCAST_ARC_LIFT_RATE
+        );
+        const confirmationPoints = createGreatCircleArc(
+          targetPos,
+          sourcePos,
+          earthRadius,
+          ARC_POINTS,
+          CONFIRMATION_ARC_LIFT_RATE
+        );
+
+        const randomDurationMultiplier = 0.25 + Math.random() * 1.5;
+
+        return {
+          broadcastPoints,
+          confirmationPoints,
+          progress: 0,
+          broadcastDuration:
+            (BROADCAST_DURATION * randomDurationMultiplier) / 1000,
+          confirmationDuration:
+            (CONFIRMATION_DURATION * randomDurationMultiplier) / 1000,
+          broadcastStyle,
+          confirmationStyle,
+          startTime: Date.now(),
+          isReturning: false
+        };
+      });
     });
 
-    setArcs((currentArcs) => [...currentArcs, ...newArcs]);
+    setArcs((currentArcs) => {
+      const newArcsList = [...currentArcs, ...newArcs];
+      return newArcsList;
+    });
   }, [activeConfirmations, nodes, earthRadius]);
 
   useFrame((state, delta) => {
@@ -324,6 +344,15 @@ const getRandomSegmentLength = (baseSegmentLength: number) => {
   // Generate a random factor between 0.5 and 1.5 (±50% variation)
   const randomFactor = 0.5 + Math.random();
   return baseSegmentLength * randomFactor;
+};
+
+const shuffleArray = <T,>(array: T[]): T[] => {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
 };
 
 export default NetworkArcs;

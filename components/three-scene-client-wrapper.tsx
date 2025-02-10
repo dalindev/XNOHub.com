@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import ThreeSceneClient from './three-scene-client';
 import { RepsData } from '@/data/defualtMergedRepsData';
+import Loader from '@/components/loading';
 
 const ThreeSceneClientWrapper: React.FC = () => {
   const [serverDateTime, setServerDateTime] = useState<Date | null>(null);
@@ -12,7 +13,7 @@ const ThreeSceneClientWrapper: React.FC = () => {
   }, []);
 
   if (RepsData.length === 0) {
-    return <div className="font-[40px]">Loading data... Ӿ Ӿ Ӿ ...</div>;
+    return <Loader />;
   }
 
   return (

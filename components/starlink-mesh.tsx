@@ -74,7 +74,7 @@ export const StarlinkMesh: React.FC<StarlinkMeshProps> = ({
         group.add(orbitContainer);
 
         // Generate a random base speed between 0.05 and 0.15
-        const baseSpeed = 0.03 + Math.random() * 0.12;
+        const baseSpeed = 0.02 + Math.random() * 0.06;
 
         orbitDataRef.current[index] = {
           radius: orbitRadius,
