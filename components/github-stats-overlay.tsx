@@ -91,7 +91,8 @@ const GitHubStatsOverlay: React.FC<GitHubStatsOverlayProps> = ({
     loadData();
   }, [repoOwner, repoName]);
 
-  if (!isVisible) return null;
+  // Replace the early return condition to keep Navigation Controls visible during all views
+  if (!isVisible && !isStarlinkView && !isRocketView) return null;
 
   const toggleMinimize = () => {
     setIsMinimized(!isMinimized);
@@ -261,11 +262,97 @@ const GitHubStatsOverlay: React.FC<GitHubStatsOverlayProps> = ({
   return (
     <div className="fixed inset-0 pointer-events-none z-10 flex items-center justify-center p-4">
       <div className="w-full h-full flex flex-col items-center justify-between pointer-events-none">
+        {/* Navigation Controls Panel - Always visible but moved down */}
+        <div className="mt-20 ml-4 self-start pointer-events-auto">
+          <div className="bg-black/70 backdrop-blur-sm rounded-lg p-3 border-t border-l border-[#209ce9]/30 w-72">
+            <h3 className="text-[#209ce9] font-semibold flex items-center mb-3">
+              <Activity className="h-4 w-4 mr-2" />
+              Navigation Controls
+            </h3>
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Earth View Button - Only show when in StarLink or Rocket view */}
+              {(isStarlinkView || isRocketView) && (
+                <button
+                  onClick={resetToEarthView}
+                  className="flex items-center gap-1 bg-transparent text-white hover:text-[#209ce9] px-2 py-1 rounded border border-gray-700 text-xs"
+                >
+                  <Globe className="w-3 h-3 text-blue-400" />
+                  <span>Earth View</span>
+                </button>
+              )}
+
+              {/* StarLink View Button - Only show in Earth view */}
+              {!isStarlinkView && !isRocketView && (
+                <button
+                  onClick={toggleStarlinkView}
+                  className="flex items-center gap-1 bg-transparent text-white hover:text-[#209ce9] px-2 py-1 rounded border border-gray-700 text-xs"
+                >
+                  <svg
+                    className="w-3 h-3 text-blue-400"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0-11V3"
+                    />
+                  </svg>
+                  <span>StarLink View</span>
+                </button>
+              )}
+
+              {/* Next StarLink Button - Only show in StarLink view */}
+              {isStarlinkView && (
+                <button
+                  onClick={moveToNextStarlink}
+                  className="flex items-center gap-1 bg-transparent text-white hover:text-[#209ce9] px-2 py-1 rounded border border-gray-700 text-xs"
+                >
+                  <Eye className="w-3 h-3" />
+                  <span>Next StarLink</span>
+                </button>
+              )}
+
+              {/* Rocket View Button - Only show in Earth view when rockets are available */}
+              {!isStarlinkView && !isRocketView && rocketCount > 0 && (
+                <button
+                  onClick={toggleRocketView}
+                  className="flex items-center gap-1 bg-transparent text-white hover:text-[#209ce9] px-2 py-1 rounded border border-gray-700 text-xs"
+                >
+                  <Rocket className="w-3 h-3 text-red-600" />
+                  <span>Rocket View</span>
+                </button>
+              )}
+
+              {/* Next Rocket Button - Only show in Rocket view */}
+              {isRocketView && rocketCount > 1 && (
+                <button
+                  onClick={moveToNextRocket}
+                  className="flex items-center gap-1 bg-transparent text-white hover:text-[#209ce9] px-2 py-1 rounded border border-gray-700 text-xs"
+                >
+                  <Eye className="w-3 h-3" />
+                  <span>Next Rocket</span>
+                </button>
+              )}
+
+              {/* Active Rocket Count */}
+              {rocketCount > 0 && (
+                <div className="flex items-center gap-1 bg-black/50 px-2 py-1 rounded text-white text-xs border border-gray-700">
+                  <Rocket className="w-3 h-3 text-red-600" />
+                  {rocketCount}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
         {/* Conditional content - only show when in Earth view */}
         {isVisible && (
           <>
             {/* Top stats panel */}
-            <div className="mt-4 mx-auto flex justify-center gap-8">
+            {/* <div className="mt-20 flex justify-center gap-8">
               <div className="bg-black/70 backdrop-blur-sm rounded-lg p-3 border-t border-l border-[#209ce9]/30 flex gap-4 pointer-events-auto">
                 <div className="flex items-center gap-2">
                   <GitFork className="h-5 w-5 text-[#209ce9]" />
@@ -288,10 +375,10 @@ const GitHubStatsOverlay: React.FC<GitHubStatsOverlayProps> = ({
                   </div>
                 </div>
               </div>
-            </div>
+            </div> */}
 
             <div className="flex-1 w-full flex justify-between items-center mt-6">
-              {/* Left panel - Trending Developers, Navigation Controls, and Dev Stats */}
+              {/* Left panel - Trending Developers and Dev Stats */}
               <div className="self-start flex flex-col gap-2 ml-4 mt-8 pointer-events-auto w-72">
                 {/* Trending Developers Panel */}
                 <div className="bg-black/70 backdrop-blur-sm rounded-lg p-3 border-t border-l border-[#209ce9]/30">
@@ -346,91 +433,7 @@ const GitHubStatsOverlay: React.FC<GitHubStatsOverlayProps> = ({
                   )}
                 </div>
 
-                {/* Navigation Controls Panel - Moved from bottom */}
-                <div className="bg-black/70 backdrop-blur-sm rounded-lg p-3 border-t border-l border-[#209ce9]/30">
-                  <h3 className="text-[#209ce9] font-semibold flex items-center mb-3">
-                    <Activity className="h-4 w-4 mr-2" />
-                    Navigation Controls
-                  </h3>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {/* Earth View Button - Only show when in StarLink or Rocket view */}
-                    {(isStarlinkView || isRocketView) && (
-                      <button
-                        onClick={resetToEarthView}
-                        className="flex items-center gap-1 bg-transparent text-white hover:text-[#209ce9] px-2 py-1 rounded border border-gray-700 text-xs"
-                      >
-                        <Globe className="w-3 h-3 text-blue-400" />
-                        <span>Earth View</span>
-                      </button>
-                    )}
-
-                    {/* StarLink View Button - Only show in Earth view */}
-                    {!isStarlinkView && !isRocketView && (
-                      <button
-                        onClick={toggleStarlinkView}
-                        className="flex items-center gap-1 bg-transparent text-white hover:text-[#209ce9] px-2 py-1 rounded border border-gray-700 text-xs"
-                      >
-                        <svg
-                          className="w-3 h-3 text-blue-400"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0-11V3"
-                          />
-                        </svg>
-                        <span>StarLink View</span>
-                      </button>
-                    )}
-
-                    {/* Next StarLink Button - Only show in StarLink view */}
-                    {isStarlinkView && (
-                      <button
-                        onClick={moveToNextStarlink}
-                        className="flex items-center gap-1 bg-transparent text-white hover:text-[#209ce9] px-2 py-1 rounded border border-gray-700 text-xs"
-                      >
-                        <Eye className="w-3 h-3" />
-                        <span>Next StarLink</span>
-                      </button>
-                    )}
-
-                    {/* Rocket View Button - Only show in Earth view when rockets are available */}
-                    {!isStarlinkView && !isRocketView && rocketCount > 0 && (
-                      <button
-                        onClick={toggleRocketView}
-                        className="flex items-center gap-1 bg-transparent text-white hover:text-[#209ce9] px-2 py-1 rounded border border-gray-700 text-xs"
-                      >
-                        <Rocket className="w-3 h-3 text-red-600" />
-                        <span>Rocket View</span>
-                      </button>
-                    )}
-
-                    {/* Next Rocket Button - Only show in Rocket view */}
-                    {isRocketView && rocketCount > 1 && (
-                      <button
-                        onClick={moveToNextRocket}
-                        className="flex items-center gap-1 bg-transparent text-white hover:text-[#209ce9] px-2 py-1 rounded border border-gray-700 text-xs"
-                      >
-                        <Eye className="w-3 h-3" />
-                        <span>Next Rocket</span>
-                      </button>
-                    )}
-
-                    {/* Active Rocket Count */}
-                    {rocketCount > 0 && (
-                      <div className="flex items-center gap-1 bg-black/50 px-2 py-1 rounded text-white text-xs border border-gray-700">
-                        <Rocket className="w-3 h-3 text-red-600" />
-                        {rocketCount}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Language Distribution Panel - Moved from bottom */}
+                {/* Language Distribution Panel */}
                 <div className="bg-black/70 backdrop-blur-sm rounded-lg p-3 border-t border-l border-[#209ce9]/30">
                   <h5 className="text-[#209ce9] flex items-center font-medium mb-2">
                     <Code className="h-4 w-4 mr-2" />
