@@ -10,12 +10,17 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@/components/ui/tooltip';
-import { Button } from '@/components/ui/button';
 import { getRepName } from '@/lib/get-rep-name';
 import { truncateAddress } from '@/lib/truncate-address';
 import { formatRelativeTime } from '@/lib/format-relative-time';
 import { NanoConfirmation } from '@/types/index';
-import { Maximize2, Minimize2, ChevronDown, ChevronUp } from 'lucide-react';
+import {
+  Maximize2,
+  Minimize2,
+  ChevronDown,
+  ChevronUp,
+  Clock
+} from 'lucide-react';
 import { APP_CONFIG } from '@/constants/config';
 
 interface ConfirmationHistoryTableProps {}
@@ -27,6 +32,9 @@ export const ConfirmationHistoryTable: React.FC<
   const [isFullView, setIsFullView] = useState(false);
   const [limitedHistory, setLimitedHistory] = useState<NanoConfirmation[]>([]);
   const [showLessRows, setShowLessRows] = useState(true);
+  const [currentTime, setCurrentTime] = useState(
+    new Date().toLocaleTimeString()
+  );
 
   const displayedConfirmations = useMemo(() => {
     if (showLessRows && window.innerWidth < 768) {
@@ -39,6 +47,14 @@ export const ConfirmationHistoryTable: React.FC<
     setLimitedHistory(displayedConfirmations.slice(0, 100));
   }, [displayedConfirmations]);
 
+  // Update the clock every second
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date().toLocaleTimeString());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   const toggleView = () => {
     setIsFullView(!isFullView);
   };
@@ -48,141 +64,138 @@ export const ConfirmationHistoryTable: React.FC<
   };
 
   return (
-    <div className="space-y-4 w-full md:w-auto pointer-events-none select-none">
-      <div className="flex justify-end items-center gap-2 pointer-events-auto">
-        <Button
-          onClick={toggleRowCount}
-          variant="outline"
-          size="sm"
-          className="flex select-none items-center gap-2 bg-transparent hover:bg-transparent hover:text-[#209ce9] md:hidden"
-        >
-          {showLessRows ? (
-            <ChevronDown className="w-4 h-4" />
-          ) : (
-            <ChevronUp className="w-4 h-4" />
-          )}
-          <span className="hidden md:inline">
-            {showLessRows ? 'Show More' : 'Show Less'}
-          </span>
-        </Button>
-        <Button
-          onClick={toggleView}
-          variant="outline"
-          size="sm"
-          className="flex select-none items-center gap-2 bg-transparent hover:bg-transparent hover:text-[#209ce9]"
-        >
+    <div className="bg-black/70 backdrop-blur-sm rounded-lg shadow-lg border-t border-l border-[#209ce9]/30 w-80 h-full flex flex-col">
+      <div className="p-3 border-b border-gray-800 flex justify-between items-center">
+        <h3 className="text-[#209ce9] font-semibold flex items-center">
           {isFullView ? (
-            <>
-              <Minimize2 className="w-4 h-4" />
-              <span className="hidden md:inline">Min View</span>
-            </>
+            <Maximize2
+              className="h-4 w-4 mr-2 cursor-pointer"
+              onClick={toggleView}
+            />
           ) : (
-            <>
-              <Maximize2 className="w-4 h-4" />
-              <span className="hidden md:inline">Full View</span>
-            </>
+            <Minimize2
+              className="h-4 w-4 mr-2 cursor-pointer"
+              onClick={toggleView}
+            />
           )}
-        </Button>
+          <Clock className="h-4 w-4 mr-2" />
+          Transaction Stream
+        </h3>
+        <div className="flex items-center">
+          <span className="text-xs text-gray-400 mr-2">Real-Time</span>
+          <span className="text-xs bg-[#209ce9]/20 text-[#209ce9] px-1 rounded">
+            {currentTime}
+          </span>
+          <button
+            onClick={toggleRowCount}
+            className="text-[#209ce9] hover:text-white flex items-center text-xs ml-2"
+          >
+            {showLessRows ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+          </button>
+        </div>
       </div>
-      <div className="overflow-hidden max-h-[75vh] md:max-w-[700px] lg:max-w-[800px] md:ml-auto justify-end flex">
-        <table className="w-fit bg-transparent border border-transparent text-[14px]">
-          <thead className="bg-transparent select-none text-gray-300">
-            <tr>
-              {isFullView && (
-                <>
-                  <th className="p-1 md:p-2 text-left">Age</th>
-                  {window.innerWidth >= 768 && (
-                    <>
-                      <th className="p-1 md:p-2 text-left">Account</th>
-                      <th className="p-1 md:p-2 text-left">Representative</th>
-                      <th className="p-1 md:p-2 text-left">Type</th>
-                    </>
-                  )}
-                </>
-              )}
-              <th className="p-1 md:p-2 text-left">Amount (Ӿ)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {limitedHistory.map(
-              (confirmation: NanoConfirmation, index: number) => {
-                const amount = parseNanoAmount(confirmation.message.amount);
-                const style = getStyleByNanoAmount(amount);
-                const isDonation =
-                  confirmation.message.block.link_as_account ===
-                  APP_CONFIG.donations.nano;
-                const repName = getRepName(
-                  confirmation.message.block.representative
-                );
-                return (
-                  <tr
-                    key={`${confirmation.message.hash}-${index}`}
-                    className={isDonation ? 'bg-blue-600 text-white' : ''}
+
+      <div
+        className={`overflow-y-auto flex-1 ${isFullView ? 'h-[600px]' : ''}`}
+      >
+        {displayedConfirmations.length === 0 ? (
+          <div className="p-3 text-gray-400 text-center text-sm">
+            Waiting for transactions...
+          </div>
+        ) : (
+          limitedHistory.map((confirmation, index) => {
+            const amount = parseNanoAmount(confirmation.message.amount);
+            const style = getStyleByNanoAmount(amount);
+            const isDonation =
+              confirmation.message.block.link_as_account ===
+              APP_CONFIG.donations.nano;
+            const isReceive =
+              confirmation.message.block.subtype.toLowerCase() === 'receive';
+            const date = new Date(parseInt(confirmation.time));
+
+            return (
+              <div
+                key={`${confirmation.message.hash}-${index}`}
+                className={`px-3 py-1.5 hover:bg-gray-800/40 border-b border-gray-800/50 text-xs ${
+                  isDonation ? 'bg-blue-900/30' : ''
+                }`}
+              >
+                <div className="flex justify-between text-gray-500">
+                  <span>{date.toLocaleDateString()}</span>
+                  <span>{date.toLocaleTimeString()}</span>
+                </div>
+                <div className="flex items-center mt-1">
+                  <span
+                    className={`${
+                      isDonation
+                        ? 'text-[#ffa31a]'
+                        : isReceive
+                        ? 'text-green-400'
+                        : 'text-rose-400'
+                    } mr-2`}
                   >
-                    {isFullView && (
-                      <>
-                        <td className="p-1 md:p-2 text-gray-400">
-                          {formatRelativeTime(parseInt(confirmation.time))}
-                        </td>
-                        {window.innerWidth >= 768 && (
-                          <>
-                            <td className="p-1 md:p-2">
-                              <TooltipProvider
-                                skipDelayDuration={100}
-                                delayDuration={0}
-                                disableHoverableContent={false}
-                              >
-                                <Tooltip>
-                                  <TooltipTrigger>
-                                    <span className="cursor-help text-gray-400">
-                                      {truncateAddress(
-                                        confirmation.message.account
-                                      )}
-                                    </span>
-                                  </TooltipTrigger>
-                                  <TooltipContent className="bg-black">
-                                    <span className="bg-black text-white border-1 border-gray-300 p-2 select-text">
-                                      {confirmation.message.account}
-                                    </span>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            </td>
-                            <td className="p-1 md:p-2">
-                              <span
-                                className={`${
-                                  repName ? 'text-[#ffa31a]' : 'text-gray-400'
-                                }`}
-                              >
-                                {repName ??
-                                  truncateAddress(
-                                    confirmation.message.block.representative
-                                  )}
-                              </span>
-                            </td>
-                            <td className="p-1 md:p-2">
-                              {isDonation ? (
-                                'Donation💰'
-                              ) : confirmation.message.block.subtype.toLocaleUpperCase() ===
-                                'SEND' ? (
-                                <span className="text-red-500">Send</span>
-                              ) : (
-                                <span className="text-green-500">Receive</span>
-                              )}
-                            </td>
-                          </>
-                        )}
-                      </>
-                    )}
-                    <td className={`p-1 md:p-2 ${isFullView ? '' : 'w-full'}`}>
-                      <span style={{ color: style.hexColor }}>Ӿ {amount}</span>
-                    </td>
-                  </tr>
-                );
-              }
-            )}
-          </tbody>
-        </table>
+                    {isDonation ? 'Donation' : isReceive ? 'Receive' : 'Send'}
+                  </span>
+                  <span className="text-white mr-1">from</span>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span
+                          className="cursor-pointer"
+                          style={{ color: style.hexColor }}
+                        >
+                          {truncateAddress(confirmation.message.account)}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent
+                        side="top"
+                        className="bg-gray-900 text-white text-xs p-1"
+                      >
+                        {confirmation.message.account}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <div className="flex justify-between text-gray-400 mt-1">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span
+                          className={`${
+                            getRepName(
+                              confirmation.message.block.representative
+                            )
+                              ? 'text-[#209ce9]'
+                              : 'text-gray-400'
+                          } cursor-pointer`}
+                        >
+                          {getRepName(
+                            confirmation.message.block.representative
+                          ) ||
+                            truncateAddress(
+                              confirmation.message.block.representative
+                            )}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent
+                        side="top"
+                        className="bg-gray-900 text-white text-xs p-1"
+                      >
+                        {confirmation.message.block.representative}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <span
+                    className="font-medium"
+                    style={{ color: style.hexColor }}
+                  >
+                    {amount} NANO
+                  </span>
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );

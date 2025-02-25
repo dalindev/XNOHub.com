@@ -31,6 +31,7 @@ import RocketAnimationManager from '@/components/rocket-animation-manager';
 import { APP_CONFIG } from '@/constants/config';
 import { StarlinkMesh } from '@/components/starlink-mesh';
 import { RocketViewText } from '@/components/rocket-view-text';
+import GitHubStatsOverlay from '@/components/github-stats-overlay';
 // import { AuroraEffect } from '@/components/aurora-effect';
 
 function getRandomPositionOnGlobe(radius: number = 1.2): Vector3 {
@@ -248,106 +249,45 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
         <span className="text-[30px] md:text-[40px] text-gray-200">Hub</span>
       </div>
 
-      <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
-        {/* View Control Buttons - Always stay right-aligned */}
-        <div className="flex flex-row gap-2 justify-end">
-          {/* Earth View Button - Only show when in StarLink or Rocket view */}
-          {(isStarlinkView || isRocketView) && (
-            <Button
-              onClick={resetToEarthView}
-              variant="outline"
-              size="sm"
-              className="flex select-none items-center gap-2 bg-transparent hover:bg-transparent hover:text-[#209ce9]"
-            >
-              <Globe className="w-4 h-4 text-blue-400" />
-              <span className="hidden md:inline">Earth View</span>
-            </Button>
-          )}
-
-          {/* StarLink View Button - Only show in Earth view */}
-          {!isStarlinkView && !isRocketView && (
-            <Button
-              onClick={toggleStarlinkView}
-              variant="outline"
-              size="sm"
-              className="flex select-none items-center gap-2 bg-transparent hover:bg-transparent hover:text-[#209ce9]"
-            >
-              <svg
-                className="w-4 h-4 text-blue-400"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0-11V3"
-                />
-              </svg>
-              <span className="hidden md:inline">StarLink View</span>
-            </Button>
-          )}
-
-          {/* Next StarLink Button - Only show in StarLink view */}
-          {isStarlinkView && (
-            <Button
-              onClick={moveToNextStarlink}
-              variant="outline"
-              size="sm"
-              className="flex select-none items-center gap-2 bg-transparent hover:bg-transparent hover:text-[#209ce9]"
-            >
-              <Eye className="w-4 h-4" />
-              <span className="hidden md:inline">Next StarLink</span>
-            </Button>
-          )}
-
-          {/* Rocket View Button - Only show in Earth view when rockets are available */}
-          {!isStarlinkView && !isRocketView && rocketCount > 0 && (
-            <Button
-              onClick={toggleRocketView}
-              variant="outline"
-              size="sm"
-              className="flex select-none items-center gap-2 bg-transparent hover:bg-transparent hover:text-[#209ce9]"
-            >
-              <Rocket className="w-4 h-4 text-red-600" />
-              <span className="hidden md:inline">Rocket View</span>
-            </Button>
-          )}
-
-          {/* Next Rocket Button - Only show in Rocket view */}
-          {isRocketView && rocketCount > 1 && (
-            <Button
-              onClick={moveToNextRocket}
-              variant="outline"
-              size="sm"
-              className="flex select-none items-center gap-2 bg-transparent hover:bg-transparent hover:text-[#209ce9]"
-            >
-              <Eye className="w-4 h-4" />
-              <span className="hidden md:inline">Next Rocket</span>
-            </Button>
-          )}
+      {/* Navigation Buttons */}
+      <div className="absolute top-4 right-4 z-10 flex flex-col items-end gap-4">
+        <div className="flex gap-2">
+          {/* Replace all view buttons with date-time display */}
+          <div className="flex flex-col items-end">
+            <div className="text-xs text-gray-400">Date &amp; Time</div>
+            <div className="text-sm text-white">
+              {typeof serverDateTime === 'object'
+                ? serverDateTime.toLocaleString()
+                : serverDateTime}
+            </div>
+          </div>
         </div>
 
         {/* Rocket Count and Table Container */}
         <div className="flex flex-col gap-2 items-end">
-          <div className="flex items-center gap-2 text-white">
-            Active <Rocket className="w-4 h-4 text-red-600" /> {rocketCount}
-          </div>
-          <ConfirmationHistoryTable />
+          {/* Remove rocket count, it's now in the bottom panel */}
         </div>
+      </div>
+
+      {/* Transaction Stream (Confirmation History Table) */}
+      <div
+        className="absolute top-20 right-4 bottom-20 z-10 flex flex-col"
+        style={{ height: 'calc(100vh - 180px)' }}
+      >
+        <ConfirmationHistoryTable />
       </div>
 
       <Canvas
         camera={cameraSettings}
         className="w-full h-full cursor-move pointer-events-auto"
-        performance={{ min: 0.5 }} // Add performance optimization
-        dpr={[1, 2]} // Limit pixel ratio for better performance
+        performance={{ min: 0.5 }}
+        dpr={[1, 2]}
         gl={{
           antialias: true,
           powerPreference: 'high-performance',
-          alpha: false // Disable alpha for better performance
+          alpha: false
         }}
+        style={{ zIndex: 1 }} // Lower z-index to ensure it's below overlays
       >
         {APP_CONFIG.debug.frameRateDisplay && <Stats />}
         <PerspectiveCamera makeDefault ref={cameraRef} {...cameraSettings} />
@@ -400,6 +340,21 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
       <div className="absolute bottom-6 right-6 z-10">
         <DonationImagePopover />
       </div>
+
+      {/* GitHub Stats Overlay */}
+      <GitHubStatsOverlay
+        repoOwner="nanocurrency"
+        repoName="nano-node"
+        isVisible={!isStarlinkView && !isRocketView}
+        isRocketView={isRocketView}
+        isStarlinkView={isStarlinkView}
+        rocketCount={rocketCount}
+        resetToEarthView={resetToEarthView}
+        toggleStarlinkView={toggleStarlinkView}
+        toggleRocketView={toggleRocketView}
+        moveToNextStarlink={moveToNextStarlink}
+        moveToNextRocket={moveToNextRocket}
+      />
 
       {/* Node Info */}
       <div className="absolute bottom-4 left-4 z-10">
