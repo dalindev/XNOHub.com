@@ -9,7 +9,9 @@ export default function Page() {
   return (
     <Suspense fallback={<Loader />}>
       <ConfirmationProvider>
-        <ThreeSceneClientWrapper />
+        <div className="relative">
+          <ThreeSceneClientWrapper />
+        </div>
       </ConfirmationProvider>
     </Suspense>
   );

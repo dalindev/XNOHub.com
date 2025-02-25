@@ -4,7 +4,7 @@ import React, { useRef, useEffect, useMemo } from 'react';
 import { useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import { IRepData } from '@/types/index';
-import NanoRepNodes from '@/components/nano-rep-nodes';
+import NanoRepNodes from '@/components/nano-rep-nodes-new';
 
 interface ThreeMeshProps {
   lightRefs: React.RefObject<THREE.DirectionalLight>[];
