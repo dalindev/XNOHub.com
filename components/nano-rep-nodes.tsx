@@ -7,10 +7,11 @@ interface NanoRepNodesProps {
   repsGeoInfo: IRepData[];
   earthRadius: number;
   onNodeHover: (nodeRepsGeoInfo: IRepData | null) => void;
+  onPerformanceUpdate?: (bps: number, mode: string, nodesPercentage: number) => void;
 }
 
 const NanoRepNodes: React.FC<NanoRepNodesProps> = React.memo(
-  ({ repsGeoInfo, earthRadius, onNodeHover }) => {
+  ({ repsGeoInfo, earthRadius, onNodeHover, onPerformanceUpdate }) => {
     const earthRadiusRef = useRef(earthRadius);
 
     const nodes = useMemo(() => {
@@ -43,7 +44,11 @@ const NanoRepNodes: React.FC<NanoRepNodesProps> = React.memo(
             // onClick={handleNodeClick}
           />
         ))}
-        <NetworkArcs nodes={nodes} earthRadius={earthRadiusRef.current} />
+        <NetworkArcs 
+          nodes={nodes} 
+          earthRadius={earthRadiusRef.current} 
+          onPerformanceUpdate={onPerformanceUpdate}
+        />
       </group>
     );
   }
