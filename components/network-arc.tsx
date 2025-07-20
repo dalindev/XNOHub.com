@@ -13,18 +13,88 @@ import {
 // Adjustable parameters
 const BROADCAST_ARC_LIFT_RATE = 1.15; // Lift rate for outgoing arcs
 const CONFIRMATION_ARC_LIFT_RATE = 1.15; // Lift rate for returning arcs (lower for shorter arcs)
-const ARC_POINTS = 50;
+const ARC_POINTS = 25;
 const BROADCAST_ARC_SEGMENT_LENGTH = 0.3;
 const CONFIRMATION_ARC_SEGMENT_LENGTH = 0.1;
 const BROADCAST_DURATION = 125;
 const CONFIRMATION_DURATION = 225;
 
-// Node selection parameter
-const TARGET_NODES_PERCENTAGE = 0.67; // Use 10% of available nodes
+// Dynamic node selection - will be calculated based on BPS (Blocks Per Second)
+// Performance levels:
+// BPS < 5: 100% nodes (full experience) 
+// BPS 5: 20% nodes (balanced start)
+// BPS 40: 1% nodes (performance max)
+// Scale smoothly between these points
+
+interface BPSTracker {
+  timestamps: number[];
+  windowSize: number; // in milliseconds
+}
+
+const createBPSTracker = (windowSizeSeconds: number = 5): BPSTracker => ({
+  timestamps: [],
+  windowSize: windowSizeSeconds * 1000
+});
+
+const addBlock = (tracker: BPSTracker, timestamp: number = Date.now()) => {
+  tracker.timestamps.push(timestamp);
+  // Remove old timestamps outside the window
+  const cutoff = timestamp - tracker.windowSize;
+  tracker.timestamps = tracker.timestamps.filter(t => t > cutoff);
+};
+
+const calculateBPS = (tracker: BPSTracker, currentTime: number = Date.now()): number => {
+  // Remove old timestamps
+  const cutoff = currentTime - tracker.windowSize;
+  const oldCount = tracker.timestamps.length;
+  tracker.timestamps = tracker.timestamps.filter(t => t > cutoff);
+  const newCount = tracker.timestamps.length;
+  
+  if (newCount === 0) return 0;
+  
+  // Calculate BPS based on blocks in the window (2x the transaction rate)
+  const timeSpanSeconds = tracker.windowSize / 1000;
+  const tps = newCount / timeSpanSeconds;
+  const bps = tps * 2; // BPS = 2x TPS
+  
+  // Enhanced debug logging
+  if (newCount > 0) {
+    const intervals = tracker.timestamps.slice(-5).map((t, i, arr) => 
+      i > 0 ? t - arr[i-1] : 0
+    ).filter(x => x > 0);
+    const avgInterval = intervals.length > 0 ? intervals.reduce((a, b) => a + b) / intervals.length : 0;
+    
+    console.log(`🔍 BPS Calc: ${newCount} txs in ${timeSpanSeconds}s = ${tps.toFixed(2)} TPS = ${bps.toFixed(2)} BPS | Avg interval: ${avgInterval.toFixed(0)}ms | Expected BPS: ${avgInterval > 0 ? (2000/avgInterval).toFixed(1) : 'N/A'}`);
+  }
+  
+  return bps;
+};
+
+const getAdaptiveNodesPercentage = (bps: number): number => {
+  console.log(`🎯 BPS Input: ${bps.toFixed(2)}`);
+  
+  if (bps < 5) {
+    console.log(`   → Full Experience (100% nodes)`);
+    return 1.0; // 100% - full experience for very low traffic
+  } else if (bps <= 40) {
+    // Smooth scaling from 5 BPS (20% nodes) to 40 BPS (1% nodes)
+    // Linear interpolation: 20% at 5 BPS down to 1% at 40 BPS
+    const factor = (bps - 5) / (40 - 5); // 0 to 1 as BPS goes from 5 to 40
+    const percentage = 0.20 - (factor * 0.19); // 20% down to 1%
+    
+    const mode = bps <= 10 ? 'Balanced' : bps <= 25 ? 'Performance' : 'Performance Max';
+    console.log(`   → ${mode} (${(percentage * 100).toFixed(0)}% nodes)`);
+    return percentage;
+  } else {
+    console.log(`   → Performance Max (1% nodes)`);
+    return 0.01; // 1% - ultra performance mode for very high traffic
+  }
+};
 
 interface NetworkArcsProps {
   nodes: IRepData[];
   earthRadius: number;
+  onPerformanceUpdate?: (bps: number, mode: string, nodesPercentage: number) => void;
 }
 
 interface IArc {
@@ -39,9 +109,15 @@ interface IArc {
   isReturning: boolean;
 }
 
-const NetworkArcs: React.FC<NetworkArcsProps> = ({ nodes, earthRadius }) => {
+const NetworkArcs: React.FC<NetworkArcsProps> = ({ nodes, earthRadius, onPerformanceUpdate }) => {
   const { activeConfirmations } = useConfirmations();
   const [arcs, setArcs] = useState<IArc[]>([]);
+  
+  // BPS tracking and adaptive performance
+  const bpsTracker = React.useRef<BPSTracker>(createBPSTracker(5)); // 5-second window for more responsive BPS
+  const [adaptiveNodesPercentage, setAdaptiveNodesPercentage] = useState<number>(1.0);
+  const processedConfirmationIds = React.useRef<Set<string>>(new Set());
+  const lastActiveConfirmationsLength = React.useRef<number>(0);
 
   const createArcStyles = (amount: number) => {
     const baseStyle = getStyleByNanoAmount(amount);
@@ -55,9 +131,111 @@ const NetworkArcs: React.FC<NetworkArcsProps> = ({ nodes, earthRadius }) => {
     };
   };
 
+  // Update BPS tracking and adaptive percentage
+  const updateBpsAndPercentage = React.useCallback(() => {
+    const now = Date.now();
+    const bps = calculateBPS(bpsTracker.current, now);
+    const newPercentage = getAdaptiveNodesPercentage(bps);
+    
+    // Updated mode determination to match new thresholds
+    let mode: string;
+    if (bps < 5) {
+      mode = 'Full Experience';
+    } else if (bps <= 10) {
+      mode = 'Balanced';
+    } else if (bps <= 25) {
+      mode = 'Performance';
+    } else {
+      mode = 'Performance Max';
+    }
+    
+    console.log(`🚀 Final Update: ${bps.toFixed(2)} BPS → ${mode} (${(newPercentage * 100).toFixed(0)}% nodes)`);
+    
+    // Call performance update callback
+    if (onPerformanceUpdate) {
+      onPerformanceUpdate(bps, mode, newPercentage);
+    }
+    
+    // Log performance mode changes
+    if (Math.abs(newPercentage - adaptiveNodesPercentage) > 0.01) {
+      console.log(`🎯 Adaptive Mode: ${mode} (${bps.toFixed(1)} BPS → ${(newPercentage * 100).toFixed(0)}% nodes)`);
+    }
+    
+    setAdaptiveNodesPercentage(newPercentage);
+  }, [adaptiveNodesPercentage, onPerformanceUpdate]);
+
+  // Periodic BPS updates every 1 second (more responsive with 5s window)
+  React.useEffect(() => {
+    const interval = setInterval(updateBpsAndPercentage, 1000);
+    return () => clearInterval(interval);
+  }, [updateBpsAndPercentage]);
+
+  // Clean up old confirmation IDs every minute to prevent memory leaks
+  React.useEffect(() => {
+    const cleanupInterval = setInterval(() => {
+      // Keep only the most recent 1000 confirmation IDs
+      const ids = Array.from(processedConfirmationIds.current);
+      if (ids.length > 1000) {
+        const idsToKeep = ids.slice(-500); // Keep last 500
+        processedConfirmationIds.current = new Set(idsToKeep);
+        console.log(`🧹 Cleaned confirmation ID cache (kept ${idsToKeep.length} recent IDs)`);
+      }
+    }, 60000); // Every minute
+    
+    return () => clearInterval(cleanupInterval);
+  }, []);
+
   useEffect(() => {
     if (activeConfirmations.length === 0 || nodes.length < 2) return;
 
+    // Simple approach: track confirmations by adding a timestamp to make each "transaction" unique
+    // This works for both sample and live data
+    let newConfirmationsCount = 0;
+    
+    activeConfirmations.forEach((confirmation) => {
+      // Create a unique ID combining hash + current time (for sample data cycling)
+      const uniqueId = `${confirmation.message.hash}_${confirmation.time}`;
+      if (!processedConfirmationIds.current.has(uniqueId)) {
+        processedConfirmationIds.current.add(uniqueId);
+        newConfirmationsCount++;
+      }
+    });
+    
+    console.log(`📊 Processed ${newConfirmationsCount} new confirmations (${activeConfirmations.length} total active)`);
+    
+    // For sample data, also add timestamp-based detection as backup
+    if (process.env.NEXT_PUBLIC_USE_SAMPLE_DATA === 'true') {
+      lastActiveConfirmationsLength.current = activeConfirmations.length;
+      
+      // If hash-based detection failed but we know new items arrived, use simple count
+      if (newConfirmationsCount === 0 && activeConfirmations.length > 0) {
+        // Check if interval timing suggests new transactions should have arrived
+        const now = Date.now();
+        const lastTxTime = bpsTracker.current.timestamps[bpsTracker.current.timestamps.length - 1] || 0;
+        const timeSinceLastTx = now - lastTxTime;
+        const expectedInterval = parseInt(process.env.NEXT_PUBLIC_SIMULATION_INTERVAL_MS || '500');
+        
+        if (timeSinceLastTx >= expectedInterval * 0.8) { // 80% of expected interval
+          newConfirmationsCount = 1;
+          console.log(`📊 Sample Mode Fallback: Adding 1 transaction (${timeSinceLastTx}ms since last, expected ${expectedInterval}ms)`);
+        }
+      }
+    }
+
+    // Add only new transactions to BPS tracker
+    for (let i = 0; i < newConfirmationsCount; i++) {
+      addBlock(bpsTracker.current);
+    }
+
+    // Update BPS immediately when new confirmations arrive
+    if (newConfirmationsCount > 0) {
+      const now = Date.now();
+      const recentTxs = bpsTracker.current.timestamps.slice(-5).map(t => now - t);
+      console.log(`📊 Last 5 tx intervals: [${recentTxs.join(', ')}]ms ago`);
+      updateBpsAndPercentage();
+    }
+
+    // Process ALL active confirmations for arc creation (existing behavior)
     const newArcs = activeConfirmations.flatMap((confirmation) => {
       const representativeAccount = confirmation.message.block.representative;
       const amount = parseNanoAmount(confirmation.message.amount);
@@ -78,10 +256,10 @@ const NetworkArcs: React.FC<NetworkArcsProps> = ({ nodes, earthRadius }) => {
         (targetNode) => targetNode.account !== representativeAccount
       );
 
-      // Calculate number of target nodes based on percentage
+      // Calculate number of target nodes based on adaptive percentage
       const numTargetNodes = Math.max(
         1,
-        Math.floor(eligibleNodes.length * TARGET_NODES_PERCENTAGE)
+        Math.floor(eligibleNodes.length * adaptiveNodesPercentage)
       );
 
       const selectedNodes = shuffleArray<IRepData>(eligibleNodes).slice(
@@ -132,9 +310,9 @@ const NetworkArcs: React.FC<NetworkArcsProps> = ({ nodes, earthRadius }) => {
       const newArcsList = [...currentArcs, ...newArcs];
       return newArcsList;
     });
-  }, [activeConfirmations, nodes, earthRadius]);
+  }, [activeConfirmations, nodes, earthRadius, adaptiveNodesPercentage, updateBpsAndPercentage]);
 
-  useFrame((state, delta) => {
+  useFrame(() => {
     setArcs((currentArcs) =>
       currentArcs
         .map((arc) => {
@@ -334,11 +512,6 @@ const getPointsForSegment = (
   return segmentPoints;
 };
 
-const getRandomDuration = (baseDuration: number) => {
-  // Generate a random factor between 0.5 and 1.5 (±50% variation)
-  const randomFactor = 0.5 + Math.random() * 1;
-  return baseDuration * randomFactor;
-};
 
 const getRandomSegmentLength = (baseSegmentLength: number) => {
   // Generate a random factor between 0.5 and 1.5 (±50% variation)

@@ -76,6 +76,22 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
     null
   );
 
+  // BPS and performance tracking
+  const [currentBPS, setCurrentBPS] = useState<number>(0);
+  const [performanceMode, setPerformanceMode] =
+    useState<string>('Full Experience');
+  const [nodesPercentage, setNodesPercentage] = useState<number>(1.0);
+
+  // Performance update callback
+  const handlePerformanceUpdate = useCallback(
+    (bps: number, mode: string, percentage: number) => {
+      setCurrentBPS(bps);
+      setPerformanceMode(mode);
+      setNodesPercentage(percentage);
+    },
+    []
+  );
+
   const toggleRocketView = useCallback(() => {
     setIsRocketView((prev) => !prev);
     // Clear other view states when entering/exiting rocket view
@@ -331,6 +347,29 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
 
         {/* Rocket Count and Table Container */}
         <div className="flex flex-col gap-2 items-end">
+          {/* Performance indicator */}
+          {currentBPS > 0 && (
+            <div className="flex flex-col items-end gap-1 text-xs">
+              <div className="flex items-center gap-2 text-white">
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    performanceMode === 'Full Experience'
+                      ? 'bg-green-400'
+                      : performanceMode === 'Balanced'
+                      ? 'bg-yellow-400'
+                      : performanceMode === 'Performance'
+                      ? 'bg-orange-400'
+                      : 'bg-red-600'
+                  }`}
+                ></span>
+                {currentBPS.toFixed(1)} BPS
+              </div>
+              <div className="text-gray-400">
+                {performanceMode} ({(nodesPercentage * 100).toFixed(0)}% nodes)
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center gap-2 text-white">
             Active <Rocket className="w-4 h-4 text-red-600" /> {rocketCount}
           </div>
@@ -370,6 +409,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
           repsGeoInfo={repsGeoInfo}
           manualTime={simulationTime}
           onNodeHover={setHoveredNode}
+          onPerformanceUpdate={handlePerformanceUpdate}
         />
         <CloudMesh />
         {/* <AuroraEffect /> */}
