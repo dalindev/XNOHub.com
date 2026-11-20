@@ -67,5 +67,8 @@
       "@babel/runtime@<7.26.10": "^7.26.10"
     }
   },
-  "packageManager": "pnpm@10.27.0"
+  "packageManager": "pnpm@10.27.0",
+  "engines": {
+    "node": "22.x"
+  }
 }
