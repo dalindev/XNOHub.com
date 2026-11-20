@@ -1,7 +1,8 @@
 // Headless screenshot of the running dev server, for checking 3D views without
 // a visible browser. Uses the local Google Chrome with a throwaway profile.
 //   node scripts/dev/shoot.mjs "http://localhost:3000/?fly=45.98,7.66,8,200,-10" out.png [waitSeconds] [jsToEval]
-// Waits in real time (Chrome's --screenshot fires before effects run), prints console output.import { spawn } from 'node:child_process';
+// Waits in real time (Chrome's --screenshot fires before effects run), prints console output.
+import { spawn } from 'node:child_process';
 import { writeFile, mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
