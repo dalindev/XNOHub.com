@@ -1,4 +1,5 @@
 import React, { useMemo, useCallback, useRef } from 'react';
+import type { ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { IRepData } from '@/types/index';
 import NetworkArcs from './network-arc';
@@ -106,7 +107,7 @@ const Node: React.FC<NodeProps> = React.memo(
     }, [barPosition]);
 
     const handlePointerOver = useCallback(
-      (e: THREE.Event) => {
+      (e: ThreeEvent<PointerEvent>) => {
         e.stopPropagation();
         setHovered(true);
         onHover(node);
@@ -115,7 +116,7 @@ const Node: React.FC<NodeProps> = React.memo(
     );
 
     const handlePointerOut = useCallback(
-      (e: THREE.Event) => {
+      (e: ThreeEvent<PointerEvent>) => {
         e.stopPropagation();
         setHovered(false);
         onHover(null);

@@ -2,7 +2,7 @@
 
 import React, { useRef, useMemo } from 'react';
 import { useLoader, useFrame } from '@react-three/fiber';
-import { TextureLoader } from 'three/src/loaders/TextureLoader';
+import { TextureLoader } from 'three';
 import { Mesh, SphereGeometry, MeshPhongMaterial } from 'three';
 
 export const CloudMesh = () => {

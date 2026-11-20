@@ -13,7 +13,6 @@ const nextConfig = {
     ]
   },
   reactStrictMode: true,
-  transpilePackages: ['@tremor/react'],
   experimental: {
   }
 };

@@ -1,6 +1,7 @@
 'use client';
 
 import React, {
+  Suspense,
   useRef,
   useState,
   useEffect,
@@ -415,25 +416,28 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
         {/* <AuroraEffect /> */}
 
         {/* Always render StarlinkMesh */}
-        <StarlinkMesh
-          count={6}
-          isStarlinkView={isStarlinkView}
-          activeStarlinkIndex={activeStarlinkIndex}
-          cameraRef={cameraRef}
-        />
+        {/* Late loaders: keep the page up while models load */}
+        <Suspense fallback={null}>
+          <StarlinkMesh
+            count={6}
+            isStarlinkView={isStarlinkView}
+            activeStarlinkIndex={activeStarlinkIndex}
+            cameraRef={cameraRef}
+          />
 
-        <DonationAnimation />
+          <DonationAnimation />
 
-        <RocketAnimationManager
-          ref={rocketManagerRef}
-          cameraRef={cameraRef}
-          onRocketComplete={handleRocketComplete}
-          onRocketCountChange={handleRocketCountChange}
-          isRocketView={isRocketView}
-          activeRocketIndex={activeRocketIndex}
-          setActiveRocketIndex={setActiveRocketIndex}
-          setDistanceFromEarth={setDistanceFromEarth}
-        />
+          <RocketAnimationManager
+            ref={rocketManagerRef}
+            cameraRef={cameraRef}
+            onRocketComplete={handleRocketComplete}
+            onRocketCountChange={handleRocketCountChange}
+            isRocketView={isRocketView}
+            activeRocketIndex={activeRocketIndex}
+            setActiveRocketIndex={setActiveRocketIndex}
+            setDistanceFromEarth={setDistanceFromEarth}
+          />
+        </Suspense>
       </Canvas>
 
       {/* Donation Image Popover */}

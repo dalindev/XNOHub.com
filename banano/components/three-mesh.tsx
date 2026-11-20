@@ -7,7 +7,7 @@ import { IRepData } from '@/types/index';
 import BananoRepNodes from '@/banano/components/banano-rep-nodes';
 
 interface ThreeMeshProps {
-  lightRefs: React.RefObject<THREE.DirectionalLight>[];
+  lightRefs: React.RefObject<THREE.DirectionalLight | null>[];
   repsGeoInfo: IRepData[] | null;
   manualTime?: Date;
   onNodeHover: (noderepsGeoInfo: IRepData | null) => void;

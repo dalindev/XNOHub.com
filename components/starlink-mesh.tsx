@@ -2,7 +2,7 @@
 
 import { useRef, useEffect } from 'react';
 import { useFrame, useLoader } from '@react-three/fiber';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as THREE from 'three';
 import { Vector3 } from 'three';
 
@@ -10,7 +10,7 @@ interface StarlinkMeshProps {
   count?: number;
   isStarlinkView?: boolean;
   activeStarlinkIndex?: number | null;
-  cameraRef?: React.RefObject<THREE.PerspectiveCamera>;
+  cameraRef?: React.RefObject<THREE.PerspectiveCamera | null>;
 }
 
 interface OrbitData {

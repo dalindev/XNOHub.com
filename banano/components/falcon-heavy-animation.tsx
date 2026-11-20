@@ -3,8 +3,8 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useLoader } from '@react-three/fiber';
-import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader';
-import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader';
+import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
 import { TextureLoader } from 'three';
 import * as THREE from 'three';
 import { Vector3 } from 'three';
@@ -30,7 +30,7 @@ interface FalconHeavyAnimationProps {
   onComplete: () => void;
   initialPosition?: Vector3;
   isRocketView: boolean;
-  cameraRef: React.RefObject<THREE.PerspectiveCamera>;
+  cameraRef: React.RefObject<THREE.PerspectiveCamera | null>;
   setDistanceFromEarth: (distance: number) => void; // Add this prop
 }
 
@@ -42,7 +42,7 @@ export const FalconHeavyAnimation: React.FC<FalconHeavyAnimationProps> = ({
   setDistanceFromEarth // Destructure the prop
 }) => {
   const { scene } = useThree();
-  const falconHeavyRef = useRef<FalconHeavy>();
+  const falconHeavyRef = useRef<FalconHeavy>(undefined);
   const earthRadius = 1;
   const maxDistance = earthRadius * 1000;
   const initialSpeed = 0.01;

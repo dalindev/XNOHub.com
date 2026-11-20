@@ -6,6 +6,7 @@ import React, {
   forwardRef,
   useImperativeHandle
 } from 'react';
+import * as THREE from 'three';
 import { Vector3 } from 'three';
 import { FalconHeavyAnimation } from '@/banano/components/falcon-heavy-animation';
 
@@ -16,7 +17,7 @@ interface RocketData {
 }
 
 interface RocketAnimationManagerProps {
-  cameraRef: React.RefObject<THREE.PerspectiveCamera>;
+  cameraRef: React.RefObject<THREE.PerspectiveCamera | null>;
   onRocketComplete: (id: string) => void;
   onRocketCountChange: (count: number) => void;
   isRocketView: boolean;
