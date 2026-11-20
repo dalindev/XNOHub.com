@@ -14,6 +14,12 @@ import * as THREE from 'three';
 import type { RepNode } from '@/types/index';
 import { CameraDirector } from '@/components/camera-director';
 import { DevProbe } from '@/components/dev-probe';
+import { Sky } from '@/components/sky';
+import { TimeControls } from '@/components/time-controls';
+import { TiledEarth } from '@/components/tiled-earth';
+import { googleTilesConfigured } from '@/lib/google-tiles';
+import { world, parseDeepLink } from '@/lib/world';
+import { setSimTime } from '@/lib/sim-clock';
 import { formatWeight } from '@/lib/reps';
 import ThreeMesh from '@/components/three-mesh';
 import { CloudMesh } from '@/components/three-cloud-mesh';
@@ -25,7 +31,7 @@ import { parseNanoAmount } from '@/lib/parse-nano-amount';
 import { Vector3 } from 'three';
 import { scaleRocketCount } from '@/lib/scale-rocket-count';
 import { Button } from '@/components/ui/button';
-import { Rocket, Eye, Globe } from 'lucide-react';
+import { Rocket, Eye, Globe, Plane, Building2 } from 'lucide-react';
 import RocketAnimationManager from '@/components/rocket-animation-manager';
 import { APP_CONFIG } from '@/constants/config';
 import { StarlinkMesh } from '@/components/starlink-mesh';
@@ -52,8 +58,12 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
 }) => {
   const EarthRadiusInKm = 6357; // Earth's equatorial radius in kilometers
   const lightRef = useRef<THREE.DirectionalLight>(null);
-  const [simulationTime] = useState<Date>(() => new Date());
   const [homeSignal, setHomeSignal] = useState(0);
+  const [isFlyView, setIsFlyView] = useState(false);
+  const [photoreal, setPhotoreal] = useState(false);
+  const surfaceRef = useRef<THREE.Mesh>(null);
+  const cloudRef = useRef<THREE.Mesh>(null);
+  const starsRef = useRef<THREE.Points>(null);
   const [hoveredNode, setHoveredNode] = useState<RepNode | null>(null);
   const { confirmationHistory: confirmations, feedStatus } = useConfirmations();
   const [launchQueue, setLaunchQueue] = useState<Vector3[]>([]);
@@ -132,8 +142,27 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
     }
   }, [isStarlinkView]);
 
+  // Deep links: ?fly=lat,lon,altKm[,heading,pitch]&time=ISO
+  useEffect(() => {
+    const link = parseDeepLink(window.location.search);
+    if (link.timeMs !== undefined) setSimTime(link.timeMs);
+    if (link.fly) {
+      world.flyStart = link.fly;
+      setIsFlyView(true);
+    }
+  }, []);
+
+  const enterFlyView = useCallback(() => {
+    setIsStarlinkView(false);
+    setIsRocketView(false);
+    setActiveStarlinkIndex(null);
+    setActiveRocketIndex(null);
+    setIsFlyView(true);
+  }, []);
+
   const resetToEarthView = useCallback(() => {
     // Clear all view states
+    setIsFlyView(false);
     setIsStarlinkView(false);
     setIsRocketView(false);
     setActiveStarlinkIndex(null);
@@ -228,7 +257,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
     []
   );
 
-  const cameraMode = isRocketView || isStarlinkView ? 'follow' : 'globe';
+  const cameraMode = isFlyView ? 'fly' : isRocketView || isStarlinkView ? 'follow' : 'globe';
 
   return (
     <div className="relative w-screen h-screen">
@@ -259,7 +288,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
         {/* View Control Buttons - Always stay right-aligned */}
         <div className="flex flex-row gap-2 justify-end">
           {/* Earth View Button - Only show when in StarLink or Rocket view */}
-          {(isStarlinkView || isRocketView) && (
+          {(isStarlinkView || isRocketView || isFlyView) && (
             <Button
               onClick={resetToEarthView}
               variant="outline"
@@ -271,8 +300,34 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
             </Button>
           )}
 
+          {/* Free flight - only from Earth view */}
+          {!isStarlinkView && !isRocketView && !isFlyView && (
+            <Button
+              onClick={enterFlyView}
+              variant="outline"
+              size="sm"
+              className="flex select-none items-center gap-2 bg-transparent hover:bg-transparent hover:text-[#209ce9]"
+            >
+              <Plane className="w-4 h-4 text-blue-400" />
+              <span className="hidden md:inline">Fly</span>
+            </Button>
+          )}
+
+          {googleTilesConfigured() && (isFlyView || !isStarlinkView) && (
+            <Button
+              onClick={() => setPhotoreal((p) => !p)}
+              variant="outline"
+              size="sm"
+              title="Google Photorealistic 3D Tiles (paid beyond the free tier, opt-in)"
+              className={`flex select-none items-center gap-2 bg-transparent hover:bg-transparent ${photoreal ? 'text-[#209ce9]' : ''}`}
+            >
+              <Building2 className="w-4 h-4" />
+              <span className="hidden md:inline">Photoreal</span>
+            </Button>
+          )}
+
           {/* StarLink View Button - Only show in Earth view */}
-          {!isStarlinkView && !isRocketView && (
+          {!isStarlinkView && !isRocketView && !isFlyView && (
             <Button
               onClick={toggleStarlinkView}
               variant="outline"
@@ -310,7 +365,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
           )}
 
           {/* Rocket View Button - Only show in Earth view when rockets are available */}
-          {!isStarlinkView && !isRocketView && rocketCount > 0 && (
+          {!isStarlinkView && !isRocketView && !isFlyView && rocketCount > 0 && (
             <Button
               onClick={toggleRocketView}
               variant="outline"
@@ -376,6 +431,8 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
         gl={{
           antialias: true,
           powerPreference: 'high-performance',
+          // Reversed-Z where EXT_clip_control exists; the near plane also follows altitude.
+          reversedDepthBuffer: true,
           alpha: false // Disable alpha for better performance
         }}
       >
@@ -384,7 +441,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
         {process.env.NODE_ENV === 'development' && <DevProbe />}
 
         {/* Use memo'd Stars props */}
-        <Stars {...starsProps} />
+        <Stars ref={starsRef} {...starsProps} />
 
         {/* Use memo'd light settings */}
         <directionalLight
@@ -396,13 +453,14 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
 
         {/* Conditionally render components based on view state */}
         <ThreeMesh
-          lightRefs={[lightRef]}
+          surfaceRef={surfaceRef}
           reps={reps}
-          manualTime={simulationTime}
           onNodeHover={setHoveredNode}
           onPerformanceUpdate={handlePerformanceUpdate}
         />
-        <CloudMesh />
+        <CloudMesh meshRef={cloudRef} />
+        <TiledEarth hideWhenActive={[surfaceRef, cloudRef]} photoreal={photoreal} />
+        <Sky lightRef={lightRef} starsRef={starsRef} />
         {/* <AuroraEffect /> */}
 
         {/* Always render StarlinkMesh */}
@@ -440,11 +498,15 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
         <a className="underline hover:text-gray-300" href="https://nano.community" target="_blank" rel="noreferrer">
           nano.community
         </a>{' '}
-        · node locations are approximate (from IP)
+        · node locations are approximate (from IP) · Imagery: Sentinel-2 cloudless 2016 by{' '}
+        <a className="underline hover:text-gray-300" href="https://s2maps.eu" target="_blank" rel="noreferrer">
+          EOX
+        </a>{' '}
+        (CC BY 4.0, contains modified Copernicus Sentinel data) · Terrain: AWS Terrain Tiles
       </div>
 
-      {/* Node Info */}
-      <div className="absolute bottom-4 left-4 z-10">
+      {/* Node info and time warp */}
+      <div className="absolute bottom-6 left-4 md:left-16 z-10 flex flex-col gap-2">
         {hoveredNode && (
           <div className="bg-transparent text-white p-4 rounded-lg shadow-lg max-w-sm">
             <h3 className="text-lg font-bold mb-2">
@@ -461,6 +523,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
             )}
           </div>
         )}
+        <TimeControls />
       </div>
 
       {isRocketView && (

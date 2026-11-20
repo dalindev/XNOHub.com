@@ -1,0 +1,132 @@
+'use client';
+
+import React, { useEffect, useMemo, useRef } from 'react';
+import * as THREE from 'three';
+import { useFrame, useLoader, useThree } from '@react-three/fiber';
+import { world } from '@/lib/world';
+import { moonFix, sunFix } from '@/lib/astro';
+import { simNow } from '@/lib/sim-clock';
+
+// Sun light, Moon and atmosphere, all driven by the sim clock. Positions are
+// real: the Moon sits at its true distance (~60 Earth radii) and size.
+
+const MOON_RADIUS = 1737.4 / 6371; // Earth radii
+const SUN_LIGHT_DISTANCE = 50; // the light only needs a direction
+const UPDATE_EVERY = 0.25; // s of real time between ephemeris updates
+
+const atmosphereVertex = /* glsl */ `
+  varying vec3 vNormalW;
+  varying vec3 vViewDirW;
+  void main() {
+    vec4 world = modelMatrix * vec4(position, 1.0);
+    vNormalW = normalize(mat3(modelMatrix) * normal);
+    vViewDirW = normalize(cameraPosition - world.xyz);
+    gl_Position = projectionMatrix * viewMatrix * world;
+  }
+`;
+
+// Thin limb glow, blue on the day side, warm at the terminator, gone at night.
+const atmosphereFragment = /* glsl */ `
+  uniform vec3 uSunDir;
+  varying vec3 vNormalW;
+  varying vec3 vViewDirW;
+  void main() {
+    float rim = 1.0 - abs(dot(vNormalW, vViewDirW));
+    float glow = pow(rim, 3.0);
+    float day = dot(vNormalW, uSunDir);
+    float lit = smoothstep(-0.25, 0.35, day);
+    vec3 dayColor = vec3(0.30, 0.55, 1.0);
+    vec3 duskColor = vec3(1.0, 0.45, 0.2);
+    vec3 color = mix(duskColor, dayColor, smoothstep(-0.05, 0.4, day));
+    float a = glow * lit * 0.9;
+    gl_FragColor = vec4(color * a, a);
+  }
+`;
+
+interface SkyProps {
+  lightRef: React.RefObject<THREE.DirectionalLight | null>;
+  /** Hidden when the low-altitude daylight sky is bright enough. */
+  starsRef?: React.RefObject<THREE.Object3D | null>;
+}
+
+const DAY_SKY = new THREE.Color(0.32, 0.56, 0.95);
+const DUSK_SKY = new THREE.Color(0.55, 0.32, 0.22);
+const SPACE = new THREE.Color(0, 0, 0);
+
+export const Sky: React.FC<SkyProps> = ({ lightRef, starsRef }) => {
+  const scene = useThree((s) => s.scene);
+  const camera = useThree((s) => s.camera);
+  const background = useMemo(() => new THREE.Color(0, 0, 0), []);
+  // Aerial perspective near the ground: distant ridges fade into the sky.
+  const fog = useMemo(() => new THREE.FogExp2(0x000000, 0), []);
+  const sunDir = useRef(new THREE.Vector3(1, 0, 0));
+  const tmp = useMemo(() => new THREE.Vector3(), []);
+  const moonRef = useRef<THREE.Mesh>(null);
+  const moonTexture = useLoader(THREE.TextureLoader, '/moon_1k.jpg');
+  const last = useRef(-Infinity);
+
+  useEffect(() => {
+    moonTexture.colorSpace = THREE.SRGBColorSpace;
+  }, [moonTexture]);
+
+  const atmosphere = useMemo(
+    () =>
+      new THREE.ShaderMaterial({
+        vertexShader: atmosphereVertex,
+        fragmentShader: atmosphereFragment,
+        uniforms: { uSunDir: { value: new THREE.Vector3(1, 0, 0) } },
+        transparent: true,
+        depthWrite: false,
+        side: THREE.FrontSide,
+        blending: THREE.AdditiveBlending,
+        premultipliedAlpha: true
+      }),
+    []
+  );
+  useEffect(() => () => atmosphere.dispose(), [atmosphere]);
+
+  useFrame((state) => {
+    // Sky colour seen from low altitude: blue by day, warm at dusk, black in
+    // space. Fades out between ~13 km and ~130 km up.
+    const up = tmp.copy(camera.position).normalize();
+    const sunElevation = up.dot(sunDir.current); // sin of the sun's elevation, roughly
+    const low = 1 - THREE.MathUtils.smoothstep(world.altitude, 0.002, 0.02);
+    const day = THREE.MathUtils.smoothstep(sunElevation, -0.1, 0.25);
+    const dusk = Math.max(0, 1 - Math.abs(sunElevation - 0.0) / 0.15) * 0.6;
+    background.copy(SPACE).lerp(DUSK_SKY, dusk * low).lerp(DAY_SKY, day * low);
+    scene.background = low > 0 ? background : null;
+    fog.color.copy(background);
+    fog.density = 18 * low * low; // per Earth radius: ~50% haze at ~250 km
+    scene.fog = low > 0 ? fog : null;
+    if (starsRef?.current) starsRef.current.visible = day * low < 0.35;
+
+    const t = state.clock.elapsedTime;
+    if (t - last.current < UPDATE_EVERY) return;
+    last.current = t;
+    const now = simNow();
+    const sun = sunFix(now);
+    lightRef.current?.position.copy(sun.direction).multiplyScalar(SUN_LIGHT_DISTANCE);
+    atmosphere.uniforms.uSunDir.value.copy(sun.direction);
+    sunDir.current.copy(sun.direction);
+
+    const moon = moonRef.current;
+    if (moon) {
+      const m = moonFix(now);
+      moon.position.copy(m.direction).multiplyScalar(m.distance);
+      // Tidally locked: the near side (texture centre, local +X) faces Earth.
+      moon.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), m.direction.clone().negate());
+    }
+  });
+
+  return (
+    <>
+      <mesh ref={moonRef}>
+        <sphereGeometry args={[MOON_RADIUS, 64, 32]} />
+        <meshStandardMaterial map={moonTexture} roughness={1} metalness={0} />
+      </mesh>
+      <mesh material={atmosphere} renderOrder={1}>
+        <sphereGeometry args={[1.025, 96, 48]} />
+      </mesh>
+    </>
+  );
+};

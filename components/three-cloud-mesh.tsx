@@ -5,8 +5,9 @@ import { useFrame } from '@react-three/fiber';
 import { useCloudTexture } from '@/lib/earth-textures';
 import { Mesh, SphereGeometry, MeshPhongMaterial } from 'three';
 
-export const CloudMesh = () => {
-  const meshRef = useRef<Mesh>(null);
+export const CloudMesh = ({ meshRef: outer }: { meshRef?: React.RefObject<Mesh | null> } = {}) => {
+  const ownRef = useRef<Mesh>(null);
+  const meshRef = outer ?? ownRef;
 
   // Load texture once and memoize it
   const cloudMap = useCloudTexture();

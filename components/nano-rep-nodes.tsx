@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef } from 'react';
-import type { ThreeEvent } from '@react-three/fiber';
+import { useFrame, type ThreeEvent } from '@react-three/fiber';
+import { world } from '@/lib/world';
 import * as THREE from 'three';
 import type { RepNode } from '@/types/index';
 import NetworkArcs, { type ArcNodes } from '@/components/network-arcs';
@@ -84,6 +85,12 @@ const NanoRepNodes: React.FC<NanoRepNodesProps> = ({
     mesh.computeBoundingSphere();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drawn, arcNodes, earthRadius]);
+
+  // Bars are hundreds of km tall: right from orbit, absurd from a plane.
+  // Hide them below ~300 km; the arcs keep crossing the sky overhead.
+  useFrame(() => {
+    if (meshRef.current) meshRef.current.visible = world.altitude > 0.05;
+  });
 
   useEffect(() => () => {
     geometry.dispose();

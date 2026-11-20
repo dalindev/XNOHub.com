@@ -37,12 +37,12 @@ This is the working checklist for [v2-plan.md](v2-plan.md), and the plan has the
 
 ## Phase 2: world foundation and free flight
 
-- [ ] Real km units, a floating origin and reversed-Z depth
-- [ ] Sun, Earth rotation and Moon from astronomy-engine, plus time warp
-- [ ] Multi-scale Earth with 3DTilesRendererJS, EOX 2016 imagery and AWS terrain
-- [ ] Atmosphere shell
-- [ ] Optional Google 3D Tiles behind a flag, with a spend cap
-- [ ] Free-flight mode (keyboard, mouse and gamepad)
+- [x] Real scale, precision and depth (2026-11-19). Changed from the plan: 1 scene unit = 1 Earth radius (6,371 km) instead of km. Ephemerides run in float64 on the CPU, three builds model-view matrices in float64, and the tiles are relative-to-centre, so camera jitter stays sub-metre without a floating origin. Reversed-Z is on where `EXT_clip_control` exists, but the default 24-bit depth buffer limits the gain, so the near plane also follows altitude (0.6 m skimming terrain, 6 km from orbit). A true floating origin waits until the Moon/Mars phases need it
+- [x] Sun, Earth rotation and Moon from astronomy-engine, plus time warp (2026-11-19): `lib/astro.ts` (tests pin the frame), `lib/sim-clock.ts`, warp 1×/1 min/1 h/1 d per second. Removed the old 12 h offset and 23.5° tilt hack; night lights now only on the night side. The Moon's position is tested, but it hasn't been seen on screen yet
+- [x] Multi-scale Earth with 3DTilesRendererJS, EOX 2016 imagery and AWS terrain (2026-11-19): `components/tiled-earth.tsx`, below ~3,200 km. Checked over the Alps and Starbase. Below-sea-level heights are clamped to 0. Known: flat lowlands show 1 m terracing from the source DEM under low sun; tile mode is ~160 draw calls (budget 150); EOX's free tile server should be asked before real traffic
+- [x] Atmosphere (2026-11-19): limb glow from orbit (day blue, dusk orange), and below ~130 km a sky colour from sun elevation, haze (exp fog) and stars hidden in daylight
+- [x] Optional Google 3D Tiles behind a flag (2026-11-19): shown only when `NEXT_PUBLIC_GOOGLE_MAPS_KEY` is set and the Photoreal button is pressed; per-browser cap `NEXT_PUBLIC_GOOGLE_TILES_MONTHLY_CAP` (default 50). The real spend cap must be a daily quota on the Map Tiles API in Google Cloud. Not tested (no key)
+- [x] Free-flight mode (keyboard, mouse and gamepad) (2026-11-19): drone-style, speed scales with altitude, 30 m ground clearance from loaded terrain. Deep links `?fly=lat,lon,altKm[,heading,pitch]&time=ISO`. Keyboard/gamepad input not exercised by hand yet (checked through deep links and headless screenshots)
 
 ## Phase 3: launch sites and Starship operations
 
