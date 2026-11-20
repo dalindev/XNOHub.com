@@ -44,12 +44,25 @@ This is the working checklist for [v2-plan.md](v2-plan.md), and the plan has the
 - [x] ~~Optional Google 3D Tiles~~ dropped (2026-11-19): Dalin chose no paid map services. Open sources only (EOX imagery, AWS terrain); the Google code was removed
 - [x] Free-flight mode (keyboard, mouse and gamepad) (2026-11-19): drone-style, speed scales with altitude, 30 m ground clearance from loaded terrain. Deep links `?fly=lat,lon,altKm[,heading,pitch]&time=ISO`. Keyboard/gamepad input not exercised by hand yet (checked through deep links and headless screenshots)
 
+## Phase 2.5: Starlink, cables and routed packets (2026-11-19)
+
+- [x] Real constellation: 11,205 Starlink from CelesTrak GP (`scripts/build-starlink.mjs`), circular orbit + J2 drift on the GPU, within 25 km of SGP4 over 24 h (`lib/orbits.test.ts`). Version is estimated from launch date (no V3 in orbit yet). CelesTrak 403s repeat downloads within ~2 h: reuse a saved file with `STARLINK_GP_FILE`
+- [x] Approximate laser mesh (4 neighbours + 1 cross-shell link each); real ISL topology isn't public
+- [x] Submarine cables from TeleGeography (`scripts/build-cables.mjs`, 714 cables) drawn on the globe, fading near the ground
+- [x] Routing: fibre (cables + modelled overland at 1.3× great circle, c/1.468) and Starlink (25° min elevation, laser mesh, c). `lib/routing/*`, tested on real data (NY→FRA 28–50 ms)
+- [x] Packets: each confirmation travels real routes at real propagation delay × slow motion (default 50×). Modes Race / Cables / Starlink / Arcs (original), in the Network panel with live fibre vs Starlink timings
+- [x] Procedural models (no downloads): Starlink V1.0, V1.5, V2 Mini, V3 (V3 sizes are estimates), Starship, Super Heavy (`lib/models/`). Old 3 MB Starlink GLB removed; Banano's ring uses the procedural V2 Mini
+- [x] Starlink view: rides a real, sunlit satellite at true scale in real time (~94 min orbit); Next cycles V2 Mini → V1.5 → V1.0
+- [x] Starship mission: liftoff from Starbase, hot staging, boost-back and catch, orbit, V3 deploy from the PEZ slot. Launch button, plus any send ≥ 1,000 Ӿ. Burns are time-compressed (×6, ×10), orbit is real time. From the globe the vehicles are enlarged and labelled so
+- [ ] Check by hand in a real browser: frame rate with packets + 11k satellites on a mid-range laptop, and the chase views' controls (they're fixed chase cams for now; no drag-to-orbit)
+- [ ] Starlink trains (fresh launches still raising orbit) as their own highlight
+
 ## Phase 3: launch sites and Starship operations
 
 - [ ] Launch-site picker, with presets for Starbase, LC-39A and SLC-37
-- [ ] Pad and tower with chopsticks, and a CC0 Starship and Super Heavy model as GLB
-- [ ] Data-driven launch timeline (Flight 11 T+ events) with a simplified ascent
-- [ ] Booster return and tower catch
+- [ ] Pad and tower with chopsticks (procedural Starship and Super Heavy done in 2.5)
+- [ ] Data-driven launch timeline (Flight 11 T+ events); a simplified ascent exists in `lib/missions/starship.ts`
+- [ ] Tower catch with real chopsticks (the booster returns to the pad already)
 - [ ] Nano sends trigger launches from the nearest site
 
 ## Phase 4: orbit, ship interior and space events
@@ -71,3 +84,6 @@ This is the working checklist for [v2-plan.md](v2-plan.md), and the plan has the
 ## Open decisions
 
 See "Open decisions for Dalin" in [v2-plan.md](v2-plan.md) (Google tiles: decided no, 2026-11-19): a feed relay, Banano, branding, hosting and votes.
+
+- **TeleGeography cable data license** (before going public): `public/data/cables.json` comes from TeleGeography's submarine cable map API. Its terms for reuse aren't confirmed (an old copy in a GitHub repo was CC BY-NC-SA 3.0, which would rule out commercial use). Options: confirm the license with TeleGeography, or switch to an openly licensed source (OpenStreetMap `submarine=yes` cables, ODbL)
+- **Moon and Mars**: guided missions rather than a full game (agreed 2026-11-19), after Phase 3

@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
 import { onConfirmation, confirmationsPerSecond } from '@/lib/feed/bus';
 import { ArcRing, fanOutFraction } from '@/lib/arcs/arc-ring';
+import { netMode } from '@/lib/network-mode';
 import { getStyleByNanoAmount } from '@/lib/get-style-by-nano-amount';
 
 // Every arc on the globe is one instance of one mesh. A confirmation writes a
@@ -195,6 +196,7 @@ const NetworkArcs: React.FC<NetworkArcsProps> = ({ nodes, radius, onPerformanceU
     };
 
     return onConfirmation((c, amount) => {
+      if (netMode.get().mode !== 'classic') return; // NetworkPackets draws the routed modes
       const { directions, indexByAccount } = nodesRef.current;
       const n = directions.length / 3;
       if (n < 2) return;

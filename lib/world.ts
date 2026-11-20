@@ -9,6 +9,8 @@ export const world = {
   tilesActive: false,
   /** Ground height under the camera in Earth radii (from loaded terrain), or null. */
   groundAltitude: null as number | null,
+  /** Near plane forced by a close-up chase view (metres-scale models), or null. */
+  nearOverride: null as number | null,
   /** Pose for the next free flight, set by deep links; consumed by FlyControls. */
   flyStart: null as null | { lat: number; lon: number; altKm: number; heading: number; pitch: number }
 };

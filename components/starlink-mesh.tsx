@@ -1,8 +1,10 @@
 'use client';
+// Stylised Starlink ring used by the Banano page. XNOHub's own Starlink view
+// follows real satellites instead (components/starlink-follow.tsx).
 
-import { useRef, useEffect } from 'react';
-import { useFrame, useLoader } from '@react-three/fiber';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { useRef, useEffect, useMemo } from 'react';
+import { useFrame } from '@react-three/fiber';
+import { buildStarlink } from '@/lib/models/starlink-models';
 import * as THREE from 'three';
 import { Vector3 } from 'three';
 
@@ -29,10 +31,8 @@ export const StarlinkMesh: React.FC<StarlinkMeshProps> = ({
   cameraRef
 }) => {
   const satellites = useRef<THREE.Group[]>([]);
-  const model = useLoader(
-    GLTFLoader,
-    '/starlink/starlink_spacex_satellite.glb'
-  );
+  // Procedural V2 Mini (metres); replaced a 3 MB downloaded GLB.
+  const model = useMemo(() => ({ scene: buildStarlink(2) }), []);
   const orbitDataRef = useRef<OrbitData[]>([]);
   const lastFrameTime = useRef(Date.now());
   const accumulatedTime = useRef(0);
@@ -64,7 +64,7 @@ export const StarlinkMesh: React.FC<StarlinkMeshProps> = ({
         orbitContainer.position.copy(position);
 
         const satellite = model.scene.clone();
-        satellite.scale.set(0.02, 0.02, 0.02);
+        satellite.scale.setScalar(0.002); // ~30 m span → 0.06 units, stylised (Banano view)
 
         const light = new THREE.PointLight(Math.random() * 0xffffff, 0.6, 0.2);
         satellite.add(light);

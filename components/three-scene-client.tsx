@@ -17,6 +17,12 @@ import { DevProbe } from '@/components/dev-probe';
 import { Sky } from '@/components/sky';
 import { TimeControls } from '@/components/time-controls';
 import { TiledEarth } from '@/components/tiled-earth';
+import { StarlinkConstellation } from '@/components/starlink-constellation';
+import { useStarlink } from '@/lib/starlink-data';
+import { useCables } from '@/lib/cables-data';
+import { CableLines } from '@/components/cable-lines';
+import { NetworkPackets } from '@/components/network-packets';
+import { NetworkPanel } from '@/components/network-panel';
 import { world, parseDeepLink } from '@/lib/world';
 import { setSimTime } from '@/lib/sim-clock';
 import { formatWeight } from '@/lib/reps';
@@ -33,7 +39,9 @@ import { Button } from '@/components/ui/button';
 import { Rocket, Eye, Globe, Plane } from 'lucide-react';
 import RocketAnimationManager from '@/components/rocket-animation-manager';
 import { APP_CONFIG } from '@/constants/config';
-import { StarlinkMesh } from '@/components/starlink-mesh';
+import { StarlinkFollow, type StarlinkInfo } from '@/components/starlink-follow';
+import { StarshipMission, type MissionInfo } from '@/components/starship-mission';
+import { VERSION_NAMES } from '@/lib/orbits';
 import { RocketViewText } from '@/components/rocket-view-text';
 // import { AuroraEffect } from '@/components/aurora-effect';
 
@@ -62,6 +70,8 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
   const surfaceRef = useRef<THREE.Mesh>(null);
   const cloudRef = useRef<THREE.Mesh>(null);
   const starsRef = useRef<THREE.Points>(null);
+  const starlink = useStarlink();
+  const cables = useCables();
   const [hoveredNode, setHoveredNode] = useState<RepNode | null>(null);
   const { confirmationHistory: confirmations, feedStatus } = useConfirmations();
   const [launchQueue, setLaunchQueue] = useState<Vector3[]>([]);
@@ -79,6 +89,25 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
   const [activeStarlinkIndex, setActiveStarlinkIndex] = useState<number | null>(
     null
   );
+  const [starlinkInfo, setStarlinkInfo] = useState<StarlinkInfo | null>(null);
+  const [isStarshipView, setIsStarshipView] = useState(false);
+  const [launchSignal, setLaunchSignal] = useState(0);
+  const [missionInfo, setMissionInfo] = useState<MissionInfo | null>(null);
+  const missionFlying = useRef(false);
+  const onMissionInfo = useCallback((i: MissionInfo | null) => {
+    missionFlying.current = !!i;
+    setMissionInfo(i);
+    if (!i) setIsStarshipView(false);
+  }, []);
+  const launchStarship = useCallback(() => {
+    setIsFlyView(false);
+    setIsStarlinkView(false);
+    setIsRocketView(false);
+    setActiveStarlinkIndex(null);
+    setActiveRocketIndex(null);
+    setLaunchSignal((n) => n + 1);
+    setIsStarshipView(true);
+  }, []);
 
   // Feed rate and arc fan-out
   const [currentBPS, setCurrentBPS] = useState<number>(0);
@@ -135,7 +164,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
     if (isStarlinkView) {
       setActiveStarlinkIndex((prev) => {
         if (prev === null) return 0;
-        return (prev + 1) % 6; // Assuming 6 satellites
+        return prev + 1; // StarlinkFollow cycles versions
       });
     }
   }, [isStarlinkView]);
@@ -160,6 +189,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
 
   const resetToEarthView = useCallback(() => {
     // Clear all view states
+    setIsStarshipView(false);
     setIsFlyView(false);
     setIsStarlinkView(false);
     setIsRocketView(false);
@@ -184,6 +214,9 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
           (window as any).triggerDonationAnimation(amount);
         }
       }
+
+      // A big send (≥ 1,000 Ӿ) launches a Starship, one at a time.
+      if (isSend && amount >= 1000 && !missionFlying.current) setLaunchSignal((n) => n + 1);
 
       if (isSend) {
         const newRocketCount = Math.max(
@@ -255,7 +288,8 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
     []
   );
 
-  const cameraMode = isFlyView ? 'fly' : isRocketView || isStarlinkView ? 'follow' : 'globe';
+  const cameraMode = isFlyView ? 'fly' : isRocketView || isStarlinkView || isStarshipView ? 'follow' : 'globe';
+  const inEarthView = !isStarlinkView && !isRocketView && !isFlyView && !isStarshipView;
 
   return (
     <div className="relative w-screen h-screen">
@@ -286,7 +320,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
         {/* View Control Buttons - Always stay right-aligned */}
         <div className="flex flex-row gap-2 justify-end">
           {/* Earth View Button - Only show when in StarLink or Rocket view */}
-          {(isStarlinkView || isRocketView || isFlyView) && (
+          {!inEarthView && (
             <Button
               onClick={resetToEarthView}
               variant="outline"
@@ -298,8 +332,20 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
             </Button>
           )}
 
+          {inEarthView && (
+            <Button
+              onClick={launchStarship}
+              variant="outline"
+              size="sm"
+              className="flex select-none items-center gap-2 bg-transparent hover:bg-transparent hover:text-[#209ce9]"
+            >
+              <Rocket className="w-4 h-4 text-gray-200" />
+              <span className="hidden md:inline">{missionInfo ? 'Starship' : 'Launch Starship'}</span>
+            </Button>
+          )}
+
           {/* Free flight - only from Earth view */}
-          {!isStarlinkView && !isRocketView && !isFlyView && (
+          {inEarthView && (
             <Button
               onClick={enterFlyView}
               variant="outline"
@@ -312,7 +358,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
           )}
 
           {/* StarLink View Button - Only show in Earth view */}
-          {!isStarlinkView && !isRocketView && !isFlyView && (
+          {inEarthView && (
             <Button
               onClick={toggleStarlinkView}
               variant="outline"
@@ -350,7 +396,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
           )}
 
           {/* Rocket View Button - Only show in Earth view when rockets are available */}
-          {!isStarlinkView && !isRocketView && !isFlyView && rocketCount > 0 && (
+          {inEarthView && rocketCount > 0 && (
             <Button
               onClick={toggleRocketView}
               variant="outline"
@@ -446,17 +492,16 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
         <CloudMesh meshRef={cloudRef} />
         <TiledEarth hideWhenActive={[surfaceRef, cloudRef]} />
         <Sky lightRef={lightRef} starsRef={starsRef} />
+        {starlink && <StarlinkConstellation data={starlink} />}
+        {cables && <CableLines data={cables} />}
+        {cables && <NetworkPackets reps={reps} cables={cables} />}
         {/* <AuroraEffect /> */}
 
         {/* Always render StarlinkMesh */}
         {/* Late loaders: keep the page up while models load */}
         <Suspense fallback={null}>
-          <StarlinkMesh
-            count={6}
-            isStarlinkView={isStarlinkView}
-            activeStarlinkIndex={activeStarlinkIndex}
-            cameraRef={cameraRef}
-          />
+          <StarlinkFollow active={isStarlinkView} pick={activeStarlinkIndex ?? 0} onInfo={setStarlinkInfo} />
+          <StarshipMission launchSignal={launchSignal} follow={isStarshipView} onInfo={onMissionInfo} />
 
           <DonationAnimation />
 
@@ -472,6 +517,10 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
           />
         </Suspense>
       </Canvas>
+
+      <div className="absolute top-24 md:top-28 left-4 md:left-10 z-10 hidden sm:block">
+        <NetworkPanel starlink={starlink} />
+      </div>
 
       {/* Donation Image Popover */}
       <div className="absolute bottom-6 right-6 z-10">
@@ -510,6 +559,37 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
         )}
         <TimeControls />
       </div>
+
+      {isStarlinkView && starlinkInfo && (
+        <div className="absolute bottom-28 left-1/2 -translate-x-1/2 z-10 text-center text-xs text-gray-300 select-none">
+          <div className="text-base text-white">Starlink #{starlinkInfo.norad}</div>
+          <div>{VERSION_NAMES[starlinkInfo.version]} (estimated from launch date) · true scale</div>
+          <div>
+            {starlinkInfo.altKm.toFixed(0)} km up · {starlinkInfo.speedKms.toFixed(2)} km/s · one orbit every{' '}
+            {starlinkInfo.periodMin.toFixed(1)} min
+          </div>
+          <div className="text-gray-500">
+            over {Math.abs(starlinkInfo.lat).toFixed(1)}°{starlinkInfo.lat >= 0 ? 'N' : 'S'}{' '}
+            {Math.abs(starlinkInfo.lon).toFixed(1)}°{starlinkInfo.lon >= 0 ? 'E' : 'W'} · real time (use time warp to speed up)
+          </div>
+        </div>
+      )}
+
+      {missionInfo && (isStarshipView || missionInfo.enlarged) && (
+        <div className="absolute bottom-28 left-1/2 -translate-x-1/2 z-10 text-center text-xs text-gray-300 select-none">
+          <div className="text-base text-white">
+            Starship · {missionInfo.phase} · T+{Math.floor(missionInfo.t / 60)}:
+            {String(Math.floor(missionInfo.t % 60)).padStart(2, '0')}
+          </div>
+          <div>
+            {missionInfo.altKm.toFixed(0)} km up
+            {missionInfo.compression > 1 ? ` · time ×${missionInfo.compression}` : ' · real time'}
+            {missionInfo.deployed > 0 && ` · ${missionInfo.deployed} Starlink V3 deployed`}
+          </div>
+          {missionInfo.enlarged && !isStarshipView && <div className="text-gray-500">vehicles drawn larger than real</div>}
+          {isStarshipView && <div className="text-gray-500">true scale · V3 sizes are estimates</div>}
+        </div>
+      )}
 
       {isRocketView && (
         <RocketViewText

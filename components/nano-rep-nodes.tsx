@@ -89,7 +89,7 @@ const NanoRepNodes: React.FC<NanoRepNodesProps> = ({
   // Bars are hundreds of km tall: right from orbit, absurd from a plane.
   // Hide them below ~300 km; the arcs keep crossing the sky overhead.
   useFrame(() => {
-    if (meshRef.current) meshRef.current.visible = world.altitude > 0.05;
+    if (meshRef.current) meshRef.current.visible = world.altitude > 0.05 && world.nearOverride === null;
   });
 
   useEffect(() => () => {
