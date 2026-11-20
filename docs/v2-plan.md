@@ -20,7 +20,7 @@ v2 turns XNOHub from a globe with arcs into a small browser space sim that still
 | **Is the Nano feed still valid?** | Yes. The live site's endpoint `wss://nanoslo.0x.no/websocket` still delivers confirmations (tested 2026-11-19). Real traffic is only about 0.3 confirmations a second. **Votes are not available from any public node tested**, and v1 never used them anyway. |
 | **Why was it slow?** | Not because of load. At 0.3 confirmations a second the lag is the code: duplicated arcs, React re-rendering every frame, and one draw call per arc (see the audit). A rewrite fixes this, and the adaptive "percentage of nodes" mode can go away. |
 | **"SpaceX simulator"?** | SpaceX's trademark policy forbids using its name and logo to imply endorsement. Call it a Starship-*inspired* sim, add an "unaffiliated fan project" line, and use no logos. |
-| **Google Maps for city looks?** | Possible but limited. Google Photorealistic 3D Tiles give 1,000 free root sessions a month, then $6 per 1,000. Caching is banned and attribution is required. Keep it an optional close-up layer behind a flag and a spend cap, not the default Earth. |
+| **Google Maps for city looks?** | Possible but limited. Google Photorealistic 3D Tiles give 1,000 free root sessions a month, then $6 per 1,000. Caching is banned and attribution is required. **Decided 2026-11-19: not used**, because it costs money. Free open tiles only. |
 | **"Real calculation" of scale?** | Yes for positions and distances: real ephemerides, real km. Physics should be "on rails" plus a simplified ascent, not n-body. Time warp is required: a Moon trip takes about 3 days and Mars about 7–9 months. |
 | **5 km mass driver?** | Musk spoke of a lunar mass driver (Feb 2026) but gave no length. The 5 km is our own choice. It reaches lunar escape speed (2.38 km/s) at about 58 g over 4.2 s, which is fine for cargo and satellites but not crew, and the sim should show that. |
 
@@ -112,7 +112,7 @@ Each phase ships to production and has a clear exit test.
 
 - **Units and precision.** Real km units, a floating origin and reversed-Z depth, with a test scene that spans LEO to the Moon without z-fighting or jitter.
 - **Real sky.** Sun direction, Earth rotation (GMST), axial tilt and the Moon position come from `astronomy-engine`, replacing the current hand-rolled sun formula with its 12 h offset. Add a time-warp control.
-- **Multi-scale Earth.** Use 3DTilesRendererJS (Apache-2.0, has R3F bindings) with open tiles: EOX Sentinel-2 cloudless 2016 (CC BY 4.0) imagery and AWS Terrain Tiles for relief. Add an atmosphere scattering shell. Google Photorealistic 3D Tiles are an opt-in "city detail" layer behind a feature flag, with attribution and a daily cap.
+- **Multi-scale Earth.** Use 3DTilesRendererJS (Apache-2.0, has R3F bindings) with open tiles: EOX Sentinel-2 cloudless 2016 (CC BY 4.0) imagery and AWS Terrain Tiles for relief. Add an atmosphere scattering shell. Google Photorealistic 3D Tiles were considered and dropped (2026-11-19, paid).
 - **Fly mode.** A game-like free flight using WASD or the gamepad plus the mouse, with speed that scales with altitude. Go from orbit down to a few km and back.
 - **Exit test:** fly from a whole-Earth view down to about 2 km over a city and back up to the Moon's distance, with no precision artefacts and within budget.
 
@@ -163,7 +163,7 @@ Each phase ships to production and has a clear exit test.
 
 ## Open decisions for Dalin
 
-1. **Google 3D Tiles:** optional and capped (the recommendation), or skip it.
+1. **Google 3D Tiles:** decided 2026-11-19: no. It costs money past the free tier, so the sim uses free open sources only (EOX imagery, AWS terrain). City detail at launch sites will come from our own models.
 2. **Relay server for the feed:** add a Cloudflare Durable Object in Phase 1, or rely on direct public sockets plus a fallback for now.
 3. **Banano:** keep the Banano page in v2, drop it, or freeze it on v1 code.
 4. **Branding:** the name of the sim part, and the fan-project disclaimer.

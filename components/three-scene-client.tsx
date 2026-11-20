@@ -17,7 +17,6 @@ import { DevProbe } from '@/components/dev-probe';
 import { Sky } from '@/components/sky';
 import { TimeControls } from '@/components/time-controls';
 import { TiledEarth } from '@/components/tiled-earth';
-import { googleTilesConfigured } from '@/lib/google-tiles';
 import { world, parseDeepLink } from '@/lib/world';
 import { setSimTime } from '@/lib/sim-clock';
 import { formatWeight } from '@/lib/reps';
@@ -31,7 +30,7 @@ import { parseNanoAmount } from '@/lib/parse-nano-amount';
 import { Vector3 } from 'three';
 import { scaleRocketCount } from '@/lib/scale-rocket-count';
 import { Button } from '@/components/ui/button';
-import { Rocket, Eye, Globe, Plane, Building2 } from 'lucide-react';
+import { Rocket, Eye, Globe, Plane } from 'lucide-react';
 import RocketAnimationManager from '@/components/rocket-animation-manager';
 import { APP_CONFIG } from '@/constants/config';
 import { StarlinkMesh } from '@/components/starlink-mesh';
@@ -60,7 +59,6 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
   const lightRef = useRef<THREE.DirectionalLight>(null);
   const [homeSignal, setHomeSignal] = useState(0);
   const [isFlyView, setIsFlyView] = useState(false);
-  const [photoreal, setPhotoreal] = useState(false);
   const surfaceRef = useRef<THREE.Mesh>(null);
   const cloudRef = useRef<THREE.Mesh>(null);
   const starsRef = useRef<THREE.Points>(null);
@@ -313,19 +311,6 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
             </Button>
           )}
 
-          {googleTilesConfigured() && (isFlyView || !isStarlinkView) && (
-            <Button
-              onClick={() => setPhotoreal((p) => !p)}
-              variant="outline"
-              size="sm"
-              title="Google Photorealistic 3D Tiles (paid beyond the free tier, opt-in)"
-              className={`flex select-none items-center gap-2 bg-transparent hover:bg-transparent ${photoreal ? 'text-[#209ce9]' : ''}`}
-            >
-              <Building2 className="w-4 h-4" />
-              <span className="hidden md:inline">Photoreal</span>
-            </Button>
-          )}
-
           {/* StarLink View Button - Only show in Earth view */}
           {!isStarlinkView && !isRocketView && !isFlyView && (
             <Button
@@ -459,7 +444,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
           onPerformanceUpdate={handlePerformanceUpdate}
         />
         <CloudMesh meshRef={cloudRef} />
-        <TiledEarth hideWhenActive={[surfaceRef, cloudRef]} photoreal={photoreal} />
+        <TiledEarth hideWhenActive={[surfaceRef, cloudRef]} />
         <Sky lightRef={lightRef} starsRef={starsRef} />
         {/* <AuroraEffect /> */}
 

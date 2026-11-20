@@ -41,7 +41,7 @@ This is the working checklist for [v2-plan.md](v2-plan.md), and the plan has the
 - [x] Sun, Earth rotation and Moon from astronomy-engine, plus time warp (2026-11-19): `lib/astro.ts` (tests pin the frame), `lib/sim-clock.ts`, warp 1×/1 min/1 h/1 d per second. Removed the old 12 h offset and 23.5° tilt hack; night lights now only on the night side. The Moon's position is tested, but it hasn't been seen on screen yet
 - [x] Multi-scale Earth with 3DTilesRendererJS, EOX 2016 imagery and AWS terrain (2026-11-19): `components/tiled-earth.tsx`, below ~3,200 km. Checked over the Alps and Starbase. Below-sea-level heights are clamped to 0. Known: flat lowlands show 1 m terracing from the source DEM under low sun; tile mode is ~160 draw calls (budget 150); EOX's free tile server should be asked before real traffic
 - [x] Atmosphere (2026-11-19): limb glow from orbit (day blue, dusk orange), and below ~130 km a sky colour from sun elevation, haze (exp fog) and stars hidden in daylight
-- [x] Optional Google 3D Tiles behind a flag (2026-11-19): shown only when `NEXT_PUBLIC_GOOGLE_MAPS_KEY` is set and the Photoreal button is pressed; per-browser cap `NEXT_PUBLIC_GOOGLE_TILES_MONTHLY_CAP` (default 50). The real spend cap must be a daily quota on the Map Tiles API in Google Cloud. Not tested (no key)
+- [x] ~~Optional Google 3D Tiles~~ dropped (2026-11-19): Dalin chose no paid map services. Open sources only (EOX imagery, AWS terrain); the Google code was removed
 - [x] Free-flight mode (keyboard, mouse and gamepad) (2026-11-19): drone-style, speed scales with altitude, 30 m ground clearance from loaded terrain. Deep links `?fly=lat,lon,altKm[,heading,pitch]&time=ISO`. Keyboard/gamepad input not exercised by hand yet (checked through deep links and headless screenshots)
 
 ## Phase 3: launch sites and Starship operations
@@ -70,4 +70,4 @@ This is the working checklist for [v2-plan.md](v2-plan.md), and the plan has the
 
 ## Open decisions
 
-See "Open decisions for Dalin" in [v2-plan.md](v2-plan.md): Google tiles, a feed relay, Banano, branding, hosting and votes.
+See "Open decisions for Dalin" in [v2-plan.md](v2-plan.md) (Google tiles: decided no, 2026-11-19): a feed relay, Banano, branding, hosting and votes.

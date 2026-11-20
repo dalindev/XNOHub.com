@@ -1,19 +1,15 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
 import { TilesRenderer, TilesPlugin } from '3d-tiles-renderer/r3f';
 import {
   XYZTilesOverlay,
-  TerrariumMeshPlugin,
-  GoogleCloudAuthPlugin,
-  TileCompressionPlugin,
-  UpdateOnChangePlugin
+  TerrariumMeshPlugin
 } from '3d-tiles-renderer/plugins';
 import { world, TILES_BELOW } from '@/lib/world';
 import { unitToLatLon } from '@/lib/geo';
-import { googleTilesAllowed, noteGoogleTilesSession } from '@/lib/google-tiles';
 
 // Close-up Earth from open tile services, streamed only when the camera is
 // below ~3,200 km. Far away, the textured globe (night lights, clouds) stays.
@@ -55,19 +51,13 @@ const ERROR_TARGET = 2;
 interface TiledEarthProps {
   /** Globe pieces to hide while tiles are drawn. */
   hideWhenActive: React.RefObject<THREE.Object3D | null>[];
-  photoreal: boolean;
 }
 
-export const TiledEarth: React.FC<TiledEarthProps> = ({ hideWhenActive, photoreal }) => {
+export const TiledEarth: React.FC<TiledEarthProps> = ({ hideWhenActive }) => {
   const camera = useThree((s) => s.camera);
   const [active, setActive] = useState(false);
   const terrain = useRef<TerrariumMeshPlugin>(null);
-  const googleKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? '';
-  const useGoogle = photoreal && !!googleKey && googleTilesAllowed();
 
-  useEffect(() => {
-    if (useGoogle) noteGoogleTilesSession();
-  }, [useGoogle]);
 
   const tilesRef = useRef<{ errorTarget: number } | null>(null);
 
@@ -102,21 +92,13 @@ export const TiledEarth: React.FC<TiledEarthProps> = ({ hideWhenActive, photorea
     {/* Sky and bounce light so shadowed slopes aren't pitch black. */}
     <hemisphereLight args={[0x9cc4ff, 0x4a3f34, 1.1]} />
     <group rotation-x={-Math.PI / 2} scale={METRES_TO_UNITS}>
-      {useGoogle ? (
-        <TilesRenderer key="google">
-          <TilesPlugin plugin={GoogleCloudAuthPlugin} args={[{ apiToken: googleKey, autoRefreshToken: true }]} />
-          <TilesPlugin plugin={TileCompressionPlugin} />
-          <TilesPlugin plugin={UpdateOnChangePlugin} />
-        </TilesRenderer>
-      ) : (
-        <TilesRenderer key="open" ref={tilesRef as never}>
-          <TilesPlugin
-            // r3f's TilesPlugin types the ref as the class, not the instance.
-            ref={terrain as never}
-            plugin={OpenTerrainPlugin}
-          />
-        </TilesRenderer>
-      )}
+      <TilesRenderer ref={tilesRef as never}>
+        <TilesPlugin
+          // r3f's TilesPlugin types the ref as the class, not the instance.
+          ref={terrain as never}
+          plugin={OpenTerrainPlugin}
+        />
+      </TilesRenderer>
     </group>
     </>
   );
