@@ -2,7 +2,7 @@
 
 import React, { Suspense, useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { Stats } from '@react-three/drei';
+import { PerformanceMonitor, Stats } from '@react-three/drei';
 import * as THREE from 'three';
 import { Globe, Rocket, Satellite, SkipForward } from 'lucide-react';
 import type { RepNode } from '@/types/index';
@@ -53,6 +53,8 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({ reps }) => {
   const starsRef = useRef<THREE.Group>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera>(null);
   const [homeSignal, setHomeSignal] = useState(0);
+  // Most device pixels drawn per CSS pixel. Starts at the screen's own density (up to 2) and only ever goes down.
+  const [sharpness, setSharpness] = useState(2);
   const [isFlyView, setIsFlyView] = useState(false); // deep link only (?fly=), no button for now
   const [isStarlinkView, setIsStarlinkView] = useState(false);
   const [starlinkPick, setStarlinkPick] = useState(0);
@@ -182,7 +184,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({ reps }) => {
         camera={cameraSettings}
         className="w-full h-full cursor-move pointer-events-auto"
         performance={{ min: 0.5 }}
-        dpr={[1, 2]}
+        dpr={[1, sharpness]}
         gl={{
           antialias: true,
           powerPreference: 'high-performance',
@@ -192,6 +194,8 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({ reps }) => {
         }}
       >
         {APP_CONFIG.debug.frameRateDisplay && <Stats />}
+        {/* When the frame rate stays low for a few seconds, draw fewer pixels: a slightly softer picture that moves smoothly. */}
+        <PerformanceMonitor onDecline={() => setSharpness((d) => Math.max(1, d - 0.5))} />
         <CameraDirector mode={cameraMode} cameraRef={cameraRef} homeSignal={homeSignal} />
         {process.env.NODE_ENV === 'development' && <DevProbe />}
 

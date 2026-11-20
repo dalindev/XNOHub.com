@@ -107,7 +107,7 @@ const fragment = /* glsl */ `
     float ndl = dot(n, uSunDir);
     float day = smoothstep(-0.1, 0.22, ndl);
     vec3 sunlit = mix(vec3(1.0, 0.72, 0.55), vec3(0.97, 0.98, 1.0), smoothstep(-0.02, 0.14, ndl)); // warm at sunrise and sunset
-    vec3 dark = vec3(0.06, 0.075, 0.11); // faintly moonlit, like the ground under it
+    vec3 dark = vec3(0.045, 0.057, 0.085); // faintly moonlit, like the ground under it
     vec3 col = mix(dark, sunlit * mix(0.78, 1.0, cover) * relief, day);
 
     // Thicker toward the limb, where the line of sight crosses more cloud.

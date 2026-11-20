@@ -26,6 +26,14 @@ interface CameraDirectorProps {
 }
 
 const HOME_DISTANCE = 4.5;
+// Dragging turns the Earth by about as much ground as the pointer crossed, at
+// any height: from far away that is a sixth of a turn per screen, near the
+// ground a few kilometres. Zooming changes the height above the ground by the
+// same share per wheel step, so it slows down on the way in too. Without this
+// both run at the far-away speed, and close up the ground streaks past faster
+// than its tiles can load.
+const MAX_TURN_SPEED = 0.5;
+const ZOOM_SPEED = 0.6;
 
 const WorldWatcher: React.FC = () => {
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
@@ -66,6 +74,16 @@ export const CameraDirector: React.FC<CameraDirectorProps> = ({ mode, cameraRef,
     controls.current.setLookAt(dir.x, dir.y, dir.z, 0, 0, 0, true);
   }, [mode, homeSignal, camera]);
 
+  useFrame(() => {
+    const c = controls.current;
+    if (!c) return;
+    const height = Math.max(world.altitude, 0.002);
+    const grab = (height * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2)) / Math.PI;
+    c.azimuthRotateSpeed = c.polarRotateSpeed = Math.min(MAX_TURN_SPEED, grab);
+    // The controls zoom by a share of the distance to the Earth's centre; this makes it a share of the height.
+    c.dollySpeed = ZOOM_SPEED * THREE.MathUtils.clamp((1.3 * height) / camera.position.length(), 0.03, 1);
+  });
+
   return (
     <>
       <WorldWatcher />
@@ -78,9 +96,6 @@ export const CameraDirector: React.FC<CameraDirectorProps> = ({ mode, cameraRef,
           maxDistance={60}
           smoothTime={0.35}
           draggingSmoothTime={0.12}
-          azimuthRotateSpeed={0.5}
-          polarRotateSpeed={0.5}
-          dollySpeed={0.6}
           truckSpeed={0}
         />
       )}

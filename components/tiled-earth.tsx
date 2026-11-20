@@ -36,12 +36,16 @@ const METRES_TO_UNITS = 1 / 6_371_000;
 
 // Camera height, in Earth radii, where the Earth changes set: down to the
 // scans below 900 km, back up to Blue Marble above 1,100 km (apart, so it
-// doesn't flip back and forth at the line). The other set starts loading a
-// little before its line is reached, and is let go a little after that.
+// doesn't flip back and forth at the line). The scans start loading a little
+// before their line is reached, and are let go a little after it. Blue Marble
+// is small and stays loaded: while the scans are showing and its line is far
+// off it is held at its coarsest (IDLE_TARGET), ready the moment the camera
+// climbs back, with nothing to download or rebuild.
 const TO_SCANS = 0.14;
 const TO_BLUE_MARBLE = 0.17;
 const LOAD_AHEAD = 1.35;
 const LET_GO = 1.3;
+const IDLE_TARGET = 64;
 /** Past the line and still loading after this long: change anyway. Coarse tiles sharpen in place. */
 const WAIT_SECONDS = 4;
 
@@ -127,7 +131,42 @@ type SetName = 'blueMarble' | 'scans';
 interface Tiles {
   errorTarget: number;
   loadProgress: number;
-  stats: { visible: number };
+  stats: { visible: number; failed: number };
+  parseQueue: { maxJobs: number };
+  lruCache: { remove(tile: object): boolean };
+  addEventListener(type: 'load-error', listener: (e: { tile: object }) => void): void;
+}
+
+// Tiles are built on the main thread (a mesh and a picture each). Two at a
+// time instead of the library's five keeps a zoom from stuttering; they just
+// sharpen a moment later.
+const TILES_BUILT_AT_ONCE = 2;
+// A tile whose download failed stays failed in the library, which leaves a
+// blurry patch until the page is reloaded. Dropping it from the cache makes
+// the library ask for it again; done a few times, a little later each time.
+const RETRIES = 3;
+const RETRY_AFTER_SECONDS = 4;
+const prepared = new WeakSet<Tiles>();
+let retried = 0;
+
+function prepare(tiles: Tiles) {
+  if (prepared.has(tiles)) return;
+  prepared.add(tiles);
+  if (process.env.NODE_ENV === 'development') {
+    const w = window as unknown as { __xno?: Record<string, unknown> };
+    w.__xno = { ...(w.__xno ?? {}), tileRetries: () => retried };
+  }
+  tiles.parseQueue.maxJobs = TILES_BUILT_AT_ONCE;
+  const tries = new WeakMap<object, number>();
+  tiles.addEventListener('load-error', ({ tile }) => {
+    const n = (tries.get(tile) ?? 0) + 1;
+    tries.set(tile, n);
+    if (n > RETRIES) return;
+    setTimeout(() => {
+      retried++;
+      tiles.lruCache.remove(tile);
+    }, RETRY_AFTER_SECONDS * n * 1000);
+  });
 }
 
 /** One of the two sets: loads for the current view whenever it is mounted; the parent decides when it is drawn. */
@@ -150,7 +189,7 @@ const TileSet: React.FC<{
 
 export const TiledEarth: React.FC = () => {
   const camera = useThree((s) => s.camera);
-  const [mounted, setMounted] = useState<Record<SetName, boolean>>({ blueMarble: false, scans: false });
+  const [scansMounted, setScansMounted] = useState(false);
   const showing = useRef<SetName | null>(null);
   const pastLine = useRef(0); // seconds spent past the line, waiting for the other set
   const blueMarbleGroup = useRef<THREE.Group>(null);
@@ -175,17 +214,19 @@ export const TiledEarth: React.FC = () => {
       pastLine.current = 0;
     }
 
-    const want = {
-      blueMarble: showing.current === 'blueMarble' || altitude > (TO_BLUE_MARBLE / LOAD_AHEAD) / (mounted.blueMarble ? LET_GO : 1),
-      scans: showing.current === 'scans' || altitude < TO_SCANS * LOAD_AHEAD * (mounted.scans ? LET_GO : 1)
-    };
-    if (want.blueMarble !== mounted.blueMarble || want.scans !== mounted.scans) setMounted(want);
+    const wantScans = showing.current === 'scans' || altitude < TO_SCANS * LOAD_AHEAD * (scansMounted ? LET_GO : 1);
+    if (wantScans !== scansMounted) setScansMounted(wantScans);
+    const blueMarbleIdle = showing.current === 'scans' && altitude < TO_BLUE_MARBLE / LOAD_AHEAD;
 
     for (const name of ['blueMarble', 'scans'] as const) {
       const group = groups[name];
       if (group) group.visible = showing.current === name;
       const set = tiles[name];
-      if (set) set.errorTarget = errorTarget(altitude, state.viewport.dpr); // after the plugin's own default
+      if (set) {
+        prepare(set);
+        // Set every frame, after the plugin's own default.
+        set.errorTarget = name === 'blueMarble' && blueMarbleIdle ? IDLE_TARGET : errorTarget(altitude, state.viewport.dpr);
+      }
     }
 
     // Ground height under the camera, from the scans' relief once it is loaded (sea level otherwise).
@@ -200,8 +241,8 @@ export const TiledEarth: React.FC = () => {
 
   return (
     <>
-      {mounted.blueMarble && <TileSet plugin={BlueMarblePlugin} group={blueMarbleGroup} tiles={blueMarbleTiles} />}
-      {mounted.scans && <TileSet plugin={ScansPlugin} group={scansGroup} tiles={scansTiles} terrain={terrain} />}
+      <TileSet plugin={BlueMarblePlugin} group={blueMarbleGroup} tiles={blueMarbleTiles} />
+      {scansMounted && <TileSet plugin={ScansPlugin} group={scansGroup} tiles={scansTiles} terrain={terrain} />}
     </>
   );
 };

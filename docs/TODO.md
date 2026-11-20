@@ -72,6 +72,11 @@ Rule for this phase: real data first; where the data is coarser than the screen,
 - [x] Signals: each confirmation is broadcast to every online node and votes come back until two-thirds have (quorum), drawn as GPU ribbons; laser links computed at run time; node pads; dashboard with the fibre vs Starlink timing
 - [x] Removed: Falcon Heavy and the Fly button (`?fly=` deep links stay; the tip meteor stays)
 - [x] Camera can't go inside the Earth; near plane follows altitude up to 2 units so cables and nodes don't flicker from orbit
+- [x] Signals default to Both (fibre and Starlink) in real time. A confirmation now takes about 0.25 to 0.3 s on screen, as on the real network: real light-speed travel (about 0.1 s) plus each node's time to check the block and vote, an estimate of 180 ms ± 40 (`lib/confirm-time.ts`, tested). The feeds don't report the real election time (asked for `include_election_info`, neither feed returns it), so that part is not measured. The dashboard says which part is which
+- [x] Dragging and zooming scale with height (`components/camera-director.tsx`): near the ground a drag moves the ground about as far as the pointer, 58 times slower than from far away
+- [x] Smoother zooming: two tiles built at once instead of five, Blue Marble stays loaded at its coarsest while close up (no rebuild on the way back), and the canvas drops its resolution half a step when the frame rate stays low. With the CPU slowed four times, late frames in a scripted zoom went from 225 to 24 of about 1,500; at normal speed 0 of 1,622
+- [x] A tile whose download failed is asked for again (up to 3 times, a few seconds apart) instead of staying blurry until reload. The library still prints its "Failed to load tile" line, which Next's dev overlay shows as an error
+- [x] Night side darker again (between the first and second try)
 
 Open:
 
@@ -80,6 +85,8 @@ Open:
 - [ ] Cable landing dots draw as small squares on high-density screens
 - [ ] Ask EOX before real traffic on their free tile server; check NASA GIBS usage guidance too
 - [ ] Run `pnpm build` (not run this phase: the dev server was using `.next`), then look at it by hand in a real browser
+- [ ] Dalin saw lag in his browser; it didn't reproduce headless on the same Mac (GPU about 8.5 ms a frame at 3456×2234, CPU 72% idle). The changes above target the two likely causes; needs his check
+- [ ] Close up on a high-density screen the ground is a little soft (one picture pixel per 4 device pixels, to halve the tile count); sharper costs more data
 
 ## Phase 3: launch sites and Starship operations
 

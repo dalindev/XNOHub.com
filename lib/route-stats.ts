@@ -9,8 +9,10 @@ export interface LegStats {
   avgMs: number;
   /** Time for the broadcast to reach the farthest node timed. */
   maxMs: number;
-  /** Time until votes carrying two-thirds of the online weight are back (out and back), or null if they never add up. */
+  /** Time until votes carrying two-thirds of the online weight are back (out, the node's work, and back), or null if they never add up. */
   quorumMs: number | null;
+  /** The part of `quorumMs` spent travelling. */
+  quorumTravelMs: number | null;
 }
 
 export interface RouteStats {

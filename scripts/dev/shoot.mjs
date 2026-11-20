@@ -51,6 +51,8 @@ const send = (method, params = {}) => new Promise((r) => { const i = ++id; pendi
 await send('Runtime.enable');
 await send('Page.enable');
 await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: dpr, mobile: width < 700 });
+// SHOT_CPU=4 slows the page's CPU four times, to see how much headroom a frame has.
+if (process.env.SHOT_CPU) await send('Emulation.setCPUThrottlingRate', { rate: Number(process.env.SHOT_CPU) });
 if (process.env.SHOT_NET || process.env.SHOT_BLOCK) await send('Network.enable');
 // SHOT_BLOCK=host1,host2 makes requests to those hosts fail, to check fallbacks.
 if (process.env.SHOT_BLOCK) {
@@ -58,9 +60,34 @@ if (process.env.SHOT_BLOCK) {
 }
 await send('Page.navigate', { url });
 await sleep(Number(waitS) * 1000);
+// SHOT_PROFILE=1 samples the CPU while jsToEval runs and prints where the time went (self time per function).
+if (process.env.SHOT_PROFILE) {
+  await send('Profiler.enable');
+  await send('Profiler.setSamplingInterval', { interval: 500 });
+  await send('Profiler.start');
+}
 if (evalJs) {
   const r = await send('Runtime.evaluate', { expression: evalJs, awaitPromise: true, returnByValue: true });
   logs.push('EVAL ' + JSON.stringify(r.result?.result?.value ?? r.result?.exceptionDetails?.text));
+}
+let profileLines = [];
+if (process.env.SHOT_PROFILE) {
+  const { profile } = (await send('Profiler.stop')).result;
+  const self = new Map(); // node id -> ms
+  const dt = profile.timeDeltas ?? [];
+  profile.samples.forEach((id, i) => self.set(id, (self.get(id) ?? 0) + (dt[i] ?? 0) / 1000));
+  const byFn = new Map();
+  let total = 0;
+  for (const n of profile.nodes) {
+    const ms = self.get(n.id) ?? 0;
+    total += ms;
+    const f = n.callFrame;
+    const key = `${f.functionName || '(anonymous)'} ${f.url.split('/').pop().split('?')[0].slice(0, 48)}:${f.lineNumber + 1}`;
+    byFn.set(key, (byFn.get(key) ?? 0) + ms);
+  }
+  profileLines = [...byFn].sort((a, b) => b[1] - a[1]).slice(0, Number(process.env.SHOT_PROFILE) > 1 ? Number(process.env.SHOT_PROFILE) : 30)
+    .map(([k, ms]) => `PROFILE ${ms.toFixed(0).padStart(6)} ms ${(100 * ms / total).toFixed(1).padStart(5)}%  ${k}`);
+  profileLines.unshift(`PROFILE total ${total.toFixed(0)} ms sampled`);
 }
 const shot = await send('Page.captureScreenshot', { format: 'png' });
 await writeFile(out, Buffer.from(shot.result.data, 'base64'));
@@ -71,7 +98,8 @@ if (process.env.SHOT_AGAIN) {
   await writeFile(out.replace(/\.png$/, '-2.png'), Buffer.from(again.result.data, 'base64'));
 }
 const uniq = [...new Set(logs.filter((l) => !/Vercel|DevTools|HMR|THREE.Clock/.test(l)))];
-console.log(uniq.slice(-15).map((l) => l.slice(0, 600)).join('\n'));
+console.log(uniq.slice(-15).map((l) => l.slice(0, l.startsWith('EVAL') ? 6000 : 600)).join('\n'));
+if (profileLines.length) console.log(profileLines.join('\n'));
 if (process.env.SHOT_NET) {
   for (const [host, t] of [...downloaded].sort((a, b) => b[1].bytes - a[1].bytes)) {
     console.log(`NET ${host}: ${t.n} files, ${(t.bytes / 1024).toFixed(0)} KB`);

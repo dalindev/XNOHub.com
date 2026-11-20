@@ -19,7 +19,7 @@ const SKY_LIGHT = /* glsl */ `
     // Sine of the Sun's height above the horizon at this spot (on the smooth Earth, ignoring slopes).
     float sunHeight = dot(nonPerturbedNormal, directionalLights[0].direction);
     vec3 skyLit = diffuseColor.rgb * vec3(0.20, 0.24, 0.31) * smoothstep(-0.1, 0.3, sunHeight);
-    vec3 moonLit = pow(diffuseColor.rgb, vec3(0.55)) * vec3(0.07, 0.095, 0.15);
+    vec3 moonLit = pow(diffuseColor.rgb, vec3(0.65)) * vec3(0.05, 0.066, 0.1);
     reflectedLight.indirectDiffuse = skyLit + moonLit;
   #endif
 `;

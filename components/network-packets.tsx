@@ -15,6 +15,7 @@ import { simNowMs } from '@/lib/sim-clock';
 import { settings } from '@/lib/settings';
 import { routeStats, type LegStats } from '@/lib/route-stats';
 import { packetClock, pulseNode } from '@/lib/node-pulse';
+import { confirmTime, voteWorkMs, VOTE_WORK_MS, type Trip } from '@/lib/confirm-time';
 
 // Each confirmation, the way Nano really settles it: the block is broadcast
 // to every online representative, each one votes, and the votes come back.
@@ -27,8 +28,10 @@ import { packetClock, pulseNode } from '@/lib/node-pulse';
 //           vacuum, and back down (a what-if: real nodes are on fibre).
 // The light burns along the route like a fuse (bright tip, glowing trail that
 // fades), the node pulses when it arrives, and its vote returns as a thinner,
-// paler line. Timing is the real propagation delay × settings.slowMo: an
-// ocean crossing takes ~40 ms, far too fast to see at 1×.
+// paler line once the node has checked the block (lib/confirm-time). Timing
+// is real by default: travel at light speed plus that work, about a third of
+// a second in all, with an afterglow so the eye can catch it.
+// settings.slowMo stretches it for a closer look.
 //
 // The newest confirmation is drawn at full brightness; older ones dim as soon
 // as a newer one arrives, so one transaction is always easy to follow.
@@ -46,7 +49,6 @@ const MAX_POINTS = 2_400; // packet tips + relay flashes
 const FIBRE_BUDGET = 1_400;
 const SPACE_BUDGET = 600;
 const MIN_DRAWN = 6; // nodes drawn per confirmation when the network is very busy
-const QUORUM = 67; // % of online voting weight that confirms a block
 const LIFT = 1.0026; // surface routes float ~16 km up: clear of terrain and the ellipsoid bulge
 const SIMPLIFY = 5 * KM;
 
@@ -365,7 +367,7 @@ export const NetworkPackets: React.FC<Props> = ({ reps, cables }) => {
     const look = (t0: number, dur: number, color: THREE.Color, vote: boolean, conf: number, weight: number, crowd: number): Look => ({
       t0,
       dur,
-      fade: THREE.MathUtils.clamp(dur * 0.22, 0.25, 0.9),
+      fade: THREE.MathUtils.clamp(dur * 0.22, 0.45, 0.9), // the afterglow: what is seen of a 40 ms crossing in real time
       color,
       width: (vote ? 5 : 9) * weight * (1 - 0.4 * crowd),
       gain: (vote ? 0.55 : 1) * (1 - 0.4 * crowd),
@@ -413,7 +415,7 @@ export const NetworkPackets: React.FC<Props> = ({ reps, cables }) => {
       const own = index.get(c.message.block.representative);
       const src = own !== undefined && drawn[own].online ? own : voters[Math.floor(Math.random() * voters.length)];
       const others = voters.filter((i) => i !== src);
-      const seconds = (ms: number) => Math.max(0.05, (ms / 1000) * slowMo);
+      const seconds = (ms: number) => Math.max(0.03, (ms / 1000) * slowMo);
 
       // Nano sends every block to every representative and each one's vote
       // comes back: all of that is drawn while the network is quiet. A busy
@@ -423,7 +425,7 @@ export const NetworkPackets: React.FC<Props> = ({ reps, cables }) => {
       const cps = Math.max(0.2, confirmationsPerSecond());
       const before = routeStats.get();
       const typicalMs = (fibre ? before?.fibre?.avgMs : before?.space?.avgMs) ?? 30;
-      const life = 2 * seconds(typicalMs) + 1.5; // out, back, and the afterglow
+      const life = 2 * seconds(typicalMs) + seconds(VOTE_WORK_MS) + 1.5; // out, the node's work, back, and the afterglow
       const kinds = fibre && sp ? 2 : 1;
       const budget = (sp ? SPACE_BUDGET : FIBRE_BUDGET) / (cps * life * 2 * kinds);
       const drawCount = THREE.MathUtils.clamp(Math.floor(budget), MIN_DRAWN, others.length);
@@ -436,25 +438,27 @@ export const NetworkPackets: React.FC<Props> = ({ reps, cables }) => {
       const weight = amount >= 1000 ? 1.5 : amount >= 10 ? 1.2 : 1;
       const crowd = THREE.MathUtils.clamp((drawCount - 8) / 32, 0, 1);
 
-      const f = { n: 0, sum: 0, max: 0, trips: [] as [number, number][] };
-      const s = { n: 0, sum: 0, max: 0, trips: [] as [number, number][] };
+      const f = { n: 0, sum: 0, max: 0, trips: [] as Trip[] };
+      const s = { n: 0, sum: 0, max: 0, trips: [] as Trip[] };
       let pairs = 0, spaceFirst = 0, longestFibre = 0, longestSpace = 0, hops = 0;
       let cablesUsed: string[] = [];
       targets.forEach((tgt, k) => {
         const fr = fibre ? fibre.route(src, tgt) : null;
         const sr = sp ? sp.net.route(geo[src], geo[tgt]) : null;
         const share = drawn[tgt].weightPercent;
+        const workMs = voteWorkMs(tgt);
+        const work = seconds(workMs);
         if (fr) {
           f.n++;
           f.sum += fr.ms;
           f.max = Math.max(f.max, fr.ms);
-          f.trips.push([fr.ms, share]);
+          f.trips.push({ travelMs: fr.ms, workMs, share });
         }
         if (sr) {
           s.n++;
           s.sum += sr.ms;
           s.max = Math.max(s.max, sr.ms);
-          s.trips.push([sr.ms, share]);
+          s.trips.push({ travelMs: sr.ms, workMs, share });
         }
         if (fr && sr) {
           pairs++;
@@ -465,7 +469,7 @@ export const NetworkPackets: React.FC<Props> = ({ reps, cables }) => {
           const path = fibrePath(src, tgt, fr);
           const out = seconds(fr.ms);
           addFibre(path.fwd, look(t0, out, FIBRE, false, conf, weight, crowd));
-          addFibre(path.rev, look(t0 + out, out, FIBRE_VOTE, true, conf, weight, crowd));
+          addFibre(path.rev, look(t0 + out + work, out, FIBRE_VOTE, true, conf, weight, crowd));
           pulseNode(tgt, t0 + out, FIBRE);
           if (fr.ms > longestFibre && fr.cables.length) {
             longestFibre = fr.ms;
@@ -475,7 +479,7 @@ export const NetworkPackets: React.FC<Props> = ({ reps, cables }) => {
         if (sr) {
           const out = seconds(sr.ms);
           addSpace(sr, false, look(t0, out, SPACE, false, conf, weight, crowd));
-          addSpace(sr, true, look(t0 + out, out, SPACE_VOTE, true, conf, weight, crowd));
+          addSpace(sr, true, look(t0 + out + work, out, SPACE_VOTE, true, conf, weight, crowd));
           pulseNode(tgt, t0 + out, SPACE);
           if (sr.ms > longestSpace) {
             longestSpace = sr.ms;
@@ -485,20 +489,12 @@ export const NetworkPackets: React.FC<Props> = ({ reps, cables }) => {
       });
       pulseNode(src, t0, WHITE);
 
-      // Confirmed when the votes that are back add up to two-thirds of the
-      // online weight. The sender's own vote needs no trip.
-      const quorum = (trips: [number, number][]) => {
-        let have = drawn[src].weightPercent;
-        if (have >= QUORUM) return 0;
-        trips.sort((a, b) => a[0] - b[0]);
-        for (const [ms, share] of trips) {
-          have += share;
-          if (have >= QUORUM) return 2 * ms; // there and back
-        }
-        return null;
+      // Confirmed when the votes that are back add up to two-thirds of the online weight.
+      const leg = (x: typeof f): LegStats | null => {
+        if (!x.n) return null;
+        const confirmed = confirmTime(drawn[src].weightPercent, x.trips);
+        return { nodes: x.n, avgMs: x.sum / x.n, maxMs: x.max, quorumMs: confirmed?.totalMs ?? null, quorumTravelMs: confirmed?.travelMs ?? null };
       };
-      const leg = (x: typeof f): LegStats | null =>
-        x.n ? { nodes: x.n, avgMs: x.sum / x.n, maxMs: x.max, quorumMs: quorum(x.trips) } : null;
       const fibreLeg = leg(f), spaceLeg = leg(s);
       const confirmedMs = (fibreLeg ?? spaceLeg)?.quorumMs;
       if (confirmedMs !== null && confirmedMs !== undefined) pulseNode(src, t0 + seconds(confirmedMs), CONFIRMED);

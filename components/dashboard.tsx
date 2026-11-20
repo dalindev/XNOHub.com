@@ -9,6 +9,7 @@ import { getStyleByNanoAmount } from '@/lib/get-style-by-nano-amount';
 import { getRepName, useReps, formatWeight } from '@/lib/reps';
 import { settings, useSettings, type SignalMode } from '@/lib/settings';
 import { useRouteStats, type LegStats } from '@/lib/route-stats';
+import { VOTE_WORK_MS } from '@/lib/confirm-time';
 import { useSpaceWeather, kpLabel } from '@/lib/space-weather';
 import { useCloudSource } from '@/lib/live-clouds';
 import { VERSION_NAMES, periodMinutes, type StarlinkFile } from '@/lib/orbits';
@@ -176,6 +177,8 @@ export const Dashboard: React.FC<{ starlink: StarlinkFile | null }> = ({ starlin
 
   const routed = s.mode !== 'classic';
   const scale = Math.max(stats?.fibre?.maxMs ?? 0, stats?.space?.maxMs ?? 0, 1);
+  // Travel's part of the confirmation time shown: fibre's, unless only Starlink is drawn.
+  const travel = (s.mode === 'starlink' ? stats?.space : (stats?.fibre ?? stats?.space))?.quorumTravelMs ?? null;
 
   return (
     <div className="pointer-events-none flex max-h-full w-full flex-col items-end gap-2 text-xs text-gray-300 select-none md:w-[19.5rem]">
@@ -230,7 +233,7 @@ export const Dashboard: React.FC<{ starlink: StarlinkFile | null }> = ({ starlin
               )}
             </Section>
 
-            <Section title="Signal path" note={routed ? `slowed ${s.slowMo === 1 ? '1×' : `${s.slowMo}×`}` : undefined}>
+            <Section title="Signal path" note={routed ? (s.slowMo === 1 ? 'real time' : `slowed ${s.slowMo}×`) : undefined}>
               <div className="grid grid-cols-4 gap-1 rounded-lg bg-white/5 p-0.5">
                 {MODES.map((m) => (
                   <button
@@ -306,14 +309,15 @@ export const Dashboard: React.FC<{ starlink: StarlinkFile | null }> = ({ starlin
                       )}
                       {s.mode === 'starlink' && stats.hops > 0 && <div>longest route relayed by {stats.hops} satellites</div>}
                       <div>
-                        Travel time at light speed only.
+                        {travel !== null && `${ms(travel)} of that is travel at light speed. `}
+                        The rest is each node checking the block and voting: an estimate (about {VOTE_WORK_MS} ms), set to match Nano&rsquo;s usual 0.3 s.
                         {s.mode !== 'cables' && ' Starlink is a what-if: real nodes are on fibre.'}
                       </div>
                     </div>
                   )}
 
                   <div className="mt-2.5 flex items-center justify-between">
-                    <span className="text-gray-400" title="Light crosses an ocean in about 40 ms, too fast to see, so the signal is slowed down">
+                    <span className="text-gray-400" title="Light crosses an ocean in about 40 ms and a block confirms in about 0.3 s. Slow it down to follow one">
                       Slow motion
                     </span>
                     <div className="flex gap-0.5 rounded-lg bg-white/5 p-0.5">
