@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useLoader } from '@react-three/fiber';
-import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
-import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { TextureLoader } from 'three';
 import * as THREE from 'three';
 import { Vector3 } from 'three';
@@ -53,26 +53,22 @@ export const FalconHeavyAnimation: React.FC<FalconHeavyAnimationProps> = ({
   const FLAME_COUNT = 3; // Number of flame planes per thruster
   const FLAME_LENGTH_MULTIPLIER = 4; // New constant for flame length
 
-  const [phase, setPhase] = useState(0);
-  const [elapsedTime, setElapsedTime] = useState(0);
+  // Animation state lives in refs: nothing here should re-render per frame.
+  const phaseRef = useRef(0);
+  const elapsedRef = useRef(0);
+  const lastDistanceReport = useRef(0);
 
-  const materials = useLoader(
-    MTLLoader,
-    '/falcon-heavy/SpaceX-Falcon-Heavy.mtl'
-  );
-  const obj = useLoader(
-    OBJLoader,
-    '/falcon-heavy/SpaceX-Falcon-Heavy.obj',
-    (loader) => {
-      materials.preload();
-      loader.setMaterials(materials);
-    }
-  );
+  // 200 KB meshopt GLB (was a 2.6 MB OBJ); see scripts/falcon/obj-to-glb.mjs.
+  const gltf = useLoader(GLTFLoader, '/falcon-heavy/falcon-heavy.glb', (loader) => {
+    loader.setMeshoptDecoder(MeshoptDecoder);
+  });
+  const obj = gltf.scene;
 
   const texture = useLoader(
     TextureLoader,
     '/falcon-heavy/falcon_heavy_diff.jpg'
   );
+  texture.colorSpace = THREE.SRGBColorSpace;
   const flameTexture = useLoader(TextureLoader, '/falcon-heavy/blue-flame.png');
 
   useEffect(() => {
@@ -81,7 +77,8 @@ export const FalconHeavyAnimation: React.FC<FalconHeavyAnimationProps> = ({
       falconheavyGroup.scale.set(0.001, 0.001, 0.001);
 
       falconheavyGroup.traverse((child) => {
-        if (child instanceof THREE.Mesh) {
+        if (child instanceof THREE.Mesh && !child.material.map) {
+          // Shared by every rocket: the clone reuses the loaded material.
           child.material.map = texture;
           child.material.needsUpdate = true;
         }
@@ -140,17 +137,34 @@ export const FalconHeavyAnimation: React.FC<FalconHeavyAnimationProps> = ({
     }
   }, [obj, scene, texture, flameTexture, initialPosition]);
 
+  useEffect(
+    () => () => {
+      // Unmount: take the rocket out of the scene and free its flame planes.
+      const rocket = falconheavyRef.current;
+      if (!rocket) return;
+      scene.remove(rocket);
+      rocket.traverse((o) => {
+        if (o instanceof THREE.Mesh && o.geometry instanceof THREE.PlaneGeometry) {
+          o.geometry.dispose();
+          (o.material as THREE.Material).dispose();
+        }
+      });
+    },
+    [scene]
+  );
+
   useFrame((state, delta) => {
-    setElapsedTime((prevTime) => prevTime + delta);
+    elapsedRef.current += delta;
+    const elapsedTime = elapsedRef.current;
 
     if (falconheavyRef.current) {
       const rocket = falconheavyRef.current;
 
-      if (phase === 0 && elapsedTime >= launchDelay) {
-        setPhase(1);
+      if (phaseRef.current === 0 && elapsedTime >= launchDelay) {
+        phaseRef.current = 1;
       }
 
-      if (phase === 1) {
+      if (phaseRef.current === 1) {
         const distanceFromCenter = rocket.position.length();
 
         if (distanceFromCenter < maxDistance) {
@@ -184,7 +198,7 @@ export const FalconHeavyAnimation: React.FC<FalconHeavyAnimationProps> = ({
           rocket.quaternion.setFromAxisAngle(axis, angle);
         } else {
           scene.remove(rocket);
-          setPhase(2);
+          phaseRef.current = 2;
           onComplete(); // Call onComplete when the animation is finished
         }
       }
@@ -223,10 +237,10 @@ export const FalconHeavyAnimation: React.FC<FalconHeavyAnimationProps> = ({
         cameraRef.current.updateProjectionMatrix();
       }
 
-      // Update distance state only if this rocket is the active one
-      if (isRocketView) {
-        const distance = rocket.position.length();
-        setDistanceFromEarth(distance); // Use the setter function to update distance
+      // Distance readout for the active rocket, ~10 times a second.
+      if (isRocketView && elapsedTime - lastDistanceReport.current > 0.1) {
+        lastDistanceReport.current = elapsedTime;
+        setDistanceFromEarth(rocket.position.length());
       }
     }
   });

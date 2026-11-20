@@ -11,7 +11,7 @@ import {
   TooltipTrigger
 } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
-import { getRepName } from '@/lib/get-rep-name';
+import { getRepName } from '@/lib/reps';
 import { truncateAddress } from '@/lib/truncate-address';
 import { formatRelativeTime } from '@/lib/format-relative-time';
 import { NanoConfirmation } from '@/types/index';

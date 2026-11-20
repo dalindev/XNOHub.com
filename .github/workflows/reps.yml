@@ -1,0 +1,29 @@
+name: Refresh rep list
+# Rebuilds public/data/reps.json from nano.community and the live quorum
+# every 12 hours and commits it when it changed.
+on:
+  schedule:
+    - cron: '17 */12 * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  reps:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/build-reps.mjs
+      - name: Commit if changed
+        run: |
+          # generatedAt always changes; only commit when the reps themselves did.
+          if git diff --quiet -I '"generatedAt"' -- public/data/reps.json; then
+            echo "No rep changes"; exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/data/reps.json
+          git commit -m "Refresh rep list"
+          git push

@@ -9,14 +9,12 @@ import React, {
   useMemo
 } from 'react';
 import { Canvas } from '@react-three/fiber';
-import {
-  OrbitControls,
-  Stars,
-  PerspectiveCamera,
-  Stats
-} from '@react-three/drei';
+import { Stars, Stats } from '@react-three/drei';
 import * as THREE from 'three';
-import { IRepData } from '@/types/index';
+import type { RepNode } from '@/types/index';
+import { CameraDirector } from '@/components/camera-director';
+import { DevProbe } from '@/components/dev-probe';
+import { formatWeight } from '@/lib/reps';
 import ThreeMesh from '@/components/three-mesh';
 import { CloudMesh } from '@/components/three-cloud-mesh';
 import { ConfirmationHistoryTable } from '@/components/confirmation-history-table';
@@ -46,21 +44,18 @@ function getRandomPositionOnGlobe(radius: number = 1.2): Vector3 {
 }
 
 interface ThreeSceneClientProps {
-  repsGeoInfo: IRepData[];
-  serverDateTime: Date | null;
+  reps: RepNode[];
 }
 
 const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
-  repsGeoInfo,
-  serverDateTime
+  reps
 }) => {
   const EarthRadiusInKm = 6357; // Earth's equatorial radius in kilometers
   const lightRef = useRef<THREE.DirectionalLight>(null);
-  const [simulationTime, setSimulationTime] = useState<Date>(
-    serverDateTime || new Date()
-  );
-  const [hoveredNode, setHoveredNode] = useState<IRepData | null>(null);
-  const { confirmationHistory: confirmations } = useConfirmations();
+  const [simulationTime] = useState<Date>(() => new Date());
+  const [homeSignal, setHomeSignal] = useState(0);
+  const [hoveredNode, setHoveredNode] = useState<RepNode | null>(null);
+  const { confirmationHistory: confirmations, feedStatus } = useConfirmations();
   const [launchQueue, setLaunchQueue] = useState<Vector3[]>([]);
   const [isRocketView, setIsRocketView] = useState(false);
   const cameraRef = useRef<THREE.PerspectiveCamera>(null);
@@ -77,7 +72,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
     null
   );
 
-  // BPS and performance tracking
+  // Feed rate and arc fan-out
   const [currentBPS, setCurrentBPS] = useState<number>(0);
   const [performanceMode, setPerformanceMode] =
     useState<string>('Full Experience');
@@ -144,18 +139,9 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
     setActiveStarlinkIndex(null);
     setActiveRocketIndex(null);
 
-    // Reset camera position
-    if (cameraRef.current) {
-      cameraRef.current.position.set(0, 0, 5);
-      cameraRef.current.lookAt(new THREE.Vector3(0, 0, 0));
-    }
+    // The camera director glides the camera home.
+    setHomeSignal((n) => n + 1);
   }, []);
-
-  useEffect(() => {
-    if (serverDateTime) {
-      setSimulationTime(serverDateTime);
-    }
-  }, [serverDateTime]);
 
   useEffect(() => {
     const latestConfirmation = confirmations[0];
@@ -208,6 +194,8 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
   const cameraSettings = useMemo(
     () => ({
       fov: 45,
+      near: 0.001,
+      far: 1000,
       position: [0, 2, 4] as [number, number, number]
     }),
     []
@@ -240,21 +228,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
     []
   );
 
-  // Memoize OrbitControls props
-  const orbitControlsProps = useMemo(
-    () => ({
-      enableRotate: !isRocketView && !isStarlinkView,
-      rotateSpeed: 0.5,
-      enableZoom: !isRocketView && !isStarlinkView,
-      zoomSpeed: 0.6,
-      enablePan: false
-    }),
-    [isRocketView, isStarlinkView]
-  );
-
-  if (!serverDateTime) {
-    return null;
-  }
+  const cameraMode = isRocketView || isStarlinkView ? 'follow' : 'globe';
 
   return (
     <div className="relative w-screen h-screen">
@@ -263,6 +237,22 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
           ӾNO
         </span>
         <span className="text-[30px] md:text-[40px] text-gray-200">Hub</span>
+        <div className="flex items-center gap-2 text-xs text-gray-400">
+          <span
+            className={`w-2 h-2 rounded-full ${
+              feedStatus.state === 'open'
+                ? 'bg-green-400'
+                : feedStatus.state === 'sample'
+                  ? 'bg-blue-400'
+                  : 'bg-yellow-400 animate-pulse'
+            }`}
+          />
+          {feedStatus.state === 'open'
+            ? `Live · ${feedStatus.url ? new URL(feedStatus.url).host : ''}`
+            : feedStatus.state === 'sample'
+              ? 'Sample data'
+              : 'Connecting…'}
+        </div>
       </div>
 
       <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
@@ -363,7 +353,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
                       : 'bg-red-600'
                   }`}
                 ></span>
-                {currentBPS.toFixed(1)} BPS
+                {currentBPS.toFixed(2)} conf/s
               </div>
               <div className="text-gray-400">
                 {performanceMode} ({(nodesPercentage * 100).toFixed(0)}% nodes)
@@ -390,8 +380,8 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
         }}
       >
         {APP_CONFIG.debug.frameRateDisplay && <Stats />}
-        <PerspectiveCamera makeDefault ref={cameraRef} {...cameraSettings} />
-        <OrbitControls {...orbitControlsProps} />
+        <CameraDirector mode={cameraMode} cameraRef={cameraRef} homeSignal={homeSignal} />
+        {process.env.NODE_ENV === 'development' && <DevProbe />}
 
         {/* Use memo'd Stars props */}
         <Stars {...starsProps} />
@@ -407,7 +397,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
         {/* Conditionally render components based on view state */}
         <ThreeMesh
           lightRefs={[lightRef]}
-          repsGeoInfo={repsGeoInfo}
+          reps={reps}
           manualTime={simulationTime}
           onNodeHover={setHoveredNode}
           onPerformanceUpdate={handlePerformanceUpdate}
@@ -445,16 +435,30 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
         <DonationImagePopover />
       </div>
 
+      <div className="absolute bottom-1 left-1/2 -translate-x-1/2 z-10 text-[10px] text-gray-500 select-none">
+        Rep data:{' '}
+        <a className="underline hover:text-gray-300" href="https://nano.community" target="_blank" rel="noreferrer">
+          nano.community
+        </a>{' '}
+        · node locations are approximate (from IP)
+      </div>
+
       {/* Node Info */}
       <div className="absolute bottom-4 left-4 z-10">
         {hoveredNode && (
           <div className="bg-transparent text-white p-4 rounded-lg shadow-lg max-w-sm">
             <h3 className="text-lg font-bold mb-2">
-              {hoveredNode.account_formatted ||
-                hoveredNode.alias ||
-                'Unknown Node'}
+              {hoveredNode.alias || `${hoveredNode.account.slice(0, 12)}…`}
             </h3>
-            <p>Weight: {hoveredNode.weight_formatted}</p>
+            <p>
+              Weight: {formatWeight(hoveredNode.weight)} ({hoveredNode.weightPercent.toFixed(2)}%)
+              {!hoveredNode.online && ' · offline'}
+            </p>
+            {hoveredNode.city && (
+              <p className="text-gray-400 text-sm">
+                {hoveredNode.city}, {hoveredNode.country} (approx., from node IP)
+              </p>
+            )}
           </div>
         )}
       </div>

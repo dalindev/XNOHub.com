@@ -3,8 +3,8 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useLoader } from '@react-three/fiber';
-import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
-import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { TextureLoader } from 'three';
 import * as THREE from 'three';
 import { Vector3 } from 'three';
@@ -56,18 +56,10 @@ export const FalconHeavyAnimation: React.FC<FalconHeavyAnimationProps> = ({
   const [phase, setPhase] = useState(0);
   const [elapsedTime, setElapsedTime] = useState(0);
 
-  const materials = useLoader(
-    MTLLoader,
-    '/falcon-heavy/SpaceX-Falcon-Heavy.mtl'
-  );
-  const obj = useLoader(
-    OBJLoader,
-    '/falcon-heavy/SpaceX-Falcon-Heavy.obj',
-    (loader) => {
-      materials.preload();
-      loader.setMaterials(materials);
-    }
-  );
+  const gltf = useLoader(GLTFLoader, '/falcon-heavy/falcon-heavy.glb', (loader) => {
+    loader.setMeshoptDecoder(MeshoptDecoder);
+  });
+  const obj = gltf.scene;
 
   const texture = useLoader(
     TextureLoader,

@@ -1,18 +1,15 @@
 'use client';
 
 import React, { useRef, useMemo } from 'react';
-import { useLoader, useFrame } from '@react-three/fiber';
-import { TextureLoader } from 'three';
+import { useFrame } from '@react-three/fiber';
+import { useCloudTexture } from '@/lib/earth-textures';
 import { Mesh, SphereGeometry, MeshPhongMaterial } from 'three';
 
 export const CloudMesh = () => {
   const meshRef = useRef<Mesh>(null);
 
   // Load texture once and memoize it
-  const cloudMap = useLoader(
-    TextureLoader,
-    '/earth-assets-mini/fair_clouds_4k.png'
-  );
+  const cloudMap = useCloudTexture();
 
   // Memoize geometry and material to prevent recreations
   const geometry = useMemo(() => new SphereGeometry(1.01, 32, 32), []); // Reduced segments from 64 to 32

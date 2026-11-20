@@ -13,27 +13,27 @@ This is the working checklist for [v2-plan.md](v2-plan.md), and the plan has the
 - [x] Fix the code for React 19, R3F 9 and Next 16 (2026-11-19): `RefObject<T | null>`, `ThreeEvent` for pointer handlers, `three/addons/*` loader imports, an inner `<Suspense>` round Starlink, meteors and rockets so a first rocket load doesn't blank the page (R3F 9 Canvas suspends the parent tree). Next 16 rewrote `tsconfig.json` (bundler resolution, react-jsx).
 - [x] `pnpm install` (2026-11-19)
 - [x] `pnpm ts`, `pnpm lint` and `pnpm build` all pass (2026-11-19). Lint has 35 warnings: four React Compiler rules (`set-state-in-effect`, `immutability`, `purity`, `refs`) are set to warn in `eslint.config.mjs` because they flag v1 code Phase 1 rewrites. Set them back to error after Phase 1.
-- [x] Run locally (2026-11-19): main page shows the globe, night lights, rep bars, arcs, rockets and stars with no console errors. Banano page loads with its feed and no errors, but its 3D canvas wasn't captured (browser pane was in the background). Starlink view not clicked through yet.
+- [x] Run locally (2026-11-19): main page shows the globe, night lights, rep bars, arcs, rockets and stars with no console errors. Banano page loads with its feed and no errors, but its 3D canvas wasn't captured (browser pane was in the background). Starlink view checked in Phase 1.
 - [x] `pnpm audit --prod` is clean (2026-11-19), using `pnpm.overrides` for 7 nested advisories (braces, cross-spawn, picomatch, fflate, @babel/runtime)
-- [ ] Add CI: a GitHub Action that runs typecheck, lint and build on every PR (deferred: nothing is pushed yet)
+- [x] Add CI (2026-11-19): `.github/workflows/ci.yml` runs typecheck, lint, tests and build on PRs; inert until pushed
 - [ ] Old branches: delete `vercel/react-server-components-cve-vu-ud5yem` and the merged patch branches, and tag `xnohub-v4` and `improve-performance` before removing them. This needs Dalin's OK because it changes the remote.
 
 ## Phase 1: network core rewrite (v2.0)
 
-- [ ] Move the feed into a Web Worker, with reconnect and backoff
-- [ ] Use nanoslo as the primary feed and the somenano repeater as the fallback (the fallback needs a batch adapter)
-- [ ] Dedupe confirmations by hash
-- [ ] Drop the unused `vote` and `stopped_election` subscriptions
-- [ ] Add a GitHub Action that builds `public/data/reps.json` from nano.community plus `confirmation_quorum`, every 12 h
-- [ ] Remove the fake big-city fallback; reps without a location are listed but not drawn on the globe
-- [ ] Credit nano.community on the site
-- [ ] Draw the nodes as one `InstancedMesh`, with hover through `instanceId`
-- [ ] Set the four React Compiler lint rules back to error
-- [ ] Rewrite the arcs as one instanced shader with a ring buffer, and no React state per frame
-- [ ] Camera director: one `CameraControls` and one owner per mode, and remove the duplicate camera
-- [ ] Convert the Earth textures to KTX2: 4K as the base, with an optional 8K desktop tier
-- [ ] Convert the Falcon OBJ to a Meshopt GLB, pool the rockets, and remove the per-frame `setState`
-- [ ] Add a stress test with a 10× sample feed: 60 fps, 150 draw calls or fewer, first load 5 MB or less
+- [x] Move the feed into a Web Worker, with reconnect and backoff (2026-11-19): `workers/feed.worker.ts`, 1 s→30 s backoff, rotates URL on failure or 2 min of silence
+- [x] Use nanoslo as the primary feed and the somenano repeater as the fallback (2026-11-19). The live feed is now the default (sample data only with `NEXT_PUBLIC_USE_SAMPLE_DATA=true`). The repeater opened but sent nothing in 30 s on 2026-11-19, so its batch adapter is written but unverified against live data
+- [x] Dedupe confirmations by hash (2026-11-19) (last 2048 hashes, in the worker)
+- [x] Drop the unused `vote` and `stopped_election` subscriptions (2026-11-19)
+- [x] Build `public/data/reps.json` from nano.community plus `confirmation_quorum` (2026-11-19): `scripts/build-reps.mjs`, and `.github/workflows/reps.yml` runs it every 12 h once pushed. First run: 69 reps, 53 online, 66 located; drawn online reps hold 99.5% of online weight
+- [x] Remove the fake big-city fallback (2026-11-19); reps without a location stay in reps.json but aren't drawn. Offline reps are drawn grey
+- [x] Credit nano.community on the site (2026-11-19)
+- [x] Draw the nodes as one `InstancedMesh`, with hover through `instanceId` (2026-11-19)
+- [ ] Set the React Compiler lint rules back to error. `immutability` stays a warning for good: R3F mutates uniforms and buffers in `useFrame` by design. The others wait on the v1 leftovers (donation meteors, Starlink, rockets, history table)
+- [x] Rewrite the arcs as one instanced shader with a ring buffer, and no React state per frame (2026-11-19): `components/network-arcs.tsx`, 8192 legs, one draw call
+- [x] Camera director: one `CameraControls` and one owner per mode, and remove the duplicate camera (2026-11-19). Starlink view and Earth View checked in the browser
+- [x] Convert the Earth textures to KTX2 (2026-11-19): `scripts/build-earth-textures.sh` (basisu ETC1S). 4K set is 3.8 MB to download; screens ≥2560 px wide get 8K colour and night lights (6.5 MB). GPU memory for the globe drops from ~760 MB to ~90 MB
+- [x] Convert the Falcon OBJ to a Meshopt GLB (2.6 MB → 200 KB) and remove the per-frame `setState` (2026-11-19). Rockets aren't pooled: clones already share geometry and material, so a pool would save little
+- [x] Stress test (2026-11-19): `__xno.burst(30, 5)` in dev. Arc work is ~0.015 ms per confirmation; the scene is 39 draw calls. 60 fps not measured (the browser pane was hidden). First load on the 4K tier is about 5 MB of textures and models, plus the 3 MB Starlink GLB
 
 ## Phase 2: world foundation and free flight
 

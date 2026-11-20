@@ -1,22 +1,22 @@
 'use client';
 
 import React, { useRef, useEffect, useMemo } from 'react';
-import { useTexture } from '@react-three/drei';
+import { useEarthTextures } from '@/lib/earth-textures';
 import * as THREE from 'three';
-import { IRepData } from '@/types/index';
+import type { RepNode } from '@/types/index';
 import NanoRepNodes from '@/components/nano-rep-nodes';
 
 interface ThreeMeshProps {
   lightRefs: React.RefObject<THREE.DirectionalLight | null>[];
-  repsGeoInfo: IRepData[] | null;
+  reps: RepNode[] | null;
   manualTime?: Date;
-  onNodeHover: (noderepsGeoInfo: IRepData | null) => void;
-  onPerformanceUpdate?: (bps: number, mode: string, nodesPercentage: number) => void;
+  onNodeHover: (rep: RepNode | null) => void;
+  onPerformanceUpdate?: (cps: number, mode: string, fraction: number) => void;
 }
 
 const ThreeMesh: React.FC<ThreeMeshProps> = ({
   lightRefs,
-  repsGeoInfo,
+  reps,
   manualTime,
   onNodeHover,
   onPerformanceUpdate
@@ -24,12 +24,7 @@ const ThreeMesh: React.FC<ThreeMeshProps> = ({
   const earthRef = useRef<THREE.Mesh>(null);
   const sunRef = useRef<THREE.Mesh>(null);
 
-  const props = useTexture({
-    map: '/earth-assets-mini/earth_no_clouds_8k.jpg',
-    bumpMap: '/earth-assets-mini/earth_elev_bump_8k.jpg',
-    specularMap: '/earth-assets-mini/earth_water_8k.png',
-    emissiveMap: '/earth-assets-mini/earth_night_8k.jpg'
-  });
+  const props = useEarthTextures();
 
   const sunMaterial = useMemo(
     () =>
@@ -110,9 +105,9 @@ const ThreeMesh: React.FC<ThreeMeshProps> = ({
           shininess={15}
           {...props}
         />
-        {repsGeoInfo && (
+        {reps && (
           <NanoRepNodes
-            repsGeoInfo={repsGeoInfo}
+            reps={reps}
             earthRadius={1}
             onNodeHover={onNodeHover}
             onPerformanceUpdate={onPerformanceUpdate}

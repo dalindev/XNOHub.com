@@ -16,15 +16,22 @@ export const APP_CONFIG = {
     frameRateDisplay: process.env.NEXT_PUBLIC_FRAME_RATE_DISPLAY
       ? process.env.NEXT_PUBLIC_FRAME_RATE_DISPLAY === 'true'
       : false,
-    useSampleData: process.env.NEXT_PUBLIC_USE_SAMPLE_DATA
-      ? process.env.NEXT_PUBLIC_USE_SAMPLE_DATA === 'true'
-      : true
+    // Live public feed by default; set NEXT_PUBLIC_USE_SAMPLE_DATA=true for offline work.
+    useSampleData: process.env.NEXT_PUBLIC_USE_SAMPLE_DATA === 'true'
   },
 
   // WebSocket settings
   websocket: {
     urls: {
       nano: process.env.NEXT_PUBLIC_WS_URL ?? '',
+      // Tried in order, rotating on failure. NEXT_PUBLIC_WS_URL may be a comma-separated list.
+      nanoList: (
+        process.env.NEXT_PUBLIC_WS_URL ||
+        'wss://nanoslo.0x.no/websocket,wss://node.somenano.com/repeater'
+      )
+        .split(',')
+        .map((u) => u.trim())
+        .filter(Boolean),
       banano: process.env.NEXT_PUBLIC_BANANO_WS_URL ?? ''
     }
   },

@@ -1,3 +1,26 @@
+// One representative from public/data/reps.json (built by scripts/build-reps.mjs).
+export interface RepNode {
+  account: string;
+  alias: string | null;
+  weight: number; // Nano
+  weightPercent: number; // of online weight
+  online: boolean;
+  principal: boolean;
+  lat: number | null; // null: location unknown, listed but not drawn
+  lon: number | null;
+  city: string | null;
+  country: string | null;
+  version: string | null;
+  lastSeen: number | null;
+}
+
+export interface RepsFile {
+  generatedAt: string;
+  sources: { reps: string; quorum: string };
+  onlineWeight: number;
+  reps: RepNode[];
+}
+
 // Type for PrincipalsGeoInfo
 export interface IPrincipalGeoInfo {
   rep_address: string;
