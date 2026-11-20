@@ -1,24 +1,14 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import ThreeSceneClient from './three-scene-client';
-import { RepsData } from '@/data/defualtMergedRepsData';
 import Loader from '@/components/loading';
+import { useReps } from '@/lib/reps';
 
 const ThreeSceneClientWrapper: React.FC = () => {
-  const [serverDateTime, setServerDateTime] = useState<Date | null>(null);
-
-  useEffect(() => {
-    setServerDateTime(new Date());
-  }, []);
-
-  if (RepsData.length === 0) {
-    return <Loader />;
-  }
-
-  return (
-    <ThreeSceneClient repsGeoInfo={RepsData} serverDateTime={serverDateTime} />
-  );
+  const reps = useReps();
+  if (!reps) return <Loader />;
+  return <ThreeSceneClient reps={reps.reps} />;
 };
 
 export default ThreeSceneClientWrapper;

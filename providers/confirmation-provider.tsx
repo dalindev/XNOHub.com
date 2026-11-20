@@ -1,18 +1,15 @@
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useCallback,
-  useEffect
-} from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { NanoConfirmation } from '@/types/index';
-import useNanoWebsocket from '@/hooks/use-nano-websocket';
-import { parseNanoAmount } from '@/lib/parse-nano-amount';
+import { acquireFeed, onConfirmation, onFeedStatus } from '@/lib/feed/bus';
+import type { FeedStatus } from '@/lib/feed/protocol';
+
+// React side of the feed: only the latest-100 history list (for the table and
+// rocket launches) and the connection status. The 3D arcs read the feed bus
+// directly and never go through React state.
 
 interface ConfirmationContextType {
-  activeConfirmations: NanoConfirmation[];
   confirmationHistory: NanoConfirmation[];
-  addConfirmation: (confirmation: NanoConfirmation) => void;
+  feedStatus: FeedStatus;
 }
 
 const ConfirmationContext = createContext<ConfirmationContextType | undefined>(
@@ -22,49 +19,24 @@ const ConfirmationContext = createContext<ConfirmationContextType | undefined>(
 export const ConfirmationProvider: React.FC<{ children: React.ReactNode }> = ({
   children
 }) => {
-  const [activeConfirmations, setActiveConfirmations] = useState<
-    NanoConfirmation[]
-  >([]);
-  const [confirmationHistory, setConfirmationHistory] = useState<
-    NanoConfirmation[]
-  >([]);
-  const { subscriptions } = useNanoWebsocket();
-
-  const addConfirmation = useCallback((confirmation: NanoConfirmation) => {
-    setActiveConfirmations((prev) => [...prev, confirmation]);
-    setConfirmationHistory((prev) => {
-      const newHistory = [confirmation, ...prev].slice(0, 100); // Keep only the latest 100
-      return newHistory;
-    });
-    setTimeout(() => {
-      setActiveConfirmations((prev) => prev.filter((c) => c !== confirmation));
-    }, Number(500) ?? 0);
-  }, []);
+  const [confirmationHistory, setConfirmationHistory] = useState<NanoConfirmation[]>([]);
+  const [feedStatus, setFeedStatus] = useState<FeedStatus>({ state: 'idle' });
 
   useEffect(() => {
-    // console.log('Subscriptions:', subscriptions);
-    if (subscriptions) {
-      const confirmationSubscription = subscriptions.confirmations.subscribe({
-        next: (confirmation) => {
-          if (parseNanoAmount(confirmation.message.amount) > 0) {
-            addConfirmation(confirmation);
-          }
-        },
-        error: (err) =>
-          console.error('Error in confirmation subscription:', err.message),
-        complete: () => console.log('Confirmation subscription completed')
-      });
-
-      return () => {
-        confirmationSubscription.unsubscribe();
-      };
-    }
-  }, [subscriptions, addConfirmation]);
+    const release = acquireFeed();
+    const offConf = onConfirmation((c) =>
+      setConfirmationHistory((prev) => [c, ...prev].slice(0, 100))
+    );
+    const offStatus = onFeedStatus(setFeedStatus);
+    return () => {
+      offConf();
+      offStatus();
+      release();
+    };
+  }, []);
 
   return (
-    <ConfirmationContext.Provider
-      value={{ activeConfirmations, confirmationHistory, addConfirmation }}
-    >
+    <ConfirmationContext.Provider value={{ confirmationHistory, feedStatus }}>
       {children}
     </ConfirmationContext.Provider>
   );
@@ -73,9 +45,7 @@ export const ConfirmationProvider: React.FC<{ children: React.ReactNode }> = ({
 export const useConfirmations = () => {
   const context = useContext(ConfirmationContext);
   if (context === undefined) {
-    throw new Error(
-      'useConfirmations must be used within a ConfirmationProvider'
-    );
+    throw new Error('useConfirmations must be used within a ConfirmationProvider');
   }
   return context;
 };

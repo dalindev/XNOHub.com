@@ -1,465 +1,282 @@
 'use client';
 
-import React, {
-  useRef,
-  useState,
-  useEffect,
-  useCallback,
-  useMemo
-} from 'react';
+import React, { Suspense, useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
-import {
-  OrbitControls,
-  Stars,
-  PerspectiveCamera,
-  Stats
-} from '@react-three/drei';
+import { PerformanceMonitor, Stats } from '@react-three/drei';
 import * as THREE from 'three';
-import { IRepData } from '@/types/index';
-import ThreeMesh from '@/components/three-mesh';
+import { Globe, Rocket, Satellite, SkipForward } from 'lucide-react';
+import type { RepNode } from '@/types/index';
+import { CameraDirector } from '@/components/camera-director';
+import { DevProbe } from '@/components/dev-probe';
+import { Sky } from '@/components/sky';
+import { RealSky } from '@/components/real-sky';
+import { TimeControls } from '@/components/time-controls';
+import { TiledEarth } from '@/components/tiled-earth';
+import { StarlinkConstellation } from '@/components/starlink-constellation';
+import { StarlinkFollow, type StarlinkInfo } from '@/components/starlink-follow';
+import { StarshipMission, type MissionInfo } from '@/components/starship-mission';
+import { CableLines } from '@/components/cable-lines';
+import { NetworkPackets } from '@/components/network-packets';
+import { Dashboard } from '@/components/dashboard';
+import { DataSources } from '@/components/data-sources';
+import { Aurora } from '@/components/aurora';
+import { CityLights } from '@/components/city-lights';
+import { EarthBase } from '@/components/earth-base';
+import NanoRepNodes from '@/components/nano-rep-nodes';
 import { CloudMesh } from '@/components/three-cloud-mesh';
-import { ConfirmationHistoryTable } from '@/components/confirmation-history-table';
-import { DonationImagePopover } from '@/components/donation-image-popover';
-import { useConfirmations } from '@/providers/confirmation-provider';
 import { DonationAnimation } from '@/components/donation-animation';
-import { parseNanoAmount } from '@/lib/parse-nano-amount';
-import { Vector3 } from 'three';
-import { scaleRocketCount } from '@/lib/scale-rocket-count';
 import { Button } from '@/components/ui/button';
-import { Rocket, Eye, Globe } from 'lucide-react';
-import RocketAnimationManager from '@/components/rocket-animation-manager';
+import { useStarlink } from '@/lib/starlink-data';
+import { useCables } from '@/lib/cables-data';
+import { useConfirmations } from '@/providers/confirmation-provider';
+import { onConfirmation } from '@/lib/feed/bus';
+import { world, parseDeepLink } from '@/lib/world';
+import { setSimTime } from '@/lib/sim-clock';
+import { formatWeight } from '@/lib/reps';
+import { VERSION_NAMES } from '@/lib/orbits';
 import { APP_CONFIG } from '@/constants/config';
-import { StarlinkMesh } from '@/components/starlink-mesh';
-import { RocketViewText } from '@/components/rocket-view-text';
-// import { AuroraEffect } from '@/components/aurora-effect';
 
-function getRandomPositionOnGlobe(radius: number = 1.2): Vector3 {
-  const phi = Math.random() * Math.PI * 2;
-  const theta = Math.acos(Math.random() * 2 - 1);
-
-  const x = radius * Math.sin(theta) * Math.cos(phi);
-  const y = radius * Math.sin(theta) * Math.sin(phi);
-  const z = radius * Math.cos(theta);
-
-  return new Vector3(x, y, z);
-}
+// Three views: the Earth (default), riding a real Starlink, and a Starship
+// mission. Everything is drawn to real positions and times; where something
+// is enlarged to be visible at all, the UI says so.
 
 interface ThreeSceneClientProps {
-  repsGeoInfo: IRepData[];
-  serverDateTime: Date | null;
+  reps: RepNode[];
 }
 
-const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({
-  repsGeoInfo,
-  serverDateTime
-}) => {
-  const EarthRadiusInKm = 6357; // Earth's equatorial radius in kilometers
+const viewButton =
+  'flex select-none items-center gap-2 bg-black/30 backdrop-blur-sm border-white/15 hover:bg-black/50 hover:text-[#209ce9]';
+
+const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({ reps }) => {
   const lightRef = useRef<THREE.DirectionalLight>(null);
-  const [simulationTime, setSimulationTime] = useState<Date>(
-    serverDateTime || new Date()
-  );
-  const [hoveredNode, setHoveredNode] = useState<IRepData | null>(null);
-  const { confirmationHistory: confirmations } = useConfirmations();
-  const [launchQueue, setLaunchQueue] = useState<Vector3[]>([]);
-  const [isRocketView, setIsRocketView] = useState(false);
+  const cloudRef = useRef<THREE.Mesh>(null);
+  const starsRef = useRef<THREE.Group>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera>(null);
-  const [activeRocketIndex, setActiveRocketIndex] = useState<number | null>(
-    null
-  ); // Track the active rocket index
-  const [rocketCount, setRocketCount] = useState(0);
-  const rocketManagerRef = useRef<{
-    addRocket: (position: Vector3) => void;
-  } | null>(null);
-  const [distanceFromEarth, setDistanceFromEarth] = useState<number>(0); // State to hold distance
+  const [homeSignal, setHomeSignal] = useState(0);
+  // Most device pixels drawn per CSS pixel. Starts at the screen's own density (up to 2) and only ever goes down.
+  const [sharpness, setSharpness] = useState(2);
+  const [isFlyView, setIsFlyView] = useState(false); // deep link only (?fly=), no button for now
   const [isStarlinkView, setIsStarlinkView] = useState(false);
-  const [activeStarlinkIndex, setActiveStarlinkIndex] = useState<number | null>(
-    null
-  );
+  const [starlinkPick, setStarlinkPick] = useState(0);
+  const [starlinkInfo, setStarlinkInfo] = useState<StarlinkInfo | null>(null);
+  const [isStarshipView, setIsStarshipView] = useState(false);
+  const [launchSignal, setLaunchSignal] = useState(0);
+  const [missionInfo, setMissionInfo] = useState<MissionInfo | null>(null);
+  const [hoveredNode, setHoveredNode] = useState<RepNode | null>(null);
+  const missionFlying = useRef(false);
+  const starlink = useStarlink();
+  const cables = useCables();
+  const { feedStatus } = useConfirmations();
 
-  // BPS and performance tracking
-  const [currentBPS, setCurrentBPS] = useState<number>(0);
-  const [performanceMode, setPerformanceMode] =
-    useState<string>('Full Experience');
-  const [nodesPercentage, setNodesPercentage] = useState<number>(1.0);
+  const onMissionInfo = useCallback((i: MissionInfo | null) => {
+    missionFlying.current = !!i;
+    setMissionInfo(i);
+    if (!i) setIsStarshipView(false);
+  }, []);
 
-  // Performance update callback
-  const handlePerformanceUpdate = useCallback(
-    (bps: number, mode: string, percentage: number) => {
-      setCurrentBPS(bps);
-      setPerformanceMode(mode);
-      setNodesPercentage(percentage);
-    },
+  const toEarthView = useCallback(() => {
+    setIsFlyView(false);
+    setIsStarlinkView(false);
+    setIsStarshipView(false);
+    setHomeSignal((n) => n + 1);
+  }, []);
+
+  const watchStarship = useCallback(() => {
+    setIsFlyView(false);
+    setIsStarlinkView(false);
+    if (!missionFlying.current) setLaunchSignal((n) => n + 1);
+    setIsStarshipView(true);
+  }, []);
+
+  const rideStarlink = useCallback(() => {
+    setIsFlyView(false);
+    setIsStarshipView(false);
+    setIsStarlinkView(true);
+  }, []);
+
+  // Deep links: ?fly=lat,lon,altKm[,heading,pitch]&time=ISO
+  useEffect(() => {
+    const link = parseDeepLink(window.location.search);
+    if (link.timeMs !== undefined) setSimTime(link.timeMs);
+    if (link.fly) {
+      world.flyStart = link.fly;
+      setIsFlyView(true);
+    }
+  }, []);
+
+  // A send of 1,000 Ӿ or more launches a Starship (one at a time); a tip
+  // summons its meteor, as promised on the tip button.
+  useEffect(
+    () =>
+      onConfirmation((c, amount) => {
+        if (c.message.block.link_as_account === APP_CONFIG.donations.nano) {
+          (window as unknown as { triggerDonationAnimation?: (amount: number) => void }).triggerDonationAnimation?.(amount);
+        }
+        if (c.message.block.subtype === 'send' && amount >= 1000 && !missionFlying.current) setLaunchSignal((n) => n + 1);
+      }),
     []
   );
 
-  const toggleRocketView = useCallback(() => {
-    setIsRocketView((prev) => !prev);
-    // Clear other view states when entering/exiting rocket view
-    setIsStarlinkView(false);
-    setActiveStarlinkIndex(null);
-
-    if (!isRocketView && rocketCount > 0) {
-      setActiveRocketIndex(0);
-    } else {
-      setActiveRocketIndex(null);
-    }
-  }, [rocketCount, isRocketView]);
-
-  const moveToNextRocket = useCallback(() => {
-    if (isRocketView && rocketCount > 0) {
-      setActiveRocketIndex((prevIndex) => {
-        if (prevIndex === null) return 0;
-        return (prevIndex + 1) % rocketCount;
-      });
-    }
-  }, [isRocketView, rocketCount]);
-
-  const toggleStarlinkView = useCallback(() => {
-    setIsStarlinkView((prev) => !prev);
-    // Clear other view states when entering/exiting starlink view
-    setIsRocketView(false);
-    setActiveRocketIndex(null);
-
-    if (!isStarlinkView) {
-      setActiveStarlinkIndex(0);
-    } else {
-      setActiveStarlinkIndex(null);
-    }
-  }, [isStarlinkView]);
-
-  const moveToNextStarlink = useCallback(() => {
-    if (isStarlinkView) {
-      setActiveStarlinkIndex((prev) => {
-        if (prev === null) return 0;
-        return (prev + 1) % 6; // Assuming 6 satellites
-      });
-    }
-  }, [isStarlinkView]);
-
-  const resetToEarthView = useCallback(() => {
-    // Clear all view states
-    setIsStarlinkView(false);
-    setIsRocketView(false);
-    setActiveStarlinkIndex(null);
-    setActiveRocketIndex(null);
-
-    // Reset camera position
-    if (cameraRef.current) {
-      cameraRef.current.position.set(0, 0, 5);
-      cameraRef.current.lookAt(new THREE.Vector3(0, 0, 0));
-    }
-  }, []);
-
-  useEffect(() => {
-    if (serverDateTime) {
-      setSimulationTime(serverDateTime);
-    }
-  }, [serverDateTime]);
-
-  useEffect(() => {
-    const latestConfirmation = confirmations[0];
-    if (latestConfirmation) {
-      const isDonation =
-        latestConfirmation.message.block.link_as_account ===
-        APP_CONFIG.donations.nano;
-      const amount = parseNanoAmount(latestConfirmation.message.amount);
-      const isSend = latestConfirmation.message.block.subtype === 'send';
-      if (isDonation) {
-        // Trigger existing donation animation
-        if ((window as any).triggerDonationAnimation) {
-          (window as any).triggerDonationAnimation(amount);
-        }
-      }
-
-      if (isSend) {
-        const newRocketCount = Math.max(
-          scaleRocketCount(amount),
-          rocketCount === 0 ? 1 : 0
-        );
-
-        for (let i = 0; i < newRocketCount; i++) {
-          const randomPosition = getRandomPositionOnGlobe();
-          rocketManagerRef.current?.addRocket(randomPosition);
-        }
-      }
-    }
-  }, [confirmations]);
-
-  const handleRocketComplete = (id: string) => {
-    setRocketCount((prevCount) => prevCount - 1);
-  };
-
-  const handleRocketCountChange = useCallback((count: number) => {
-    setRocketCount(count);
-    if (count === 0) {
-      setIsRocketView(false);
-      setActiveRocketIndex(null);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (launchQueue.length > 0 && activeRocketIndex === null) {
-      setActiveRocketIndex(0); // Set the first rocket as active only if it's null
-    }
-  }, [launchQueue, activeRocketIndex]); // Add activeRocketIndex to dependencies
-
-  // Memoize camera settings
   const cameraSettings = useMemo(
-    () => ({
-      fov: 45,
-      position: [0, 2, 4] as [number, number, number]
-    }),
+    () => ({ fov: 45, near: 0.001, far: 1000, position: [0, 2, 4] as [number, number, number] }),
     []
   );
 
-  // Memoize Stars props
-  const starsProps = useMemo(
-    () => ({
-      radius: 300,
-      depth: 60,
-      count: 20000,
-      factor: 7,
-      saturation: 0,
-      fade: true
-    }),
-    []
-  );
-
-  // Memoize light settings
-  const lightSettings = useMemo(
-    () => ({
-      directional: {
-        color: 0xffffff,
-        intensity: 2
-      },
-      ambient: {
-        intensity: 0.1
-      }
-    }),
-    []
-  );
-
-  // Memoize OrbitControls props
-  const orbitControlsProps = useMemo(
-    () => ({
-      enableRotate: !isRocketView && !isStarlinkView,
-      rotateSpeed: 0.5,
-      enableZoom: !isRocketView && !isStarlinkView,
-      zoomSpeed: 0.6,
-      enablePan: false
-    }),
-    [isRocketView, isStarlinkView]
-  );
-
-  if (!serverDateTime) {
-    return null;
-  }
+  const inEarthView = !isStarlinkView && !isFlyView && !isStarshipView;
+  const cameraMode = isFlyView ? 'fly' : inEarthView ? 'globe' : 'follow';
 
   return (
-    <div className="relative w-screen h-screen">
-      <div className="absolute top-1 md:top-4 left-4 md:left-10 z-10 flex-col select-none">
-        <span className="text-[30px] md:text-[40px] font-thin font-sans text-[#209ce9]">
-          ӾNO
-        </span>
+    <div className="relative w-screen h-screen bg-black">
+      <div className="absolute top-1 md:top-4 left-4 md:left-8 z-10 flex-col select-none">
+        <span className="text-[30px] md:text-[40px] font-thin font-sans text-[#209ce9]">ӾNO</span>
         <span className="text-[30px] md:text-[40px] text-gray-200">Hub</span>
+        <div className="flex items-center gap-2 text-xs text-gray-400">
+          <span
+            className={`w-2 h-2 rounded-full ${
+              feedStatus.state === 'open'
+                ? 'bg-green-400'
+                : feedStatus.state === 'sample'
+                  ? 'bg-blue-400'
+                  : 'bg-yellow-400 animate-pulse'
+            }`}
+          />
+          {feedStatus.state === 'open'
+            ? `Live · ${feedStatus.url ? new URL(feedStatus.url).host : ''}`
+            : feedStatus.state === 'sample'
+              ? 'Sample data'
+              : 'Connecting…'}
+        </div>
       </div>
 
-      <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
-        {/* View Control Buttons - Always stay right-aligned */}
-        <div className="flex flex-row gap-2 justify-end">
-          {/* Earth View Button - Only show when in StarLink or Rocket view */}
-          {(isStarlinkView || isRocketView) && (
-            <Button
-              onClick={resetToEarthView}
-              variant="outline"
-              size="sm"
-              className="flex select-none items-center gap-2 bg-transparent hover:bg-transparent hover:text-[#209ce9]"
-            >
-              <Globe className="w-4 h-4 text-blue-400" />
-              <span className="hidden md:inline">Earth View</span>
-            </Button>
-          )}
+      {/* Views: top right on a phone (icons only), top centre on a wide screen */}
+      <div className="absolute right-4 top-3 z-10 flex gap-2 md:left-1/2 md:right-auto md:top-4 md:-translate-x-1/2">
+        {!inEarthView && (
+          <Button onClick={toEarthView} variant="outline" size="sm" className={viewButton}>
+            <Globe className="w-4 h-4 text-[#209ce9]" />
+            <span className="hidden md:inline">Earth</span>
+          </Button>
+        )}
+        {!isStarlinkView ? (
+          <Button onClick={rideStarlink} variant="outline" size="sm" className={viewButton}>
+            <Satellite className="w-4 h-4 text-[#6fe3ff]" />
+            <span className="hidden md:inline">Ride a Starlink</span>
+          </Button>
+        ) : (
+          <Button onClick={() => setStarlinkPick((n) => n + 1)} variant="outline" size="sm" className={viewButton}>
+            <SkipForward className="w-4 h-4 text-[#6fe3ff]" />
+            <span className="hidden md:inline">Next satellite</span>
+          </Button>
+        )}
+        {!isStarshipView && (
+          <Button onClick={watchStarship} variant="outline" size="sm" className={viewButton}>
+            <Rocket className="w-4 h-4 text-gray-200" />
+            <span className="hidden md:inline">{missionInfo ? 'Watch Starship' : 'Launch Starship'}</span>
+          </Button>
+        )}
+      </div>
 
-          {/* StarLink View Button - Only show in Earth view */}
-          {!isStarlinkView && !isRocketView && (
-            <Button
-              onClick={toggleStarlinkView}
-              variant="outline"
-              size="sm"
-              className="flex select-none items-center gap-2 bg-transparent hover:bg-transparent hover:text-[#209ce9]"
-            >
-              <svg
-                className="w-4 h-4 text-blue-400"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0-11V3"
-                />
-              </svg>
-              <span className="hidden md:inline">StarLink View</span>
-            </Button>
-          )}
-
-          {/* Next StarLink Button - Only show in StarLink view */}
-          {isStarlinkView && (
-            <Button
-              onClick={moveToNextStarlink}
-              variant="outline"
-              size="sm"
-              className="flex select-none items-center gap-2 bg-transparent hover:bg-transparent hover:text-[#209ce9]"
-            >
-              <Eye className="w-4 h-4" />
-              <span className="hidden md:inline">Next StarLink</span>
-            </Button>
-          )}
-
-          {/* Rocket View Button - Only show in Earth view when rockets are available */}
-          {!isStarlinkView && !isRocketView && rocketCount > 0 && (
-            <Button
-              onClick={toggleRocketView}
-              variant="outline"
-              size="sm"
-              className="flex select-none items-center gap-2 bg-transparent hover:bg-transparent hover:text-[#209ce9]"
-            >
-              <Rocket className="w-4 h-4 text-red-600" />
-              <span className="hidden md:inline">Rocket View</span>
-            </Button>
-          )}
-
-          {/* Next Rocket Button - Only show in Rocket view */}
-          {isRocketView && rocketCount > 1 && (
-            <Button
-              onClick={moveToNextRocket}
-              variant="outline"
-              size="sm"
-              className="flex select-none items-center gap-2 bg-transparent hover:bg-transparent hover:text-[#209ce9]"
-            >
-              <Eye className="w-4 h-4" />
-              <span className="hidden md:inline">Next Rocket</span>
-            </Button>
-          )}
-        </div>
-
-        {/* Rocket Count and Table Container */}
-        <div className="flex flex-col gap-2 items-end">
-          {/* Performance indicator */}
-          {currentBPS > 0 && (
-            <div className="flex flex-col items-end gap-1 text-xs">
-              <div className="flex items-center gap-2 text-white">
-                <span
-                  className={`w-2 h-2 rounded-full ${
-                    performanceMode === 'Full Experience'
-                      ? 'bg-green-400'
-                      : performanceMode === 'Balanced'
-                      ? 'bg-yellow-400'
-                      : performanceMode === 'Performance'
-                      ? 'bg-orange-400'
-                      : 'bg-red-600'
-                  }`}
-                ></span>
-                {currentBPS.toFixed(1)} BPS
-              </div>
-              <div className="text-gray-400">
-                {performanceMode} ({(nodesPercentage * 100).toFixed(0)}% nodes)
-              </div>
-            </div>
-          )}
-
-          <div className="flex items-center gap-2 text-white">
-            Active <Rocket className="w-4 h-4 text-red-600" /> {rocketCount}
-          </div>
-          <ConfirmationHistoryTable />
-        </div>
+      {/* The dashboard: a bar under the header on a phone, a column on the right on a wide screen */}
+      <div className="pointer-events-none absolute bottom-20 left-4 right-4 top-[4.75rem] z-10 flex flex-col items-end md:bottom-4 md:left-auto md:top-4">
+        <Dashboard starlink={starlink} />
       </div>
 
       <Canvas
         camera={cameraSettings}
         className="w-full h-full cursor-move pointer-events-auto"
-        performance={{ min: 0.5 }} // Add performance optimization
-        dpr={[1, 2]} // Limit pixel ratio for better performance
+        performance={{ min: 0.5 }}
+        dpr={[1, sharpness]}
         gl={{
           antialias: true,
           powerPreference: 'high-performance',
-          alpha: false // Disable alpha for better performance
+          // Reversed-Z where EXT_clip_control exists; the near plane also follows altitude.
+          reversedDepthBuffer: true,
+          alpha: false
         }}
       >
         {APP_CONFIG.debug.frameRateDisplay && <Stats />}
-        <PerspectiveCamera makeDefault ref={cameraRef} {...cameraSettings} />
-        <OrbitControls {...orbitControlsProps} />
+        {/* When the frame rate stays low for a few seconds, draw fewer pixels: a slightly softer picture that moves smoothly. */}
+        <PerformanceMonitor onDecline={() => setSharpness((d) => Math.max(1, d - 0.5))} />
+        <CameraDirector mode={cameraMode} cameraRef={cameraRef} homeSignal={homeSignal} />
+        {process.env.NODE_ENV === 'development' && <DevProbe />}
 
-        {/* Use memo'd Stars props */}
-        <Stars {...starsProps} />
+        <RealSky nightRef={starsRef} />
+        <directionalLight ref={lightRef} color={0xffffff} intensity={2} />
+        <ambientLight intensity={0.1} />
 
-        {/* Use memo'd light settings */}
-        <directionalLight
-          ref={lightRef}
-          color={lightSettings.directional.color}
-          intensity={lightSettings.directional.intensity}
-        />
-        <ambientLight intensity={lightSettings.ambient.intensity} />
+        {/* Fill light for a vehicle watched up close. The Earth lights itself (lib/earth-light). */}
+        {cameraMode === 'follow' && <hemisphereLight args={[0x9cc4ff, 0x4a3f34, 1.1]} />}
 
-        {/* Conditionally render components based on view state */}
-        <ThreeMesh
-          lightRefs={[lightRef]}
-          repsGeoInfo={repsGeoInfo}
-          manualTime={simulationTime}
-          onNodeHover={setHoveredNode}
-          onPerformanceUpdate={handlePerformanceUpdate}
-        />
-        <CloudMesh />
-        {/* <AuroraEffect /> */}
+        <EarthBase />
+        <TiledEarth />
+        <NanoRepNodes reps={reps} onNodeHover={setHoveredNode} />
+        <CityLights />
+        <CloudMesh meshRef={cloudRef} />
+        <Sky lightRef={lightRef} starsRef={starsRef} />
+        <Aurora />
+        {starlink && <StarlinkConstellation data={starlink} />}
+        {cables && <CableLines data={cables} />}
+        {cables && <NetworkPackets reps={reps} cables={cables} />}
 
-        {/* Always render StarlinkMesh */}
-        <StarlinkMesh
-          count={6}
-          isStarlinkView={isStarlinkView}
-          activeStarlinkIndex={activeStarlinkIndex}
-          cameraRef={cameraRef}
-        />
-
-        <DonationAnimation />
-
-        <RocketAnimationManager
-          ref={rocketManagerRef}
-          cameraRef={cameraRef}
-          onRocketComplete={handleRocketComplete}
-          onRocketCountChange={handleRocketCountChange}
-          isRocketView={isRocketView}
-          activeRocketIndex={activeRocketIndex}
-          setActiveRocketIndex={setActiveRocketIndex}
-          setDistanceFromEarth={setDistanceFromEarth}
-        />
+        {/* Late loaders: keep the page up while models load */}
+        <Suspense fallback={null}>
+          <StarlinkFollow active={isStarlinkView} pick={starlinkPick} onInfo={setStarlinkInfo} />
+          <StarshipMission launchSignal={launchSignal} follow={isStarshipView} onInfo={onMissionInfo} />
+          <DonationAnimation />
+        </Suspense>
       </Canvas>
 
-      {/* Donation Image Popover */}
-      <div className="absolute bottom-6 right-6 z-10">
-        <DonationImagePopover />
+      <div className="absolute bottom-1 left-1/2 z-10 -translate-x-1/2">
+        <DataSources />
       </div>
 
-      {/* Node Info */}
-      <div className="absolute bottom-4 left-4 z-10">
+      <div className="absolute bottom-8 left-4 md:left-8 z-10 flex flex-col gap-2">
         {hoveredNode && (
-          <div className="bg-transparent text-white p-4 rounded-lg shadow-lg max-w-sm">
-            <h3 className="text-lg font-bold mb-2">
-              {hoveredNode.account_formatted ||
-                hoveredNode.alias ||
-                'Unknown Node'}
-            </h3>
-            <p>Weight: {hoveredNode.weight_formatted}</p>
+          <div className="rounded-lg bg-black/55 backdrop-blur-sm border border-white/10 text-white p-3 max-w-xs text-sm">
+            <div className="font-medium">{hoveredNode.alias || `${hoveredNode.account.slice(0, 12)}…`}</div>
+            <div className="text-gray-300">
+              {formatWeight(hoveredNode.weight)} · {hoveredNode.weightPercent.toFixed(2)}% of online weight
+              {!hoveredNode.online && ' · offline'}
+            </div>
+            {hoveredNode.city && (
+              <div className="text-gray-500 text-xs">
+                {hoveredNode.city}, {hoveredNode.country} (approx., from node IP)
+              </div>
+            )}
           </div>
         )}
+        <TimeControls />
       </div>
 
-      {isRocketView && (
-        <RocketViewText
-          distanceFromEarth={distanceFromEarth}
-          EarthRadiusInKm={EarthRadiusInKm}
-        />
+      {isStarlinkView && starlinkInfo && (
+        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-10 text-center text-xs text-gray-300 select-none">
+          <div className="text-base text-white">Starlink #{starlinkInfo.norad}</div>
+          <div>{VERSION_NAMES[starlinkInfo.version]} (estimated from launch date) · true scale</div>
+          <div>
+            {starlinkInfo.altKm.toFixed(0)} km up · {starlinkInfo.speedKms.toFixed(2)} km/s · one orbit every{' '}
+            {starlinkInfo.periodMin.toFixed(1)} min
+          </div>
+          <div className="text-gray-500">
+            over {Math.abs(starlinkInfo.lat).toFixed(1)}°{starlinkInfo.lat >= 0 ? 'N' : 'S'}{' '}
+            {Math.abs(starlinkInfo.lon).toFixed(1)}°{starlinkInfo.lon >= 0 ? 'E' : 'W'} · real time (time warp
+            speeds it up)
+          </div>
+        </div>
+      )}
+
+      {missionInfo && (isStarshipView || missionInfo.enlarged) && (
+        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-10 text-center text-xs text-gray-300 select-none">
+          <div className="text-base text-white">
+            Starship · {missionInfo.phase} · T+{Math.floor(missionInfo.t / 60)}:
+            {String(Math.floor(missionInfo.t % 60)).padStart(2, '0')}
+          </div>
+          <div>
+            {missionInfo.altKm.toFixed(0)} km up
+            {missionInfo.compression > 1 ? ` · time ×${missionInfo.compression}` : ' · real time'}
+            {missionInfo.deployed > 0 && ` · ${missionInfo.deployed} Starlink V3 deployed`}
+          </div>
+          {missionInfo.enlarged && !isStarshipView && <div className="text-gray-500">vehicles drawn larger than real</div>}
+          {isStarshipView && <div className="text-gray-500">true scale · V3 sizes are estimates</div>}
+        </div>
       )}
     </div>
   );
