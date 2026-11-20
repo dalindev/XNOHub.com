@@ -47,8 +47,8 @@ This web application visualizes cryptocurrency networks on an interactive 3D glo
   - Realistic moving cloud layers
   - Interactive 3D globe interface
 - **SpaceX-Inspired Animations**
-  - Falcon Heavy rocket launches
-  - Orbiting Starlink satellites
+  - Starship launches from Starbase
+  - The real Starlink constellation in orbit
   - Multiple camera perspectives:
     - Free-roaming POV
     - Rocket chase camera
@@ -152,9 +152,14 @@ pnpm start
 ### License
 This project is licensed under the MIT License. See the LICENSE file for more details.
 
-### 3D Model Credits
-- "SpaceX Falcon Heavy" (https://skfb.ly/o6zpZ) by AllThingsSpace is licensed under Creative Commons Attribution
-- "Starlink Spacex Satellite" (https://skfb.ly/ouZrO) by Malacodart is licensed under Creative Commons Attribution
+### Data and imagery credits
+The vehicles (Starlink, Starship, Super Heavy) are modelled in code; no third-party 3D models are used. The full list is on the page under "Data sources".
+- Earth from high up: NASA Blue Marble, served by NASA GIBS (public domain)
+- Earth close up: Sentinel-2 cloudless 2016 by EOX (CC BY 4.0, contains modified Copernicus Sentinel data 2016), on Terrain Tiles on AWS
+- Clouds: NASA GIBS (VIIRS). Aurora and solar wind: NOAA Space Weather Prediction Center
+- City lights: GeoNames (CC BY 4.0). Stars: Yale Bright Star Catalogue. Milky Way: NASA Scientific Visualization Studio, from ESA Gaia
+- Starlink orbits: CelesTrak. Submarine cables: TeleGeography. Sun, Moon and planets: Astronomy Engine
+- Nano nodes: nano.community
 
 ---
 

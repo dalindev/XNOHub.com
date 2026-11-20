@@ -1,14 +1,14 @@
+import * as THREE from 'three';
+
 // Shared, non-React world state read inside useFrame. One writer per field.
 
-export const TILES_BELOW = 0.5; // camera altitude (Earth radii, ~3,200 km) where tiles take over
-
 export const world = {
-  /** Camera height above the mean sphere, in Earth radii. Written by WorldWatcher. */
+  /** Camera height above the ground (or the sea) under it, in Earth radii. Written by WorldWatcher. */
   altitude: 3,
-  /** True when the tiled Earth is drawn instead of the textured globe. */
-  tilesActive: false,
   /** Ground height under the camera in Earth radii (from loaded terrain), or null. */
   groundAltitude: null as number | null,
+  /** Unit vector from the Earth's centre to the Sun, scene frame. Written by Sky. */
+  sunDirection: new THREE.Vector3(1, 0, 0),
   /** Near plane forced by a close-up chase view (metres-scale models), or null. */
   nearOverride: null as number | null,
   /** Pose for the next free flight, set by deep links; consumed by FlyControls. */

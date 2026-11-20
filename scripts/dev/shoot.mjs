@@ -8,11 +8,17 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const [url, out, waitS = '20', evalJs = ''] = process.argv.slice(2);
+// SHOT_SIZE=390x844 for a phone-sized shot (default 1280x800). SHOT_DPR=2 for a high-density screen.
+const [width, height] = (process.env.SHOT_SIZE ?? '1280x800').split('x').map(Number);
+const dpr = Number(process.env.SHOT_DPR ?? 1);
+// SHOT_NET=1 prints what was downloaded, per server.
+const net = new Map(); // requestId -> host
+const downloaded = new Map(); // host -> { n, bytes }
 const profile = await mkdtemp(join(tmpdir(), 'xno-chrome-'));
 const port = 9300 + Math.floor(Math.random() * 500);
 const chrome = spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', [
   '--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
-  '--no-first-run', '--use-angle=metal', '--window-size=1280,800', 'about:blank'
+  '--no-first-run', '--use-angle=metal', `--window-size=${width},${height}`, 'about:blank'
 ], { stdio: 'ignore' });
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -33,13 +39,23 @@ ws.onmessage = (e) => {
   const m = JSON.parse(e.data);
   if (m.id && pending.has(m.id)) { pending.get(m.id)(m); pending.delete(m.id); }
   if (m.method === 'Runtime.consoleAPICalled') logs.push(m.params.args.map((a) => a.value ?? a.description ?? '').join(' '));
+  if (m.method === 'Network.responseReceived') net.set(m.params.requestId, new URL(m.params.response.url).host);
+  if (m.method === 'Network.loadingFinished' && net.has(m.params.requestId)) {
+    const t = downloaded.get(net.get(m.params.requestId)) ?? { n: 0, bytes: 0 };
+    downloaded.set(net.get(m.params.requestId), { n: t.n + 1, bytes: t.bytes + m.params.encodedDataLength });
+  }
   if (m.method === 'Runtime.exceptionThrown') logs.push('EXCEPTION ' + (m.params.exceptionDetails.exception?.description ?? m.params.exceptionDetails.text));
 };
 const send = (method, params = {}) => new Promise((r) => { const i = ++id; pending.set(i, r); ws.send(JSON.stringify({ id: i, method, params })); });
 
 await send('Runtime.enable');
 await send('Page.enable');
-await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false });
+await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: dpr, mobile: width < 700 });
+if (process.env.SHOT_NET || process.env.SHOT_BLOCK) await send('Network.enable');
+// SHOT_BLOCK=host1,host2 makes requests to those hosts fail, to check fallbacks.
+if (process.env.SHOT_BLOCK) {
+  await send('Network.setBlockedURLs', { urls: process.env.SHOT_BLOCK.split(',').map((h) => `*${h}*`) });
+}
 await send('Page.navigate', { url });
 await sleep(Number(waitS) * 1000);
 if (evalJs) {
@@ -48,7 +64,18 @@ if (evalJs) {
 }
 const shot = await send('Page.captureScreenshot', { format: 'png' });
 await writeFile(out, Buffer.from(shot.result.data, 'base64'));
+// SHOT_AGAIN=5 takes a second shot that many seconds later (out-2.png), to see what moved.
+if (process.env.SHOT_AGAIN) {
+  await sleep(Number(process.env.SHOT_AGAIN) * 1000);
+  const again = await send('Page.captureScreenshot', { format: 'png' });
+  await writeFile(out.replace(/\.png$/, '-2.png'), Buffer.from(again.result.data, 'base64'));
+}
 const uniq = [...new Set(logs.filter((l) => !/Vercel|DevTools|HMR|THREE.Clock/.test(l)))];
 console.log(uniq.slice(-15).map((l) => l.slice(0, 600)).join('\n'));
+if (process.env.SHOT_NET) {
+  for (const [host, t] of [...downloaded].sort((a, b) => b[1].bytes - a[1].bytes)) {
+    console.log(`NET ${host}: ${t.n} files, ${(t.bytes / 1024).toFixed(0)} KB`);
+  }
+}
 ws.close();
 chrome.kill();

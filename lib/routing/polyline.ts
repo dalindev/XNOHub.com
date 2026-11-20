@@ -64,3 +64,36 @@ export function firstAfter(cum: Float32Array, d: number) {
   }
   return lo;
 }
+
+/**
+ * Ramer–Douglas–Peucker in 3D: drops points that sit within `tolerance`
+ * (scene units) of the line through their neighbours. Keeps both ends.
+ */
+export function simplify(points: THREE.Vector3[], tolerance: number): THREE.Vector3[] {
+  if (points.length <= 2) return points.slice();
+  const keep = new Uint8Array(points.length);
+  keep[0] = keep[points.length - 1] = 1;
+  const stack: [number, number][] = [[0, points.length - 1]];
+  const ab = new THREE.Vector3(), ap = new THREE.Vector3();
+  while (stack.length) {
+    const [a, b] = stack.pop()!;
+    if (b - a < 2) continue;
+    ab.subVectors(points[b], points[a]);
+    const len2 = ab.lengthSq();
+    let worst = -1, worstD2 = tolerance * tolerance;
+    for (let i = a + 1; i < b; i++) {
+      ap.subVectors(points[i], points[a]);
+      const t = len2 > 0 ? THREE.MathUtils.clamp(ap.dot(ab) / len2, 0, 1) : 0;
+      const d2 = ap.addScaledVector(ab, -t).lengthSq();
+      if (d2 > worstD2) {
+        worstD2 = d2;
+        worst = i;
+      }
+    }
+    if (worst >= 0) {
+      keep[worst] = 1;
+      stack.push([a, worst], [worst, b]);
+    }
+  }
+  return points.filter((_, i) => keep[i]);
+}

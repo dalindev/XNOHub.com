@@ -31,7 +31,7 @@ This is the working checklist for [v2-plan.md](v2-plan.md), and the plan has the
 - [ ] Set the React Compiler lint rules back to error. `immutability` stays a warning for good: R3F mutates uniforms and buffers in `useFrame` by design. The others wait on the v1 leftovers (donation meteors, Starlink, rockets, history table)
 - [x] Rewrite the arcs as one instanced shader with a ring buffer, and no React state per frame (2026-11-19): `components/network-arcs.tsx`, 8192 legs, one draw call
 - [x] Camera director: one `CameraControls` and one owner per mode, and remove the duplicate camera (2026-11-19). Starlink view and Earth View checked in the browser
-- [x] Convert the Earth textures to KTX2 (2026-11-19): `scripts/build-earth-textures.sh` (basisu ETC1S). 4K set is 3.8 MB to download; screens ≥2560 px wide get 8K colour and night lights (6.5 MB). GPU memory for the globe drops from ~760 MB to ~90 MB
+- [x] Convert the Earth textures to KTX2 (2026-11-19): `scripts/build-earth-textures.sh` (basisu ETC1S). 4K set is 3.8 MB to download; screens ≥2560 px wide get 8K colour and night lights (6.5 MB). GPU memory for the globe drops from ~760 MB to ~90 MB. Superseded 2026-11-20: the flat Earth pictures are gone (Phase 2.6), the script now only encodes the fallback cloud picture
 - [x] Convert the Falcon OBJ to a Meshopt GLB (2.6 MB → 200 KB) and remove the per-frame `setState` (2026-11-19). Rockets aren't pooled: clones already share geometry and material, so a pool would save little
 - [x] Stress test (2026-11-19): `__xno.burst(30, 5)` in dev. Arc work is ~0.015 ms per confirmation; the scene is 39 draw calls. 60 fps not measured (the browser pane was hidden). First load on the 4K tier is about 5 MB of textures and models, plus the 3 MB Starlink GLB
 
@@ -39,7 +39,7 @@ This is the working checklist for [v2-plan.md](v2-plan.md), and the plan has the
 
 - [x] Real scale, precision and depth (2026-11-19). Changed from the plan: 1 scene unit = 1 Earth radius (6,371 km) instead of km. Ephemerides run in float64 on the CPU, three builds model-view matrices in float64, and the tiles are relative-to-centre, so camera jitter stays sub-metre without a floating origin. Reversed-Z is on where `EXT_clip_control` exists, but the default 24-bit depth buffer limits the gain, so the near plane also follows altitude (0.6 m skimming terrain, 6 km from orbit). A true floating origin waits until the Moon/Mars phases need it
 - [x] Sun, Earth rotation and Moon from astronomy-engine, plus time warp (2026-11-19): `lib/astro.ts` (tests pin the frame), `lib/sim-clock.ts`, warp 1×/1 min/1 h/1 d per second. Removed the old 12 h offset and 23.5° tilt hack; night lights now only on the night side. The Moon's position is tested, but it hasn't been seen on screen yet
-- [x] Multi-scale Earth with 3DTilesRendererJS, EOX 2016 imagery and AWS terrain (2026-11-19): `components/tiled-earth.tsx`, below ~3,200 km. Checked over the Alps and Starbase. Below-sea-level heights are clamped to 0. Known: flat lowlands show 1 m terracing from the source DEM under low sun; tile mode is ~160 draw calls (budget 150); EOX's free tile server should be asked before real traffic
+- [x] Multi-scale Earth with 3DTilesRendererJS, EOX 2016 imagery and AWS terrain (2026-11-19): `components/tiled-earth.tsx`, below ~3,200 km (since 2026-11-20 at every distance, see Phase 2.6). Checked over the Alps and Starbase. Below-sea-level heights are clamped to 0. Known: flat lowlands show 1 m terracing from the source DEM under low sun; tile mode is ~160 draw calls (budget 150); EOX's free tile server should be asked before real traffic
 - [x] Atmosphere (2026-11-19): limb glow from orbit (day blue, dusk orange), and below ~130 km a sky colour from sun elevation, haze (exp fog) and stars hidden in daylight
 - [x] ~~Optional Google 3D Tiles~~ dropped (2026-11-19): Dalin chose no paid map services. Open sources only (EOX imagery, AWS terrain); the Google code was removed
 - [x] Free-flight mode (keyboard, mouse and gamepad) (2026-11-19): drone-style, speed scales with altitude, 30 m ground clearance from loaded terrain. Deep links `?fly=lat,lon,altKm[,heading,pitch]&time=ISO`. Keyboard/gamepad input not exercised by hand yet (checked through deep links and headless screenshots)
@@ -56,6 +56,30 @@ This is the working checklist for [v2-plan.md](v2-plan.md), and the plan has the
 - [x] Starship mission: liftoff from Starbase, hot staging, boost-back and catch, orbit, V3 deploy from the PEZ slot. Launch button, plus any send ≥ 1,000 Ӿ. Burns are time-compressed (×6, ×10), orbit is real time. From the globe the vehicles are enlarged and labelled so
 - [ ] Check by hand in a real browser: frame rate with packets + 11k satellites on a mid-range laptop, and the chase views' controls (they're fixed chase cams for now; no drag-to-orbit)
 - [ ] Starlink trains (fresh launches still raising orbit) as their own highlight
+
+## Phase 2.6: real Earth, sky and signals (2026-11-20, local only)
+
+Rule for this phase: real data first; where the data is coarser than the screen, detail is generated and the Data sources list says so. Checked with headless screenshots (`scripts/dev/shoot.mjs`), not yet by hand in a real browser.
+
+- [x] One 3D Earth at every distance, no flat picture: `components/tiled-earth.tsx`. From high up NASA Blue Marble with shaded relief and sea floor (NASA GIBS, public domain, 600 m per pixel), one even picture of the whole planet. Below about 900 km Sentinel-2 cloudless (EOX) on AWS relief. The whole Earth changes set at once, once the other set has loaded (down at 900 km, back up at 1,100 km). Reason: the Sentinel-2 scans come from many different days and show as stripes and patches from high up
+- [x] `components/earth-base.tsx`: one 308 KB picture of the whole planet (built from Blue Marble by `scripts/build-small-maps.py earth`) under the tiles for the first frame, behind loading tiles and when a tile server is down. It also closes the two poles: map tiles stop at 85.05°, and the library's stretched end caps showed as a pinwheel, so they are off
+- [x] Ground lighting in one place, `lib/earth-light.ts`: sky light where the Sun is up, and a faint moonlit night side so continents show under the city lights
+- [x] Data cost of the Earth, measured: far view about 0.4 MB (ordinary screen) to 0.8 MB (high-density) of Blue Marble tiles; going down over the Alps to 760 km adds about 0.8 MB imagery and 1 MB relief; a mountain close-up about 3 MB imagery and 9 MB relief. The old flat set was 3.8 to 6.5 MB up front. Removed from the repo: the six `public/earth/*.ktx2` surface pictures, the four 8K source pictures and the Falcon Heavy files (11 MB)
+- [x] City lights from GeoNames (31,810 real cities and sizes, the individual lights are generated): `lib/cities.ts`, `components/city-lights.tsx`
+- [x] Live clouds from NASA GIBS (VIIRS, the newest complete day), with off / light / full, falling back to the bundled picture: `lib/live-clouds.ts`, `components/three-cloud-mesh.tsx`
+- [x] Aurora from NOAA SWPC: the oval and its brightness are the real 30-minute forecast; curtains, rays and colours by height are generated. Pace follows the live solar wind speed, activity follows Kp, the field's southward part and wind speed (`auroraDrive` in `lib/space-weather.ts`, tested). No late frames in 300 on an M4 at 2560×1600
+- [x] Real sky: 9,096 catalogue stars, Sun, Moon and planets in place, Milky Way from NASA/Gaia with generated grain: `components/real-sky.tsx`, `lib/sky.ts`
+- [x] Signals: each confirmation is broadcast to every online node and votes come back until two-thirds have (quorum), drawn as GPU ribbons; laser links computed at run time; node pads; dashboard with the fibre vs Starlink timing
+- [x] Removed: Falcon Heavy and the Fly button (`?fly=` deep links stay; the tip meteor stays)
+- [x] Camera can't go inside the Earth; near plane follows altitude up to 2 units so cables and nodes don't flicker from orbit
+
+Open:
+
+- [ ] The two Earth sets differ in colour (Blue Marble is paler than Sentinel-2), so the change at 900 km is a visible step, not a blend
+- [ ] Clouds are about a day old, and live clouds and aurora don't follow time warp
+- [ ] Cable landing dots draw as small squares on high-density screens
+- [ ] Ask EOX before real traffic on their free tile server; check NASA GIBS usage guidance too
+- [ ] Run `pnpm build` (not run this phase: the dev server was using `.next`), then look at it by hand in a real browser
 
 ## Phase 3: launch sites and Starship operations
 

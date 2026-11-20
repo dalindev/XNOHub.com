@@ -12,7 +12,7 @@ import { simNow } from '@/lib/sim-clock';
 
 const MOON_RADIUS = 1737.4 / 6371; // Earth radii
 const SUN_LIGHT_DISTANCE = 50; // the light only needs a direction
-const UPDATE_EVERY = 0.25; // s of real time between ephemeris updates
+const UPDATE_EVERY = 1 / 30; // s of real time between ephemeris updates (smooth under time warp)
 
 const atmosphereVertex = /* glsl */ `
   varying vec3 vNormalW;
@@ -108,6 +108,7 @@ export const Sky: React.FC<SkyProps> = ({ lightRef, starsRef }) => {
     lightRef.current?.position.copy(sun.direction).multiplyScalar(SUN_LIGHT_DISTANCE);
     atmosphere.uniforms.uSunDir.value.copy(sun.direction);
     sunDir.current.copy(sun.direction);
+    world.sunDirection.copy(sun.direction);
 
     const moon = moonRef.current;
     if (moon) {

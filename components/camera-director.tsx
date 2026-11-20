@@ -34,8 +34,10 @@ const WorldWatcher: React.FC = () => {
     const alt = camera.position.length() - ellipsoidRadius(lat) - (world.groundAltitude ?? 0);
     world.altitude = alt;
     // Near plane follows altitude so depth precision stays where the ground is:
-    // ~0.6 m when skimming terrain, 6 km from orbit.
-    const near = world.nearOverride ?? THREE.MathUtils.clamp(alt * 0.1, 1e-7, 1e-3);
+    // a tenth of the height above it, from ~0.6 m when skimming terrain. Nothing
+    // drawn comes that close to the camera, and from orbit it is what keeps the
+    // cables and nodes (a few km up) from flickering against the surface.
+    const near = world.nearOverride ?? THREE.MathUtils.clamp(alt * 0.1, 1e-7, 2);
     if (Math.abs(near - camera.near) / camera.near > 0.05) {
       camera.near = near;
       camera.updateProjectionMatrix();

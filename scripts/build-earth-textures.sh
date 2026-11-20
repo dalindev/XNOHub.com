@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
-# Re-encodes the Earth textures as KTX2 (Basis ETC1S, mipmapped, Y-flipped for
-# three's KTX2Loader). GPU memory per 8K map drops from ~180 MB (RGBA + mips)
-# to ~22 MB. Needs `basisu` (brew install basis_universal).
+# Re-encodes the bundled cloud picture as KTX2 (Basis ETC1S, mipmapped,
+# Y-flipped for three's KTX2Loader), so it stays compressed on the GPU. It is
+# the cloud layer's fallback for when NASA's daily photo can't be reached.
+# Needs `basisu` (brew install basis_universal).
 #   scripts/build-earth-textures.sh
+#
+# The Earth's surface needs no build step any more: it is streamed as 3D tiles
+# (components/tiled-earth), over one small picture from scripts/build-small-maps.py.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 SRC=public/earth-assets-mini
@@ -15,11 +19,4 @@ enc() { # src out width height colorspace(srgb|linear)
   echo "$OUT/$2 $(du -h "$OUT/$2" | cut -f1)"
 }
 
-enc earth_no_clouds_8k.jpg  color-8k.ktx2  8192 4096 srgb &
-enc earth_no_clouds_8k.jpg  color-4k.ktx2  4096 2048 srgb &
-enc earth_night_8k.jpg      night-8k.ktx2  8192 4096 srgb &
-enc earth_night_8k.jpg      night-4k.ktx2  4096 2048 srgb &
-enc earth_elev_bump_8k.jpg  bump-4k.ktx2   4096 2048 linear &
-enc earth_water_8k.png      water-4k.ktx2  4096 2048 linear &
-enc fair_clouds_4k.png      clouds-4k.ktx2 4096 2048 srgb &
-wait
+enc fair_clouds_4k.png clouds-4k.ktx2 4096 2048 srgb

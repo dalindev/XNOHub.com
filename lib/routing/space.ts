@@ -1,15 +1,19 @@
 import * as THREE from 'three';
-import { Graph, pathTo } from '@/lib/routing/graph';
+import { Graph, pathFromSource } from '@/lib/routing/graph';
+import { MAX_LASER_KM } from '@/lib/routing/laser-links';
 import { latLonToUnit, EARTH_RADIUS_KM } from '@/lib/geo';
 import type { GeoPoint } from '@/lib/routing/fiber';
 
-// Starlink routes: up from the sending node to the best satellite overhead,
-// along the laser mesh at the speed of light in vacuum, and down to each
-// receiving node. "What if the Nano network ran over Starlink": real Nano
-// nodes sit in data centres on fibre, so this is a comparison, not a claim.
+// Starlink routes: up from the sending node to a satellite overhead, along the
+// laser mesh at the speed of light in vacuum, and down to the receiving node.
+// The satellites at each end are the ones that make the whole trip shortest,
+// as a real network would choose. "What if the Nano network ran over
+// Starlink": real Nano nodes sit in data centres on fibre, so this is a
+// comparison, not a claim.
 
 export const LIGHT_KM_PER_MS = 299.792458;
 const MIN_ELEVATION = 25 * (Math.PI / 180); // dish ↔ satellite
+const REACH2 = 0.06; // (scene units)²: beyond ~1,560 km a satellite is below 25° anyway
 
 export interface SpaceRoute {
   /** Scene positions: ground, satellites…, ground. */
@@ -20,27 +24,37 @@ export interface SpaceRoute {
   ms: number;
 }
 
-/** Elevation angle (rad) of point p seen from ground point g (both scene units). */
-function elevation(g: THREE.Vector3, p: THREE.Vector3) {
-  const up = g.clone().normalize();
-  const los = p.clone().sub(g).normalize();
-  return Math.asin(THREE.MathUtils.clamp(up.dot(los), -1, 1));
+interface Overhead {
+  sats: number[];
+  /** Slant range to each, km. */
+  km: number[];
 }
 
+/** A snapshot of the constellation: where every satellite is, and which pairs are laser-linked. */
 export class SpaceNetwork {
   private graph: Graph;
   private pos: Float32Array;
-  private tree: { source: number; dist: Float64Array; prev: Int32Array } | null = null;
-  private gateways = new Map<string, number>();
+  private linked: Uint8Array;
+  private overhead = new Map<string, Overhead>();
+  private trees = new Map<string, { dist: Float64Array; prev: Int32Array }>();
 
-  /** @param pos packed scene xyz of every satellite at this moment */
-  constructor(pos: Float32Array, links: [number, number][]) {
+  /**
+   * @param pos   packed scene xyz of every satellite at this moment
+   * @param links packed index pairs (see buildLaserLinks)
+   */
+  constructor(pos: Float32Array, links: ArrayLike<number>) {
     this.pos = pos;
     const n = pos.length / 3;
     this.graph = new Graph(n);
-    for (const [a, b] of links) {
+    this.linked = new Uint8Array(n);
+    for (let k = 0; k + 1 < links.length; k += 2) {
+      const a = links[k], b = links[k + 1];
       const d = Math.hypot(pos[a * 3] - pos[b * 3], pos[a * 3 + 1] - pos[b * 3 + 1], pos[a * 3 + 2] - pos[b * 3 + 2]) * EARTH_RADIUS_KM;
+      // A link list that has gone stale (the satellites have moved on) must
+      // never become a shortcut through the Earth: out of range, out of the graph.
+      if (d > MAX_LASER_KM) continue;
       this.graph.link(a, b, d);
+      this.linked[a] = this.linked[b] = 1;
     }
   }
 
@@ -48,50 +62,54 @@ export class SpaceNetwork {
     return out.fromArray(this.pos, i * 3);
   }
 
-  /** Highest-elevation linked satellite above a ground point, or -1. */
-  gateway(ground: THREE.Vector3, linked: (i: number) => boolean): number {
-    let best = -1;
-    let bestEl = MIN_ELEVATION;
-    const p = new THREE.Vector3();
-    const n = this.pos.length / 3;
-    for (let i = 0; i < n; i++) {
-      p.fromArray(this.pos, i * 3);
-      if (p.distanceToSquared(ground) > 0.06) continue; // > ~1,560 km away: below the horizon anyway
-      const el = elevation(ground, p);
-      if (el > bestEl && linked(i)) {
-        bestEl = el;
-        best = i;
-      }
+  /** Laser-linked satellites at least 25° above the horizon of a ground point. Cached: the network is a snapshot. */
+  private above(p: GeoPoint, ground: THREE.Vector3): Overhead {
+    const key = `${p.lat},${p.lon}`;
+    let found = this.overhead.get(key);
+    if (found) return found;
+    found = { sats: [], km: [] };
+    const { pos, linked } = this;
+    const gx = ground.x, gy = ground.y, gz = ground.z;
+    for (let i = 0; i < linked.length; i++) {
+      if (!linked[i]) continue;
+      const dx = pos[i * 3] - gx, dy = pos[i * 3 + 1] - gy, dz = pos[i * 3 + 2] - gz;
+      const d2 = dx * dx + dy * dy + dz * dz;
+      if (d2 > REACH2) continue;
+      const d = Math.sqrt(d2);
+      // The ground point is a unit vector, so it is also "straight up".
+      if (Math.asin((dx * gx + dy * gy + dz * gz) / d) < MIN_ELEVATION) continue;
+      found.sats.push(i);
+      found.km.push(d * EARTH_RADIUS_KM);
     }
-    return best;
+    this.overhead.set(key, found);
+    return found;
   }
 
-  // The network is a snapshot (rebuilt every few seconds), so gateways can be cached for its life.
-  private cachedGateway(p: GeoPoint, g: THREE.Vector3, linked: (i: number) => boolean) {
-    const k = `${p.lat},${p.lon}`;
-    let v = this.gateways.get(k);
-    if (v === undefined) {
-      v = this.gateway(g, linked);
-      this.gateways.set(k, v);
-    }
-    return v;
-  }
-
-  route(from: GeoPoint, to: GeoPoint, linked: (i: number) => boolean): SpaceRoute | null {
+  route(from: GeoPoint, to: GeoPoint): SpaceRoute | null {
     const g0 = latLonToUnit(from.lat, from.lon);
     const g1 = latLonToUnit(to.lat, to.lon);
-    const up = this.cachedGateway(from, g0, linked);
-    const down = this.cachedGateway(to, g1, linked);
-    if (up < 0 || down < 0) return null;
-    if (!this.tree || this.tree.source !== up) {
-      const { dist, prev } = this.graph.dijkstra(up);
-      this.tree = { source: up, dist, prev };
+    const up = this.above(from, g0);
+    const down = this.above(to, g1);
+    if (!up.sats.length || !down.sats.length) return null;
+
+    // One search per sender covers every receiver.
+    const key = `${from.lat},${from.lon}`;
+    let tree = this.trees.get(key);
+    if (!tree) {
+      if (this.trees.size >= 8) this.trees.clear();
+      tree = this.graph.dijkstraFrom(up.sats, up.km);
+      this.trees.set(key, tree);
     }
-    const path = pathTo(this.tree.prev, up, down);
-    if (!path) return null;
-    const points = [g0, ...path.map((i) => this.sat(i)), g1];
-    let km = 0;
-    for (let i = 1; i < points.length; i++) km += points[i].distanceTo(points[i - 1]) * EARTH_RADIUS_KM;
-    return { points, sats: path, km, ms: km / LIGHT_KM_PER_MS };
+    let last = -1, km = Infinity;
+    for (let k = 0; k < down.sats.length; k++) {
+      const total = tree.dist[down.sats[k]] + down.km[k];
+      if (total < km) {
+        km = total;
+        last = down.sats[k];
+      }
+    }
+    if (last < 0) return null;
+    const sats = pathFromSource(tree.prev, last);
+    return { points: [g0, ...sats.map((i) => this.sat(i)), g1], sats, km, ms: km / LIGHT_KM_PER_MS };
   }
 }

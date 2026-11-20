@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Builds public/data/starlink.json: every Starlink in orbit, as compact mean
-// elements, plus an approximate laser-link (ISL) neighbour list.
+// elements.
 //
 //   node scripts/build-starlink.mjs
 //
@@ -13,10 +13,8 @@
 //   v1.0  before 2021-06 · v1.5  2021-06 → 2023-02 · v2mini  2023-02 onward
 // V3 flies on Starship; none are identifiable in the catalogue yet.
 //
-// Laser links are approximate: SpaceX doesn't publish the link graph. Each
-// satellite above 400 km (except v1.0, which has no lasers) links to its two
-// nearest neighbours in its own orbital plane and its two nearest in other
-// planes of the same shell, the usual "+grid" pattern.
+// Laser links are not stored here: they change as the satellites move, so the
+// site works them out in the browser (lib/routing/laser-links.ts).
 
 import { writeFile, mkdir } from 'node:fs/promises';
 
@@ -70,78 +68,16 @@ for (const s of gp) {
   sats.push({ id: s.NORAD_CAT_ID, name: s.OBJECT_NAME, v: version(s.OBJECT_ID), a, inc, raan, u, n: n + argpDot, raanDot, alt });
 }
 
-// Positions (inertial) at baseEpoch for neighbour search.
-const pos = sats.map((s) => {
-  const cu = Math.cos(s.u), su = Math.sin(s.u), cO = Math.cos(s.raan), sO = Math.sin(s.raan), ci = Math.cos(s.inc), si = Math.sin(s.inc);
-  return [s.a * (cO * cu - sO * su * ci), s.a * (sO * cu + cO * su * ci), s.a * su * si];
-});
-const normal = sats.map((s) => [Math.sin(s.raan) * Math.sin(s.inc), -Math.cos(s.raan) * Math.sin(s.inc), Math.cos(s.inc)]);
-
-// Spatial hash for nearest-neighbour search.
-const CELL = 1500; // km
-const key = (p) => `${Math.floor(p[0] / CELL)},${Math.floor(p[1] / CELL)},${Math.floor(p[2] / CELL)}`;
-const grid = new Map();
-sats.forEach((s, i) => {
-  if (s.alt < 400 || s.v === 0) return;
-  const k = key(pos[i]);
-  if (!grid.has(k)) grid.set(k, []);
-  grid.get(k).push(i);
-});
-const links = new Set();
-const dist2 = (a, b) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
-sats.forEach((s, i) => {
-  if (s.alt < 400 || s.v === 0) return;
-  const [cx, cy, cz] = pos[i].map((v) => Math.floor(v / CELL));
-  const same = [], other = [];
-  for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) {
-    for (const j of grid.get(`${cx + dx},${cy + dy},${cz + dz}`) ?? []) {
-      if (j === i) continue;
-      const t = sats[j];
-      if (Math.abs(t.alt - s.alt) > 40 || Math.abs(t.inc - s.inc) > 1.5 * D2R) continue; // same shell
-      const d = dist2(pos[i], pos[j]);
-      if (d > 2500 ** 2) continue; // lasers reach a few thousand km
-      const dot = normal[i][0] * normal[j][0] + normal[i][1] * normal[j][1] + normal[i][2] * normal[j][2];
-      (dot > Math.cos(1.5 * D2R) ? same : other).push([d, j]);
-    }
-  }
-  for (const [, j] of [...same.sort((a, b) => a[0] - b[0]).slice(0, 2), ...other.sort((a, b) => a[0] - b[0]).slice(0, 2)]) {
-    links.add(i < j ? `${i}:${j}` : `${j}:${i}`);
-  }
-});
-
-// Shells would otherwise be separate islands. Starlink lasers can point at
-// satellites in other shells, so give each satellite one link to its nearest
-// neighbour in a different shell (within 1,500 km).
-let crossShell = 0;
-sats.forEach((s, i) => {
-  if (s.alt < 400 || s.v === 0) return;
-  const [cx, cy, cz] = pos[i].map((v) => Math.floor(v / CELL));
-  let best = -1, bestD = 1500 ** 2;
-  for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) {
-    for (const j of grid.get(`${cx + dx},${cy + dy},${cz + dz}`) ?? []) {
-      const t = sats[j];
-      if (Math.abs(t.alt - s.alt) <= 40 && Math.abs(t.inc - s.inc) <= 1.5 * D2R) continue; // same shell
-      const d = dist2(pos[i], pos[j]);
-      if (d < bestD) { bestD = d; best = j; }
-    }
-  }
-  if (best >= 0) {
-    const k = i < best ? `${i}:${best}` : `${best}:${i}`;
-    if (!links.has(k)) { links.add(k); crossShell++; }
-  }
-});
-
 const r5 = (x) => +x.toFixed(5);
 const out = {
   generatedAt: new Date().toISOString(),
   source: 'CelesTrak GP (celestrak.org), group "starlink"',
   epoch: new Date(baseEpoch).toISOString(),
   // per satellite: [noradId, version 0=v1.0 1=v1.5 2=v2mini, a km, inc rad, raan rad, u rad, n rad/s, raanDot rad/s]
-  sats: sats.map((s) => [s.id, s.v, +s.a.toFixed(1), r5(s.inc), r5(s.raan), r5(s.u), +s.n.toPrecision(9), +s.raanDot.toPrecision(5)]),
-  links: [...links].map((l) => l.split(':').map(Number))
+  sats: sats.map((s) => [s.id, s.v, +s.a.toFixed(1), r5(s.inc), r5(s.raan), r5(s.u), +s.n.toPrecision(9), +s.raanDot.toPrecision(5)])
 };
 await mkdir(new URL('.', OUT), { recursive: true });
 await writeFile(OUT, JSON.stringify(out));
 const byV = [0, 0, 0];
 sats.forEach((s) => byV[s.v]++);
-console.log(`starlink.json: ${sats.length} satellites (v1.0 ${byV[0]}, v1.5 ${byV[1]}, v2mini ${byV[2]}), ${links.size} laser links (${crossShell} cross-shell), epoch ${out.epoch}`);
+console.log(`starlink.json: ${sats.length} satellites (v1.0 ${byV[0]}, v1.5 ${byV[1]}, v2mini ${byV[2]}), epoch ${out.epoch}`);

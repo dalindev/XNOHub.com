@@ -30,12 +30,25 @@ export class Graph {
   }
 
   /** Shortest distances and predecessors from one source. */
-  dijkstra(source: number): { dist: Float64Array; prev: Int32Array } {
+  dijkstra(source: number) {
+    return this.dijkstraFrom([source], [0]);
+  }
+
+  /**
+   * Shortest distances from several sources at once, each starting at its own
+   * distance (a ground station that can reach several satellites, each at its
+   * own range). A source's predecessor stays -1.
+   */
+  dijkstraFrom(sources: ArrayLike<number>, start: ArrayLike<number>): { dist: Float64Array; prev: Int32Array } {
     const dist = new Float64Array(this.size).fill(Infinity);
     const prev = new Int32Array(this.size).fill(-1);
     const heap = new MinHeap();
-    dist[source] = 0;
-    heap.push(source, 0);
+    for (let i = 0; i < sources.length; i++) {
+      if (start[i] < dist[sources[i]]) {
+        dist[sources[i]] = start[i];
+        heap.push(sources[i], start[i]);
+      }
+    }
     while (heap.length) {
       const [u, d] = heap.pop();
       if (d > dist[u]) continue;
@@ -63,6 +76,13 @@ export function pathTo(prev: Int32Array, source: number, target: number): number
     if (v === source) return out.reverse();
   }
   return null;
+}
+
+/** Vertex path from whichever source the search reached `target` from, to `target`. */
+export function pathFromSource(prev: Int32Array, target: number): number[] {
+  const out: number[] = [];
+  for (let v = target; v !== -1 && out.length <= prev.length; v = prev[v]) out.push(v);
+  return out.reverse();
 }
 
 class MinHeap {

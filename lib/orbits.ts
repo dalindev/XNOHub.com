@@ -18,7 +18,6 @@ export interface StarlinkFile {
   source: string;
   epoch: string;
   sats: SatRow[];
-  links: [number, number][];
 }
 
 export const VERSION_NAMES = ['V1.0', 'V1.5', 'V2 Mini', 'V3'] as const;
@@ -34,6 +33,21 @@ export function eciAt(row: SatRow, dt: number, out: number[] | Float32Array = [0
   out[o + 2] = a * su * si;
   return out;
 }
+
+/** Unit direction of travel in the same inertial frame, `dt` seconds after the file epoch. */
+export function eciDirAt(row: SatRow, dt: number, out: number[] | Float32Array = [0, 0, 0], o = 0) {
+  const [, , , inc, raan0, u0, n, raanDot] = row;
+  const u = u0 + n * dt;
+  const raan = raan0 + raanDot * dt;
+  const cu = Math.cos(u), su = Math.sin(u), cO = Math.cos(raan), sO = Math.sin(raan), ci = Math.cos(inc), si = Math.sin(inc);
+  out[o] = -cO * su - sO * cu * ci;
+  out[o + 1] = -sO * su + cO * cu * ci;
+  out[o + 2] = cu * si;
+  return out;
+}
+
+/** True for a satellite that carries lasers and is in service (V1.0 has none; below 400 km it is still climbing or coming down). */
+export const hasLasers = (row: SatRow) => row[1] >= 1 && row[2] - EARTH_RADIUS_KM > 400;
 
 /** Greenwich sidereal angle (rad) for a date. */
 export const siderealAngle = (date: Date) => (SiderealTime(MakeTime(date)) / 24) * 2 * Math.PI;
