@@ -11,10 +11,10 @@ import { world } from '@/lib/world';
 // 70 to 90 km, fireballs lower). Generated, not observed: nobody publishes
 // every meteor as it happens.
 //
-//   Sporadic meteors, about one a second somewhere on the side you can see.
-//   A fireball now and then: lower, wider, with a flash at the end.
-//   An earthgrazer now and then: skims the upper air for over 1,000 km and leaves.
-//   A shower every minute or two: sixty or so in parallel from one direction.
+//   Sporadic meteors, one every five seconds or so on the side you can see.
+//   A fireball about once a minute: lower, wider, with a flash at the end.
+//   An earthgrazer every three minutes or so: skims the upper air for over 1,000 km and leaves.
+//   A shower every five to ten minutes: sixty or so in parallel from one direction.
 //
 // They are a few pixels wide however far the camera is (the real glowing trail
 // is metres across), and from far away their paths are drawn up to five times
@@ -45,7 +45,7 @@ export const Meteors: React.FC = () => {
   const streaks = useMemo(() => new Streaks(MAX), []);
   useEffect(() => () => streaks.dispose(), [streaks]);
   const live = useRef<(Meteor | null)[]>(Array.from({ length: MAX }, () => null));
-  const next = useRef({ sporadic: 1, fireball: 6, grazer: 10, shower: 18 });
+  const next = useRef({ sporadic: 3, fireball: 30, grazer: 50, shower: 90 });
   const tmp = useMemo(() => ({ over: new THREE.Vector3(), head: new THREE.Vector3(), tail: new THREE.Vector3(), view: new THREE.Vector3() }), []);
 
   // Dev: __xno.meteors() starts a fireball, an earthgrazer and a shower at once.
@@ -83,7 +83,7 @@ export const Meteors: React.FC = () => {
 
     const n = next.current;
     if (now > n.sporadic) {
-      n.sporadic = now + between(0.3, 1.6);
+      n.sporadic = now + between(1.5, 8);
       const over = somewhere(tmp.over);
       const lengthKm = between(40, 160);
       add({
@@ -93,7 +93,7 @@ export const Meteors: React.FC = () => {
       });
     }
     if (now > n.fireball) {
-      n.fireball = now + between(9, 20);
+      n.fireball = now + between(45, 100);
       const over = somewhere(tmp.over);
       add({
         path: meteorPath(over, Math.random() * Math.PI * 2, between(180, 320) * stretch, between(65, 85)),
@@ -102,7 +102,7 @@ export const Meteors: React.FC = () => {
       });
     }
     if (now > n.grazer) {
-      n.grazer = now + between(28, 50);
+      n.grazer = now + between(140, 250);
       add({
         path: grazerPath(somewhere(tmp.over), Math.random() * Math.PI * 2, between(82, 98)),
         born: now, seconds: between(5, 7),
@@ -110,7 +110,7 @@ export const Meteors: React.FC = () => {
       });
     }
     if (now > n.shower) {
-      n.shower = now + between(60, 120);
+      n.shower = now + between(300, 600);
       // The stream comes down on the side the camera sees.
       // Slanting across the view, so the paths are seen side-on, not end-on.
       const from = new THREE.Vector3().crossVectors(view, new THREE.Vector3().randomDirection()).normalize().addScaledVector(view, -between(0.3, 0.6)).normalize();
