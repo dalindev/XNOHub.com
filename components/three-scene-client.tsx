@@ -23,6 +23,7 @@ import { Aurora } from '@/components/aurora';
 import { CityLights } from '@/components/city-lights';
 import { EarthBase } from '@/components/earth-base';
 import NanoRepNodes from '@/components/nano-rep-nodes';
+import { RelayNodes } from '@/components/relay-nodes';
 import { CloudMesh } from '@/components/three-cloud-mesh';
 import { DonationAnimation } from '@/components/donation-animation';
 import { Button } from '@/components/ui/button';
@@ -208,6 +209,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({ reps }) => {
 
         <EarthBase />
         <TiledEarth />
+        <RelayNodes />
         <NanoRepNodes reps={reps} onNodeHover={setHoveredNode} />
         <CityLights />
         <CloudMesh meshRef={cloudRef} />

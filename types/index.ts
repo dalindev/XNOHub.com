@@ -14,11 +14,24 @@ export interface RepNode {
   lastSeen: number | null;
 }
 
+/** A live node that doesn't vote, with the place its network address resolves to. */
+export interface RelayNode {
+  lat: number;
+  lon: number;
+  city: string | null;
+  country: string | null;
+  version: string;
+}
+
 export interface RepsFile {
   generatedAt: string;
-  sources: { reps: string; quorum: string };
+  sources: { reps: string; quorum: string; places?: string };
   onlineWeight: number;
+  /** Live nodes seen on the network, voting or not. */
+  liveNodes?: number;
   reps: RepNode[];
+  /** Live nodes that don't vote, where their place is known. */
+  nodes?: RelayNode[];
 }
 
 // Type for PrincipalsGeoInfo

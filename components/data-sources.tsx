@@ -7,7 +7,12 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 // the full list opens from "Data sources".
 
 const SOURCES: { what: string; who: string; href: string; note?: string }[] = [
-  { what: 'Nano nodes', who: 'nano.community', href: 'https://nano.community', note: 'places are approximate, from each node’s IP address' },
+  {
+    what: 'Nano nodes',
+    who: 'nano.community, a public Nano node, ip-api.com',
+    href: 'https://nano.community',
+    note: 'every live node the network reports; places are approximate (the city of each node’s network address), none are made up'
+  },
   {
     what: 'Earth from high up',
     who: 'NASA Blue Marble, served by NASA GIBS',

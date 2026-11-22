@@ -172,7 +172,8 @@ export const Dashboard: React.FC<{ starlink: StarlinkFile | null }> = ({ starlin
 
   const nodes = useMemo(() => {
     const list = reps?.reps ?? [];
-    return { total: list.length, online: list.filter((r) => r.online).length, weight: reps?.onlineWeight ?? 0 };
+    const online = list.filter((r) => r.online).length;
+    return { live: Math.max(reps?.liveNodes ?? 0, online), online, weight: reps?.onlineWeight ?? 0 };
   }, [reps]);
 
   const routed = s.mode !== 'classic';
@@ -194,7 +195,7 @@ export const Dashboard: React.FC<{ starlink: StarlinkFile | null }> = ({ starlin
             {open ? <ChevronUp className="h-4 w-4 shrink-0 text-gray-500" /> : <ChevronDown className="h-4 w-4 shrink-0 text-gray-500" />}
           </div>
           <div className="mt-1.5 truncate text-[11px] text-gray-500">
-            {feed.total.toLocaleString('en-US')} this visit · {nodes.online} of {nodes.total} nodes online
+            {feed.total.toLocaleString('en-US')} this visit · {nodes.live} live nodes, {nodes.online} voting
           </div>
         </button>
 
