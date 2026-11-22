@@ -8,7 +8,8 @@ import { METRE } from '@/lib/chase-camera';
 import { world } from '@/lib/world';
 
 // Dust going past while riding a satellite or the Starship: streaks with long
-// tails, one at a time and in waves from one direction. For the feeling of
+// tails, one at a time and in waves from one direction, always coming in from
+// space (level or heading down to the Earth, never up from it). For the feeling of
 // speed, not a measurement: real grains are too small and too fast (10 to
 // 70 km/s) to see at all. Here they cross in front of the camera, within a few
 // hundred metres, at about 2 to 3 km/s. Drawn around the camera, in metres.
@@ -47,7 +48,7 @@ export const SpaceDust: React.FC = () => {
   useEffect(() => () => streaks.dispose(), [streaks]);
   const live = useRef<(Grain | null)[]>(Array.from({ length: MAX }, () => null));
   const next = useRef({ single: 0, wave: 0 });
-  const tmp = useMemo(() => ({ head: new THREE.Vector3(), tail: new THREE.Vector3() }), []);
+  const tmp = useMemo(() => ({ head: new THREE.Vector3(), tail: new THREE.Vector3(), up: new THREE.Vector3() }), []);
 
   // Dev: __xno.dust() sends a wave past now.
   useEffect(() => {
@@ -81,16 +82,23 @@ export const SpaceDust: React.FC = () => {
         tailM: between(180, 460), width: between(1.6, 3), opacity: between(0.6, 1), head: pick(HEADS), trail: pick(TRAILS)
       };
     };
+    // Dust comes in from space: level with the orbit or heading down toward the
+    // Earth, never up from below.
+    const up = tmp.up.copy(camera.position).normalize();
+    const fromSpace = (dir: THREE.Vector3) => {
+      const rising = dir.dot(up);
+      return rising > 0 ? dir.addScaledVector(up, -2 * rising) : dir;
+    };
     const n = next.current;
     if (now > n.single) {
       n.single = now + between(0.4, 1.8);
-      add(anyDirection(), now);
+      add(fromSpace(anyDirection()), now);
     }
     if (now > n.wave) {
       n.wave = now + between(5, 11);
-      const stream = anyDirection();
+      const stream = fromSpace(anyDirection());
       const count = Math.round(between(20, 42));
-      for (let k = 0; k < count; k++) add(stream.clone().addScaledVector(anyDirection(), 0.04).normalize(), now + between(0, 1.6));
+      for (let k = 0; k < count; k++) add(fromSpace(stream.clone().addScaledVector(anyDirection(), 0.04).normalize()), now + between(0, 1.6));
     }
 
     for (let i = 0; i < MAX; i++) {

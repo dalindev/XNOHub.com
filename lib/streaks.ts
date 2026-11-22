@@ -13,12 +13,14 @@ const vertex = /* glsl */ `
   attribute vec2 aLook; // opacity, width in pixels
   uniform vec2 uResolution;
   uniform float uNear;
-  varying vec2 vUv;
+  varying vec3 vPx; // pixels along from the tail point, pixels across, half-width in pixels
+  varying float vLength; // tail point to head point, pixels
   varying vec3 vHeadColor;
   varying vec3 vTailColor;
   varying float vOpacity;
   void main() {
-    vUv = position.xy;
+    vPx = vec3(0.0);
+    vLength = 0.0;
     vHeadColor = aHeadColor;
     vTailColor = aTailColor;
     vOpacity = aLook.x;
@@ -34,8 +36,11 @@ const vertex = /* glsl */ `
     if (t.z > limit) t = mix(h, t, (limit - h.z) / (t.z - h.z));
     vec4 hc = projectionMatrix * vec4(h, 1.0);
     vec4 tc = projectionMatrix * vec4(t, 1.0);
-    vec2 along = (hc.xy / hc.w - tc.xy / tc.w) * uResolution;
-    along = length(along) > 1e-4 ? normalize(along) : vec2(1.0, 0.0);
+    vec2 along = (hc.xy / hc.w - tc.xy / tc.w) * uResolution * 0.5;
+    vLength = length(along);
+    along = vLength > 1e-4 ? along / vLength : vec2(1.0, 0.0);
+    // The quad reaches one half-width past each end, which leaves room for a round head.
+    vPx = vec3(position.x * (vLength + 2.0 * aLook.y) - aLook.y, position.y * aLook.y, aLook.y);
     vec2 across = vec2(-along.y, along.x);
     vec4 p = mix(tc, hc, position.x);
     vec2 px = across * position.y * aLook.y + along * (position.x * 2.0 - 1.0) * aLook.y;
@@ -44,17 +49,25 @@ const vertex = /* glsl */ `
   }
 `;
 
+// A teardrop: a round glowing head, and a tail that narrows and fades behind it.
 const fragment = /* glsl */ `
-  varying vec2 vUv;
+  varying vec3 vPx;
+  varying float vLength;
   varying vec3 vHeadColor;
   varying vec3 vTailColor;
   varying float vOpacity;
   void main() {
-    float edge = 1.0 - vUv.y * vUv.y;
-    float body = pow(vUv.x, 1.6); // fades toward the tail
-    float head = smoothstep(0.86, 1.0, vUv.x);
-    float a = vOpacity * pow(edge, 1.4) * (body * 1.1 + head * 1.3);
-    vec3 color = mix(vTailColor, vHeadColor, pow(vUv.x, 3.0));
+    float w = max(vPx.z, 1e-3);
+    float u = clamp(vPx.x / max(vLength, 1e-3), 0.0, 1.0); // 0 at the tail, 1 at the head
+    vec2 fromHead = vec2(vPx.x - vLength, vPx.y) / w;
+    float d2 = dot(fromHead, fromHead);
+    float halfWidth = w * mix(0.3, 1.0, u);
+    float edge = clamp(1.0 - vPx.y * vPx.y / (halfWidth * halfWidth), 0.0, 1.0);
+    // Behind the head: the tail. Past it: the same profile turned round the head, so the end is round.
+    float body = vPx.x <= vLength ? pow(u, 1.6) * pow(edge, 1.4) : pow(clamp(1.0 - d2, 0.0, 1.0), 1.4);
+    float head = exp(-d2 * 3.0);
+    float a = vOpacity * (body * 1.1 + head * 1.3);
+    vec3 color = mix(vTailColor, vHeadColor, pow(u, 3.0));
     gl_FragColor = vec4(color * a, a);
   }
 `;
