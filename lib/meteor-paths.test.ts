@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { altitudeKm, grazerPath, meteorPath, showerPath, KM } from '@/lib/meteor-paths';
+import { altitudeKm, behindEarth, grazerPath, meteorPath, showerPath, tangent, KM } from '@/lib/meteor-paths';
 
 const end = (p: { start: THREE.Vector3; dir: THREE.Vector3; length: number }) => p.start.clone().addScaledVector(p.dir, p.length);
 const over = new THREE.Vector3(0.3, 0.8, -0.52).normalize();
@@ -34,5 +34,17 @@ describe('meteor paths', () => {
     expect(altitudeKm(end(p))).toBeCloseTo(125, 2);
     expect(altitudeKm(p.start.clone().addScaledVector(p.dir, p.length / 2))).toBeCloseTo(90, 2);
     expect(p.length / KM).toBeGreaterThan(1000);
+  });
+
+  it('is hidden by the Earth from the far side, and seen from the near side or the ground under it', () => {
+    const meteor = over.clone().multiplyScalar(1 + 100 * KM);
+    expect(behindEarth(over.clone().multiplyScalar(3), meteor)).toBe(false);
+    expect(behindEarth(over.clone().multiplyScalar(-3), meteor)).toBe(true);
+    // From the ground 500 km away it is over the horizon; from 3,000 km away it is under it.
+    const across = (km: number) => tangent(over, 0.7).multiplyScalar(Math.sin(km * KM)).addScaledVector(over, Math.cos(km * KM));
+    expect(behindEarth(across(500).multiplyScalar(1 + 0.01 * KM), meteor)).toBe(false);
+    expect(behindEarth(across(3000).multiplyScalar(1 + 0.01 * KM), meteor)).toBe(true);
+    // A camera on ground below the ball (the Earth is flatter at the poles) still sees the sky above it.
+    expect(behindEarth(over.clone().multiplyScalar(1 - 5 * KM), meteor)).toBe(false);
   });
 });

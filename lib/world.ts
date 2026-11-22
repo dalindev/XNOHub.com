@@ -9,6 +9,8 @@ export const world = {
   groundAltitude: null as number | null,
   /** Unit vector from the Earth's centre to the Sun, scene frame. Written by Sky. */
   sunDirection: new THREE.Vector3(1, 0, 0),
+  /** How bright the sky round the camera is: 0 in space or at night, 1 under a daytime sky near the ground. Written by Sky. */
+  skyLight: 0,
   /** How big the Earth looks: its radius on screen, in CSS pixels. Written by WorldWatcher. */
   earthPx: 220,
   /** Near plane forced by a close-up chase view (metres-scale models), or null. */

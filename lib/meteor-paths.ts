@@ -17,6 +17,20 @@ export interface MeteorPath {
 
 export const altitudeKm = (p: THREE.Vector3) => (p.length() - 1) / KM;
 
+/**
+ * Whether the Earth hides `p` from `eye`: the line of sight between them dips
+ * under the ground (a ball of radius 1, or the eye's own distance from the
+ * centre where that is less, so a camera on low ground still sees the sky).
+ */
+export function behindEarth(eye: THREE.Vector3, p: THREE.Vector3) {
+  const dx = p.x - eye.x, dy = p.y - eye.y, dz = p.z - eye.z;
+  // Where along the line of sight it comes closest to the centre.
+  const t = -(eye.x * dx + eye.y * dy + eye.z * dz) / (dx * dx + dy * dy + dz * dz);
+  if (!(t > 0 && t < 1)) return false;
+  const x = eye.x + t * dx, y = eye.y + t * dy, z = eye.z + t * dz;
+  return x * x + y * y + z * z < Math.min(1, eye.lengthSq());
+}
+
 /** Any unit vector at right angles to `up`, turned by `heading` radians round it. */
 export function tangent(up: THREE.Vector3, heading: number, out = new THREE.Vector3()) {
   const a = Math.abs(up.y) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);

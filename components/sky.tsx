@@ -113,6 +113,7 @@ export const Sky: React.FC<SkyProps> = ({ lightRef, starsRef }) => {
     fog.color.copy(background);
     fog.density = 18 * low * low; // per Earth radius: ~50% haze at ~250 km
     scene.fog = low > 0 ? fog : null;
+    world.skyLight = day * low;
     if (starsRef?.current) starsRef.current.visible = day * low < 0.35;
 
     const h = glowHeight(world.altitude);

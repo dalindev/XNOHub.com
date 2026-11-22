@@ -13,9 +13,12 @@ import { world } from '@/lib/world';
 // speed, not a measurement: real grains are too small and too fast (10 to
 // 70 km/s) to see at all. Here they cross in front of the camera, within a few
 // hundred metres, at about 2 to 3 km/s. Drawn around the camera, in metres.
+// Only above the air (100 km up): lower down, grains from space have burnt up
+// as meteors, so a launch climbing through a blue sky has none.
 
 const MAX = 80;
 const REACH_M = 700; // a grain starts this far away and ends as far the other side
+const ABOVE_AIR = 100_000 * METRE;
 
 interface Grain {
   from: THREE.Vector3; // metres from the camera
@@ -58,7 +61,7 @@ export const SpaceDust: React.FC = () => {
   }, []);
 
   useFrame(({ clock, camera, gl }) => {
-    const riding = world.nearOverride !== null;
+    const riding = world.nearOverride !== null && world.altitude > ABOVE_AIR;
     group.visible = riding;
     const slots = live.current;
     const now = clock.elapsedTime;
