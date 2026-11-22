@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { useFrame } from '@react-three/fiber';
@@ -132,12 +132,31 @@ const vertex = /* glsl */ `
   }
 `;
 
+// Dev only: __xno.gust(1) holds a burst on, __xno.gust(null) hands it back to chance.
+let forcedGust: number | null = null;
+if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+  const w = window as unknown as { __xno?: Record<string, unknown> };
+  w.__xno = { ...(w.__xno ?? {}), gust: (v: number | null) => (forcedGust = v) };
+}
+
+/** A smooth wandering value between 0 and 1: different for each seed, changing about once per unit of x. */
+function drift(x: number, seed: number) {
+  const at = (i: number) => {
+    const v = Math.sin(i * 127.1 + seed * 311.7) * 43758.5453;
+    return v - Math.floor(v);
+  };
+  const i = Math.floor(x), f = x - i;
+  return THREE.MathUtils.lerp(at(i), at(i + 1), f * f * (3 - 2 * f));
+}
+
 const fragment = /* glsl */ `
   uniform sampler2D uMap; // chance of aurora, percent / 255
   uniform vec3 uSunDir;
   uniform float uTime;     // seconds, running faster the faster the solar wind
   uniform float uActivity; // 0 calm .. 1 storm
   uniform float uOpacity;
+  uniform vec2 uSurge;     // a burst running along the oval: where it is (longitude, radians) and how strong (0..1)
+  uniform vec2 uHue;       // how much blue and how much orange is in the light right now (0..1 each)
   varying vec3 vDir;
   varying float vShell;
   varying vec2 vMapUv;
@@ -150,9 +169,11 @@ const fragment = /* glsl */ `
   const vec3 RED = vec3(1.0, 0.18, 0.4);     // oxygen, 630 nm
   const vec3 PINK = vec3(1.0, 0.32, 0.72);   // nitrogen, below 100 km
   const vec3 VIOLET = vec3(0.5, 0.36, 1.0);  // sunlit nitrogen
+  const vec3 BLUE = vec3(0.2, 0.62, 1.0);    // nitrogen ions, 427.8 nm: strong aurora's blue lower parts
+  const vec3 ORANGE = vec3(1.0, 0.5, 0.16);  // red and green overlapping, as bright storms show
 
   // What every height shares at this spot, set in main().
-  float phase, lobe, glow, arcsShow, lively, tall, sunlit;
+  float phase, lobe, glow, arcsShow, lively, tall, sunlit, front, bluish;
 
   // The light from one height: s is 0 at 100 km and 1 at 270 km. Colour goes
   // by height, and each height has its own shape.
@@ -173,7 +194,11 @@ const fragment = /* glsl */ `
     // 200 km, more of it the taller the rays stand.
     float weight = mix(1.0, 0.22, smoothstep(0.2, 1.0, s)) * mix(0.6, 1.0, smoothstep(0.0, 0.2, s));
     weight *= mix(1.0, mix(0.6, 3.0, tall), top) * (1.0 + border * 0.4);
-    vec3 col = mix(mix(GREEN, RED, smoothstep(0.45, 1.0, s)), PINK, border);
+    // The colours drift: some of the green turns blue in patches, and the red leans orange,
+    // more of both in a burst.
+    vec3 low = mix(GREEN, BLUE, bluish * (1.0 - smoothstep(0.3, 0.8, s)));
+    vec3 high = mix(RED, ORANGE, clamp(uHue.y + 0.5 * front, 0.0, 1.0) * 0.8);
+    vec3 col = mix(mix(low, high, smoothstep(0.45, 1.0, s)), PINK, border);
     // Near the day-night line the tops stand in sunlight above dark ground,
     // and sunlit nitrogen glows violet-blue.
     col = mix(col, VIOLET, top * sunlit * 0.75);
@@ -206,6 +231,13 @@ const fragment = /* glsl */ `
     // long that travel west along the oval. A quiet night has a few, a storm
     // is lively nearly all the way round.
     lively = smoothstep(0.42, 0.72, vBroad.z + (uActivity - 0.35) * 0.45);
+    // A burst: a bright front a few thousand km long that races along the oval. Everything in it
+    // is lively, and its curtains whip like a snake.
+    float lon = atan(d.z, d.x);
+    float away = abs(mod(lon - uSurge.x + 3.14159265, TAU) - 3.14159265);
+    front = uSurge.y * exp(-away * away / 0.18);
+    lively = max(lively, front);
+    bluish = clamp(0.7 * uHue.x * smoothstep(0.2, 0.9, vBroad.w) + 0.6 * front, 0.0, 1.0);
     // How tall the rays stand here: taller in lively aurora and in a disturbed
     // field, and in slow patches of its own.
     tall = clamp(vBroad.x * 0.9 + lively * 0.5 + uActivity * 0.5 - 0.25, 0.0, 1.0);
@@ -217,7 +249,8 @@ const fragment = /* glsl */ `
     // further apart, so a storm's wide oval isn't ruled like a contour map.)
     float calm = lively < 0.999 ? noise(d * 6.0 + t * 0.035) * 1.8 + noise(d * 21.0 - t * 0.09) * 0.5 : 0.0;
     float wild = lively > 0.001 ? noise(d * 7.0 - t * 0.09) * 2.2 + noise(d * 24.0 + t * 0.26) * 0.8 : 0.0;
-    phase = (min(p, 0.22) + max(p - 0.22, 0.0) * 0.35) * 13.0 + mix(calm, wild, lively) - t * 0.045;
+    phase = (min(p, 0.22) + max(p - 0.22, 0.0) * 0.35) * 13.0 + mix(calm, wild, lively) - t * 0.045
+      + front * 0.55 * sin(lon * 46.0 - t * 5.0);
     lobe = 0.5 + 0.5 * cos(TAU * phase);
     // From far away the arcs are finer than a pixel: fall back to their average.
     float resolved = clamp(1.0 - fwidth(phase) * 1.6, 0.0, 1.0);
@@ -242,7 +275,7 @@ const fragment = /* glsl */ `
     glow = 0.5 * mix(1.0, 0.55 + 0.8 * blink, pulsing);
 
     // Lively stretches are brighter, and the whole oval breathes a little.
-    float lit = base * night * uOpacity * rays * (1.0 + lively * (0.35 + 0.9 * uActivity)) * vBroad.y;
+    float lit = base * night * uOpacity * rays * (1.0 + lively * (0.35 + 0.9 * uActivity) + 1.2 * front) * vBroad.y;
     // The shells add up on screen (about four shells' worth, seen from above).
     // Bright aurora is eased toward a ceiling so it keeps its colour instead
     // of burning out to white.
@@ -291,6 +324,8 @@ export const Aurora: React.FC = () => {
         uSunDir: { value: new THREE.Vector3(1, 0, 0) },
         uTime: { value: 0 },
         uActivity: { value: 0.2 },
+        uSurge: { value: new THREE.Vector2(0, 0) },
+        uHue: { value: new THREE.Vector2(0, 0) },
         uOpacity: { value: 0 }
       },
       transparent: true,
@@ -325,6 +360,8 @@ export const Aurora: React.FC = () => {
     [mesh, material, texture, noise]
   );
 
+  const clock = useRef(Math.random() * 1000); // so two visits don't see the same bursts
+
   useFrame((_, delta) => {
     const on = settings.get().aurora && spaceWeather.get().aurora !== null;
     const u = material.uniforms;
@@ -332,8 +369,22 @@ export const Aurora: React.FC = () => {
     u.uOpacity.value = THREE.MathUtils.damp(u.uOpacity.value, on ? 0.3 : 0, 3, delta);
     mesh.visible = u.uOpacity.value > 0.002;
     const drive = auroraDrive(spaceWeather.get());
-    u.uTime.value = (u.uTime.value + Math.min(delta, 0.1) * drive.pace) % CLOCK_WRAP;
-    u.uActivity.value = THREE.MathUtils.damp(u.uActivity.value, drive.activity, 0.5, delta);
+    // The forecast changes every half hour; real aurora changes by the second. So, on top of the
+    // real level, a burst comes through now and then (generated, not measured): for 10 to 20
+    // seconds the solar wind gusts, everything speeds up and brightens, and a front races round
+    // the oval. The colours drift the same way.
+    const dt = Math.min(delta, 0.1);
+    clock.current += dt;
+    const now = clock.current;
+    const gust = forcedGust ?? THREE.MathUtils.smoothstep(drift(now / 16, 1), 0.58, 0.8);
+    u.uTime.value = (u.uTime.value + dt * drive.pace * (1 + 1.8 * gust)) % CLOCK_WRAP;
+    u.uActivity.value = THREE.MathUtils.damp(u.uActivity.value, Math.min(1, drive.activity + 0.5 * gust), 1.2, delta);
+    // The front runs west, a full turn of the oval in about 40 seconds while a burst lasts.
+    u.uSurge.value.set((u.uSurge.value.x - dt * (0.05 + 0.16 * gust) * drive.pace + Math.PI * 2) % (Math.PI * 2), gust);
+    u.uHue.value.set(
+      THREE.MathUtils.smoothstep(drift(now / 31, 2) + 0.3 * drive.activity, 0.45, 0.85),
+      THREE.MathUtils.smoothstep(drift(now / 43, 3) + 0.3 * drive.activity, 0.5, 0.9)
+    );
     u.uSunDir.value.copy(world.sunDirection);
   });
 

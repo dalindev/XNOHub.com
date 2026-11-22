@@ -42,7 +42,7 @@ const SOURCES: { what: string; who: string; href: string; note?: string }[] = [
     what: 'Aurora',
     who: 'NOAA Space Weather Prediction Center',
     href: 'https://www.swpc.noaa.gov/products/aurora-30-minute-forecast',
-    note: 'where it is and how bright are real; the curtains are generated, moving with the live solar wind speed and coloured by how disturbed the magnetic field is'
+    note: 'where it is and how strong are real; the curtains, their colours and the bursts that race through now and then are generated, on top of the live solar wind speed and how disturbed the magnetic field is'
   },
   { what: 'Stars', who: 'Yale Bright Star Catalogue', href: 'http://tdc-www.harvard.edu/catalogs/bsc5.html', note: '9,096 stars' },
   {

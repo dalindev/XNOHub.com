@@ -180,6 +180,8 @@ export const Dashboard: React.FC<{ starlink: StarlinkFile | null }> = ({ starlin
 
   const routed = s.mode !== 'classic';
   const [details, setDetails] = useState(false);
+  // Everything that isn't the live numbers: how signals are drawn, speed, the Earth and sky layers, Starlink.
+  const [more, setMore] = useState(false);
   // The confirmation time shown large: fibre's (how nodes really talk), unless only Starlink is drawn.
   const headline = s.mode === 'starlink' ? (stats?.space ?? null) : (stats?.fibre ?? stats?.space ?? null);
   const scale = Math.max(stats?.fibre?.maxMs ?? 0, stats?.space?.maxMs ?? 0, 1);
@@ -239,26 +241,11 @@ export const Dashboard: React.FC<{ starlink: StarlinkFile | null }> = ({ starlin
               )}
             </Section>
 
-            <Section title="Signal path" note={routed ? (s.slowMo === 1 ? 'real time' : `${s.slowMo}× slower`) : undefined}>
-              <div className="grid grid-cols-4 gap-1 rounded-lg bg-white/5 p-0.5">
-                {MODES.map((m) => (
-                  <button
-                    key={m.id}
-                    title={m.hint}
-                    onClick={() => settings.set({ mode: m.id })}
-                    className={`rounded-md py-1 transition-colors ${
-                      s.mode === m.id ? 'bg-[#209ce9]/25 text-white shadow-inner' : 'text-gray-400 hover:text-gray-200'
-                    }`}
-                  >
-                    {m.label}
-                  </button>
-                ))}
-              </div>
-
-              {routed && (
+            {routed && (
+              <Section title="Confirmation" note={s.slowMo === 1 ? 'real time' : `${s.slowMo}× slower`}>
                 <>
                   {/* The headline: how long this block took to confirm, each way. */}
-                  <div className="mt-3 flex items-end justify-between gap-3">
+                  <div className="flex items-end justify-between gap-3">
                     <div>
                       <div className="text-[10px] uppercase tracking-[0.14em] text-gray-500">Confirmed in</div>
                       <div className="mt-0.5 text-2xl font-light leading-none tabular-nums" style={{ color: CONFIRMED }}>
@@ -280,6 +267,39 @@ export const Dashboard: React.FC<{ starlink: StarlinkFile | null }> = ({ starlin
                     {!stats && <div className="text-gray-500">Waiting for a confirmation to route…</div>}
                   </div>
 
+                </>
+              </Section>
+            )}
+
+            <button
+              className="flex w-full items-center justify-between px-4 py-2.5 text-[10px] font-medium uppercase tracking-[0.14em] text-gray-500 hover:text-gray-300"
+              onClick={() => setMore((v) => !v)}
+              aria-expanded={more}
+            >
+              <span>More options</span>
+              {more ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            </button>
+
+            {more && (
+              <>
+            <Section title="Signal path">
+              <div className="grid grid-cols-4 gap-1 rounded-lg bg-white/5 p-0.5">
+                {MODES.map((m) => (
+                  <button
+                    key={m.id}
+                    title={m.hint}
+                    onClick={() => settings.set({ mode: m.id })}
+                    className={`rounded-md py-1 transition-colors ${
+                      s.mode === m.id ? 'bg-[#209ce9]/25 text-white shadow-inner' : 'text-gray-400 hover:text-gray-200'
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+
+              {routed && (
+                <>
                   <div className="mt-3 flex items-center justify-between">
                     <span className="text-gray-400">Speed</span>
                     <div className="flex gap-0.5 rounded-lg bg-white/5 p-0.5">
@@ -455,11 +475,13 @@ export const Dashboard: React.FC<{ starlink: StarlinkFile | null }> = ({ starlin
                 <div className="mt-1 text-[11px] text-gray-600">Version estimated from launch date</div>
               </Section>
             )}
+              </>
+            )}
           </div>
         )}
       </div>
 
-      <div className="pointer-events-auto">
+      <div className="pointer-events-auto w-full">
         <DonationImagePopover />
       </div>
     </div>
