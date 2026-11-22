@@ -34,7 +34,7 @@ import { simulateElection, hearFinalVotes, voteWorkMs, finalVoteWorkMs, VOTE_WOR
 //
 // The signal travels the way a signal really would:
 //  - amber: along submarine cables and overland fibre, at light speed in glass;
-//  - cyan:  up to a Starlink, across the laser links at light speed in
+//  - violet: up to a Starlink, across the laser links at light speed in
 //           vacuum, and back down (a what-if: real nodes are on fibre).
 // The light burns along the route like a fuse (bright tip, glowing trail that
 // fades), the node pulses when it arrives, and its votes return as thinner,
@@ -58,16 +58,19 @@ const MAX_POINTS = 2_400; // packet tips + relay flashes
 const FIBRE_BUDGET = 1_400;
 const SPACE_BUDGET = 600;
 const TAIL = 0.16; // the tail's fade time as a share of the trip; it is visible for about three times that
+const FLASH_SECONDS = 0.16; // how long a satellite stays lit after a signal passes through it
 const MIN_DRAWN = 6; // nodes drawn per confirmation when the network is very busy
 const LIFT = 1.0026; // surface routes float ~16 km up: clear of terrain and the ellipsoid bulge
 const SIMPLIFY = 5 * KM;
 
 // Colours as they should appear on screen (the shaders write them as is).
 const hex = (v: number) => new THREE.Color().setHex(v, THREE.LinearSRGBColorSpace);
-const FIBRE = hex(0xffb347);
+// Fibre is amber and Starlink violet: far apart from each other, from the blue Earth and its teal
+// cables, and from the green of confirmed.
+const FIBRE = hex(0xffb02e);
 const FIBRE_VOTE = hex(0xffe3b0);
-const SPACE = hex(0x6fe3ff);
-const SPACE_VOTE = hex(0xcdf5ff);
+const SPACE = hex(0xb18cff);
+const SPACE_VOTE = hex(0xded2ff);
 const WHITE = hex(0xffffff);
 const FINAL_VOTE = hex(0xa8ffcf); // the second, final vote: pale green, the colour of confirmed
 const CONFIRMED = hex(0x6dffa8);
@@ -669,7 +672,7 @@ export const NetworkPackets: React.FC<Props> = ({ reps, cables }) => {
     const fl = flashes.current;
     for (let i = fl.length - 1; i >= 0; i--) {
       const f = fl[i];
-      const age = (t - f.t0) / 0.5;
+      const age = (t - f.t0) / FLASH_SECONDS;
       if (age > 1) {
         fl[i] = fl[fl.length - 1];
         fl.pop();

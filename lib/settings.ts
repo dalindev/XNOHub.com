@@ -20,10 +20,10 @@ export interface Settings {
 
 let state: Settings = {
   mode: 'race', // fibre (how nodes really talk) and Starlink (the what-if) side by side
-  slowMo: 10, // a confirmation really takes about 0.3 s, too quick to follow: at 10x it is three seconds, and the times shown stay real
+  slowMo: 1, // real time; the panel explains why it is so quick and offers slow motion
   cables: true,
   lasers: false,
-  clouds: 0.5, // see-through by default, so the land and the network stay readable
+  clouds: 0, // off by default, so the land and the network stay readable
   aurora: true,
   skyLabels: true
 };
