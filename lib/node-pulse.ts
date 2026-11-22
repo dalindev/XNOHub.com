@@ -32,5 +32,21 @@ export function takeDuePulses(now: number, apply: (p: Pulse) => void) {
   }
 }
 
+// The same for the nodes that don't vote (components/relay-nodes): each flashes when it has confirmed a block.
+const relayPending: { node: number; at: number }[] = [];
+
+export function confirmRelay(node: number, at: number) {
+  if (relayPending.length < MAX_PENDING) relayPending.push({ node, at });
+}
+
+export function takeDueRelays(now: number, apply: (node: number, at: number) => void) {
+  for (let i = relayPending.length - 1; i >= 0; i--) {
+    if (relayPending[i].at > now) continue;
+    apply(relayPending[i].node, relayPending[i].at);
+    relayPending[i] = relayPending[relayPending.length - 1];
+    relayPending.pop();
+  }
+}
+
 /** For tests. */
 export const pendingPulses = () => pending.length;

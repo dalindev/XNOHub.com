@@ -14,8 +14,9 @@ import { KM } from '@/lib/geo';
 import { simNowMs } from '@/lib/sim-clock';
 import { settings } from '@/lib/settings';
 import { routeStats, type LegStats } from '@/lib/route-stats';
-import { packetClock, pulseNode } from '@/lib/node-pulse';
-import { simulateElection, voteWorkMs, finalVoteWorkMs, VOTE_WORK_MS, FINAL_VOTE_WORK_MS, type Election } from '@/lib/confirm-time';
+import { packetClock, pulseNode, confirmRelay } from '@/lib/node-pulse';
+import { useReps } from '@/lib/reps';
+import { simulateElection, hearFinalVotes, voteWorkMs, finalVoteWorkMs, VOTE_WORK_MS, FINAL_VOTE_WORK_MS, type Election } from '@/lib/confirm-time';
 
 // Each confirmation, the way Nano really settles it (lib/confirm-time has the
 // rules and where they come from): the node with the new block publishes it
@@ -28,7 +29,8 @@ import { simulateElection, voteWorkMs, finalVoteWorkMs, VOTE_WORK_MS, FINAL_VOTE
 // Drawn for each node: the block going out to it, then its vote and its final
 // vote coming back to the sender. Votes really go to every node, not only the
 // sender; those 2,500 other lines are left out of the picture but are in the
-// timings.
+// timings. The nodes that don't vote hear the final votes too and confirm for
+// themselves: each gets one line, the final vote that completed its count.
 //
 // The signal travels the way a signal really would:
 //  - amber: along submarine cables and overland fibre, at light speed in glass;
@@ -264,6 +266,9 @@ export const NetworkPackets: React.FC<Props> = ({ reps, cables }) => {
   const drawn = useMemo(() => reps.filter((r) => r.lat !== null && r.lon !== null), [reps]);
   const index = useMemo(() => new Map(drawn.map((r, i) => [r.account, i])), [drawn]);
   const geo = useMemo(() => drawn.map((r) => ({ lat: r.lat!, lon: r.lon! })), [drawn]);
+  // The live nodes that don't vote (components/relay-nodes). In the fibre network they come after the voting nodes.
+  const relayFile = useReps()?.nodes;
+  const relays = useMemo(() => (relayFile ?? []).map((n) => ({ lat: n.lat, lon: n.lon })), [relayFile]);
   // Online nodes, heaviest voters first: their votes are the ones that confirm a block.
   const voters = useMemo(
     () =>
@@ -288,10 +293,10 @@ export const NetworkPackets: React.FC<Props> = ({ reps, cables }) => {
     fibreRef.current = null;
     fibrePaths.current.clear();
     const id = setTimeout(() => {
-      fibreRef.current = new FibreNetwork(cables, geo);
+      fibreRef.current = new FibreNetwork(cables, [...geo, ...relays]);
     }, 50);
     return () => clearTimeout(id);
-  }, [cables, geo]);
+  }, [cables, geo, relays]);
 
   const scene = useMemo(() => {
     const ring = new ArcRing(CAPACITY);
@@ -528,6 +533,27 @@ export const NetworkPackets: React.FC<Props> = ({ reps, cables }) => {
       });
       pulseNode(src, t0, WHITE);
 
+      // The nodes that don't vote. Nothing tells them "confirmed": each hears the representatives'
+      // final votes and counts them itself. Its dot flashes when they add up, and the final vote
+      // that completed its count is drawn arriving (only while the whole broadcast is being drawn).
+      const vote = fibreVote ?? spaceVote;
+      if (vote) {
+        const all = drawCount >= others.length;
+        relays.forEach((place, r) => {
+          const delayTo = (k: number) =>
+            fibre && fibreVote ? fibre.delayMs(nodes[k], drawn.length + r) : spacePace * Math.max(500, haversineKm(geo[nodes[k]], place));
+          const heard = hearFinalVotes(vote, share, delayTo);
+          if (!heard) return;
+          confirmRelay(r, t0 + seconds(heard.at));
+          if (!all || !fibre || !fibreVote) return;
+          const from = nodes[heard.from];
+          const route = fibre.route(from, drawn.length + r);
+          if (!route) return;
+          const trip = seconds(route.ms);
+          addFibre(fibrePath(from, drawn.length + r, route).fwd, look(t0 + seconds(heard.at) - trip, trip, FINAL_VOTE, true, conf, weight * 0.7, 1));
+        });
+      }
+
       const finite = (ms: number | undefined) => (ms !== undefined && Number.isFinite(ms) ? ms : null);
       // When the sender has a quorum of first votes is when its own final vote leaves, less the time it takes to send it.
       const leg = (x: typeof f, vote: Election | null): LegStats | null =>
@@ -557,7 +583,7 @@ export const NetworkPackets: React.FC<Props> = ({ reps, cables }) => {
         hops
       });
     });
-  }, [geo, index, drawn, voters, scene]);
+  }, [geo, index, drawn, voters, scene, relays]);
 
   const tmp = useMemo(() => new THREE.Vector3(), []);
   useFrame((state) => {

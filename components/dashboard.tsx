@@ -234,7 +234,7 @@ export const Dashboard: React.FC<{ starlink: StarlinkFile | null }> = ({ starlin
               )}
             </Section>
 
-            <Section title="Signal path" note={routed ? (s.slowMo === 1 ? 'real time' : `slowed ${s.slowMo}×`) : undefined}>
+            <Section title="Signal path" note={routed ? (s.slowMo === 1 ? 'real time' : `shown ${s.slowMo}× slower · times are real`) : undefined}>
               <div className="grid grid-cols-4 gap-1 rounded-lg bg-white/5 p-0.5">
                 {MODES.map((m) => (
                   <button

@@ -84,3 +84,25 @@ export function simulateElection({ origin, share, delay, voteWork, finalWork }: 
   const confirmedAt = quorumAt(n, finalSentAt, share, delay);
   return { blockAt, voteSentAt, finalSentAt, confirmedAt };
 }
+
+/**
+ * A node that doesn't vote. Nothing is sent to it to say "confirmed": like every node it receives
+ * the representatives' final votes and counts them itself. This is when those add up to a quorum
+ * at a node `delayTo(rep)` ms from each representative, and which representative's vote completed
+ * it. (Final votes reach most non-voting nodes straight from the representatives; some get them
+ * one relay later, which is not modelled.) Null if they never add up.
+ */
+export function hearFinalVotes(election: Election, share: ArrayLike<number>, delayTo: (rep: number) => number): { at: number; from: number } | null {
+  const arrivals: [number, number][] = [];
+  for (let rep = 0; rep < share.length; rep++) {
+    const t = election.finalSentAt[rep] + delayTo(rep);
+    if (Number.isFinite(t)) arrivals.push([t, rep]);
+  }
+  arrivals.sort((a, b) => a[0] - b[0]);
+  let have = 0;
+  for (const [t, rep] of arrivals) {
+    have += share[rep];
+    if (have >= QUORUM) return { at: t, from: rep };
+  }
+  return null;
+}

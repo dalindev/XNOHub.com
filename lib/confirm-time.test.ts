@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { simulateElection, voteWorkMs, finalVoteWorkMs, VOTE_WORK_MS, FINAL_VOTE_WORK_MS } from './confirm-time';
+import { simulateElection, hearFinalVotes, voteWorkMs, finalVoteWorkMs, VOTE_WORK_MS, FINAL_VOTE_WORK_MS } from './confirm-time';
 
 // Four nodes on a line, 10 ms apart: 0 - 1 - 2 - 3.
 const line = (from: number, to: number) => Math.abs(from - to) * 10;
@@ -36,6 +36,20 @@ describe('simulateElection', () => {
     const e = run([20, 20, 20, 40], 0, cut);
     expect(e.confirmedAt[0]).toBe(Infinity);
     expect(e.finalSentAt[1]).toBe(Infinity);
+  });
+});
+
+describe('hearFinalVotes', () => {
+  it('a node that does not vote confirms when the final votes it hears add up to two-thirds', () => {
+    const e = run([25, 25, 25, 25]); // final votes leave at 180, 170, 160, 170
+    // A listener 5 ms from node 3, further from the rest: hears 175 (node 3), 185 (node 2), 205 (node 1).
+    const heard = hearFinalVotes(e, [25, 25, 25, 25], (rep) => 5 + (3 - rep) * 10);
+    expect(heard).toEqual({ at: 195, from: 1 });
+  });
+
+  it('is null when it cannot hear enough of the weight', () => {
+    const e = run([25, 25, 25, 25]);
+    expect(hearFinalVotes(e, [25, 25, 25, 25], (rep) => (rep < 2 ? 10 : Infinity))).toBeNull();
   });
 });
 
