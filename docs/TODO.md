@@ -103,6 +103,21 @@ Open:
 - [x] Starship onboard cameras and payload bay (2026-11-22, local): in the Starship view, camera buttons for Chase, Flap (under the left forward flap, looking down the hull), Bay (inside the payload bay, across the stack and out of the door), Outward (on the hull, looking out along the satellites' line) and Booster (on a chine, looking up at the grid fins; while the booster flies). Mounts after Ring Watchers' survey of the flight cameras; lenses are wide like the webcast views. The slot is now a real opening into a bay with walls (no sunlight inside), the dispenser's rails, and two cool-white lamps for the camera (the lamps are our assumption). The satellites wait in a stack and the stack lowers one step after each release; each starts wholly inside the hull (before, its front corners poked through). Slot height 0.62 → 1.15 m (an estimate) so a folded V3 with its dishes fits. Dev hook `__xno.shipCam(id)`
 - [x] Meteors through the Earth and in the daytime sky (2026-11-22, local): streaks aren't depth-tested, so the shower the trailer's sunrise shot starts over Europe showed through the Earth in the liftoff shot at Starbase (and in the app, any meteor still burning when the camera swung round). Each streak is now hidden when the Earth is between it and the camera (`behindEarth` in `lib/meteor-paths.ts`), and all of them fade out under a daytime sky near the ground, as the stars do (`world.skyLight`, written by Sky). Checked headless: a shower seen from space, then from the far side, drew 20 streaks through the Earth before, 0 after. Space dust is now drawn only above 100 km (it had streaked across the blue sky at liftoff): checked headless, none at 14 km up, 18 in orbit
 
+## Phase 2.7: Starship views closer to the real webcast (proposed 2026-11-22)
+
+Compared our Starship views (headless, daylight, liftoff to orbit) with SpaceX's public flight photos and the webcast's onboard views. Ranked by how much each changes the feel:
+
+- [ ] Sky by altitude (a live bug): the day sky stays ~96% blue at 27 km (booster camera at T+1:38) and pale grey-blue at 72 km (hot staging); real sky light falls about as the air above you (scale height ~8 km, ~3% left at 27 km), with a bright band at the horizon and a darker zenith. `low` in `components/sky.tsx` fades from 13 to 130 km
+- [ ] Camera exposure: a real camera exposed for a sunlit ship or Earth shows no stars and no Milky Way, clips the lit steel toward white and leaves shadows near black; ours shows the Milky Way beside the Sun (Outward camera at T+19:48) and renders the day-side Gulf dark navy from 72 km. Auto-exposure for the Starship views (and the trailer), star layer faded by it
+- [ ] Bloom and sun glare: the Sun as a blown-out disc that spreads, glints on steel that bloom, veiling glare when the Sun is near the frame. Three's own EffectComposer, UnrealBloomPass and OutputPass (no new download); Starship views and trailer only, to keep the globe view light
+- [ ] Ice flakes instead of dust streaks: onboard cameras show frost and vented-propellant flakes drifting slowly round the ship (cm/s to m/s), tumbling and glittering in sunlight, dark in the Earth's shadow, big and soft when near the lens; and frost shedding past the cameras during ascent. Our space dust (fast streaks, for the feeling of speed) isn't seen on any real feed
+- [ ] Frost on the tanks: white frost bands over the propellant tanks at liftoff and during ascent, thinning in orbit
+- [ ] Onboard lens: wide-angle barrel distortion, vignette, a little chromatic aberration and grain, shake that follows thrust and max-Q; per camera mount
+- [ ] Colour grade closer to the webcast: more contrast and saturation (white clouds, vivid ocean blue), shadows near black; check AgX against the current ACES
+- [ ] Earth from orbit: bluish haze over the day side growing toward the limb (aerial perspective), a thicker glowing limb, warm bands at the terminator; sunset on the ship as it enters the Earth's shadow (the light reddens and dims)
+- [ ] Plumes: shock diamonds at sea level, the huge sunlit vacuum plume higher up, a hot-staging flash
+- [ ] Reentry plasma from the flap camera (the most recognisable webcast shot): a new mission phase, as our mission ends in orbit
+
 ## Phase 3: launch sites and Starship operations
 
 - [ ] Launch-site picker, with presets for Starbase, LC-39A and SLC-37
