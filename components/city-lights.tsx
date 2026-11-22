@@ -11,6 +11,8 @@ import { world } from '@/lib/world';
 // lights are generated. Unlike a night-lights picture, which is a blur once
 // you zoom in, these stay sharp at any distance.
 
+const GLOW_DEFINE = '#define GLOW 4.0\n';
+
 const vertex = /* glsl */ `
   uniform vec3 uSunDir;
   uniform float uSize;
@@ -30,7 +32,7 @@ const vertex = /* glsl */ `
     // drawn coarsely and would otherwise swallow them. 80 m to 13 km.
     p += up * clamp(distance(cameraPosition, p) * 0.0025, 1.3e-5, 0.002);
     gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
-    gl_PointSize = uSize;
+    gl_PointSize = uSize * GLOW; // room for the glow round each light
     vLook = vec4(aLook.rgb, aLook.a * night * uGain);
   }
 `;
@@ -40,15 +42,20 @@ const fragment = /* glsl */ `
   void main() {
     float r = length(gl_PointCoord - 0.5) * 2.0;
     if (r > 1.0) discard;
-    gl_FragColor = vec4(vLook.rgb * exp(-r * r * 3.0) * vLook.a, 1.0);
+    // From orbit a city is not a point: its light scatters off the ground, haze and cloud into a
+    // soft glow that runs into its neighbours'. A small core, and a wide faint glow round it that
+    // adds up where lights are close together.
+    float core = exp(-r * r * 3.0 * GLOW * GLOW) * 0.55;
+    float glow = exp(-r * r * 4.5) * (1.0 - r) * 0.14;
+    gl_FragColor = vec4(vLook.rgb * (core + glow) * vLook.a, 1.0);
   }
 `;
 
 export const CityLights: React.FC = () => {
   const { points, material } = useMemo(() => {
     const material = new THREE.ShaderMaterial({
-      vertexShader: vertex,
-      fragmentShader: fragment,
+      vertexShader: GLOW_DEFINE + vertex,
+      fragmentShader: GLOW_DEFINE + fragment,
       uniforms: {
         uSunDir: { value: new THREE.Vector3(1, 0, 0) },
         uSize: { value: 2 },

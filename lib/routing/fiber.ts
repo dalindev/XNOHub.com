@@ -96,6 +96,17 @@ export class FibreNetwork {
     return { vertices: this.pts.length, edges: this.graph.edgeCount };
   }
 
+  /** One-way travel time between two reps in ms, without building the route. Infinity if no fibre joins them. */
+  delayMs(fromRep: number, toRep: number): number {
+    const s = this.repVertex[fromRep];
+    let tree = this.cache.get(s);
+    if (!tree) {
+      tree = this.graph.dijkstra(s);
+      this.cache.set(s, tree);
+    }
+    return tree.dist[this.repVertex[toRep]] / FIBRE_KM_PER_MS;
+  }
+
   /** Route between two reps (indices into the reps passed to the constructor). */
   route(fromRep: number, toRep: number): Route | null {
     const s = this.repVertex[fromRep];

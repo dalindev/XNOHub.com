@@ -112,7 +112,10 @@ const fragment = /* glsl */ `
 
     // Thicker toward the limb, where the line of sight crosses more cloud.
     float limb = 1.0 - abs(dot(n, vView));
-    float alpha = cover * mix(0.62, 0.94, day) * (1.0 + 0.35 * limb * limb);
+    // By day white cloud hides whatever is under it, so thin cloud is let through and only thick
+    // cloud banks stay solid. At night cloud is nearly as dark as the ground and needs no thinning.
+    float body = mix(cover, pow(cover, 1.8), day);
+    float alpha = body * mix(0.62, 0.74, day) * (1.0 + 0.35 * limb * limb);
     gl_FragColor = vec4(col, clamp(alpha, 0.0, 1.0) * uOpacity);
   }
 `;
@@ -216,7 +219,11 @@ export const CloudMesh = ({ meshRef }: { meshRef?: React.RefObject<THREE.Mesh | 
 
   useFrame((_, delta) => {
     const u = material.uniforms;
-    const strength = u.uMap.value !== null ? settings.get().clouds : 0;
+    // Riding a satellite or a Starship (the only views that set a near plane)
+    // the clouds are off: from 500 km the weather picture's 5 to 20 km pixels
+    // show as blurry blocks.
+    const wanted = world.nearOverride !== null ? 0 : settings.get().clouds;
+    const strength = u.uMap.value !== null ? wanted : 0;
     // The photo shows 5 to 20 km per pixel: from close up it is only a grey
     // blur over the ground. Gone below ~200 km, full above ~700 km.
     const above = THREE.MathUtils.smoothstep(world.altitude, 0.03, 0.11);

@@ -10,12 +10,19 @@
 //   - confirmation_quorum on a public RPC: which reps are online and their
 //     weight. A rep online in the quorum but unknown to nano.community is kept
 //     with no location (listed, not drawn).
+//   - telemetry on the same RPC: every live node that node can see (about 150),
+//     most of which don't vote. They relay blocks and keep their own tally.
+//   - ip-api.com (free for non-commercial use): the city of an IP address, for
+//     the nodes nano.community has no place for. Nothing is guessed: a node
+//     whose address can't be placed is listed without a place and not drawn.
+//     Addresses are used to look the place up and are not written to the file.
 // Run it by hand or from CI every ~12 h. Writes nothing if a source fails.
 
 import { writeFile, mkdir } from 'node:fs/promises';
 
 const RPCS = ['https://rpc.nano.to', 'https://node.somenano.com/proxy'];
 const REPS_URL = 'https://nano.community/api/representatives';
+const GEO_URL = 'http://ip-api.com/batch?fields=status,query,lat,lon,city,countryCode';
 const OUT = new URL('../public/data/reps.json', import.meta.url);
 const RAW_PER_NANO = 10n ** 30n;
 const PRINCIPAL_SHARE = 0.001; // 0.1% of online weight
@@ -43,6 +50,47 @@ async function quorum() {
 }
 
 const toNano = (raw) => Number(BigInt(raw) / RAW_PER_NANO);
+
+/** "[::ffff:1.2.3.4]:7075" or "::ffff:1.2.3.4" → "1.2.3.4"; plain IPv6 stays as it is. */
+const bareIp = (address) => {
+  let a = String(address ?? '').trim();
+  const bracket = a.match(/^\[(.+)\](?::\d+)?$/);
+  if (bracket) a = bracket[1];
+  else if (/^\d+\.\d+\.\d+\.\d+:\d+$/.test(a)) a = a.replace(/:\d+$/, '');
+  return a.replace(/^::ffff:/i, '');
+};
+
+/** Every live node the RPC's node can see, voting or not. Empty if the RPC won't say. */
+async function telemetry(url) {
+  try {
+    const t = await getJson(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'telemetry', raw: 'true' })
+    });
+    return Array.isArray(t.metrics) ? t.metrics : [];
+  } catch (e) {
+    console.warn(`telemetry from ${url} failed: ${e.message}`);
+    return [];
+  }
+}
+
+/** City-level place of each address, 100 per request. Addresses that can't be placed are left out. */
+async function locate(ips) {
+  const found = new Map();
+  for (let i = 0; i < ips.length; i += 100) {
+    try {
+      const rows = await getJson(GEO_URL, { method: 'POST', body: JSON.stringify(ips.slice(i, i + 100)) });
+      for (const r of rows) {
+        if (r.status !== 'success' || !Number.isFinite(r.lat) || !Number.isFinite(r.lon) || (r.lat === 0 && r.lon === 0)) continue;
+        found.set(r.query, { lat: +r.lat.toFixed(3), lon: +r.lon.toFixed(3), city: r.city || null, country: r.countryCode || null });
+      }
+    } catch (e) {
+      console.warn(`locating addresses failed: ${e.message}`);
+    }
+  }
+  return found;
+}
 
 const [community, q] = await Promise.all([getJson(REPS_URL), quorum()]);
 const onlineTotal = toNano(q.online_stake_total);
@@ -79,6 +127,17 @@ for (const [account, weight] of online) {
   }
 }
 
+// Places for what nano.community couldn't place: online reps by their peer address, and the nodes that don't vote.
+const live = await telemetry(q.source);
+const repIp = new Map(q.peers.map((p) => [p.account, bareIp(p.ip)]));
+const repIps = new Set(repIp.values());
+const others = live.map((m) => ({ ip: bareIp(m.address), version: `${m.major_version}.${m.minor_version}` })).filter((n) => n.ip && !repIps.has(n.ip));
+const unplaced = [...byAccount.values()].filter((r) => r.online && r.lat === null && repIp.get(r.account));
+const places = await locate([...new Set([...unplaced.map((r) => repIp.get(r.account)), ...others.map((n) => n.ip)])]);
+for (const r of unplaced) Object.assign(r, places.get(repIp.get(r.account)) ?? {});
+/** Live nodes that don't vote, where their place is known. */
+const nodes = others.map((n) => ({ ...places.get(n.ip), version: n.version })).filter((n) => n.lat !== undefined);
+
 const reps = [...byAccount.values()]
   .map((r) => ({
     ...r,
@@ -89,9 +148,12 @@ const reps = [...byAccount.values()]
 
 const out = {
   generatedAt: new Date().toISOString(),
-  sources: { reps: REPS_URL, quorum: q.source },
+  sources: { reps: REPS_URL, quorum: q.source, places: 'https://ip-api.com' },
+  /** Live nodes the RPC's node could see, voting or not. */
+  liveNodes: live.length,
   onlineWeight: Math.round(onlineTotal),
-  reps
+  reps,
+  nodes
 };
 
 await mkdir(new URL('.', OUT), { recursive: true });
@@ -102,5 +164,6 @@ const coveredWeight = onlineLocated.reduce((s, r) => s + r.weight, 0);
 console.log(
   `reps.json: ${reps.length} reps, ${reps.filter((r) => r.online).length} online, ` +
     `${reps.filter((r) => r.principal).length} principal, ${located.length} with location; ` +
-    `drawn online reps hold ${((coveredWeight / onlineTotal) * 100).toFixed(1)}% of online weight`
+    `drawn online reps hold ${((coveredWeight / onlineTotal) * 100).toFixed(1)}% of online weight; ` +
+    `${live.length} live nodes seen, ${others.length} of them not voting, ${nodes.length} of those placed`
 );

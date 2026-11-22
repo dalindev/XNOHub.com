@@ -3,13 +3,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowDownLeft, ArrowUpRight, ChevronDown, ChevronUp } from 'lucide-react';
 import { useConfirmations } from '@/providers/confirmation-provider';
-import { onConfirmation, confirmationsPerSecond } from '@/lib/feed/bus';
+import { onConfirmation, confirmationsPerSecond, isSimulated, setSimulated } from '@/lib/feed/bus';
 import { parseNanoAmount } from '@/lib/parse-nano-amount';
 import { getStyleByNanoAmount } from '@/lib/get-style-by-nano-amount';
 import { getRepName, useReps, formatWeight } from '@/lib/reps';
 import { settings, useSettings, type SignalMode } from '@/lib/settings';
 import { useRouteStats, type LegStats } from '@/lib/route-stats';
-import { VOTE_WORK_MS } from '@/lib/confirm-time';
+import { VOTE_WORK_MS, FINAL_VOTE_WORK_MS } from '@/lib/confirm-time';
 import { useSpaceWeather, kpLabel } from '@/lib/space-weather';
 import { useCloudSource } from '@/lib/live-clouds';
 import { VERSION_NAMES, periodMinutes, type StarlinkFile } from '@/lib/orbits';
@@ -20,9 +20,11 @@ import { APP_CONFIG } from '@/constants/config';
 // and weather layers, and the Starlink constellation. All of it comes from
 // the feed and public data files in the browser; there is no database.
 
-const FIBRE = '#ffb347';
-const SPACE = '#6fe3ff';
+// The same colours as the signals on the globe (components/network-packets).
+const FIBRE = '#ffb02e';
+const SPACE = '#b18cff';
 const VOTE = '#ffe3b0';
+const SPACE_VOTE = '#ded2ff';
 const CONFIRMED = '#6dffa8';
 const CLOUDS = [
   { value: 0, label: 'off' },
@@ -172,13 +174,20 @@ export const Dashboard: React.FC<{ starlink: StarlinkFile | null }> = ({ starlin
 
   const nodes = useMemo(() => {
     const list = reps?.reps ?? [];
-    return { total: list.length, online: list.filter((r) => r.online).length, weight: reps?.onlineWeight ?? 0 };
+    const online = list.filter((r) => r.online).length;
+    return { live: Math.max(reps?.liveNodes ?? 0, online), online, weight: reps?.onlineWeight ?? 0 };
   }, [reps]);
 
   const routed = s.mode !== 'classic';
+  const [details, setDetails] = useState(false);
+  // Everything that isn't the live numbers: how signals are drawn, speed, the Earth and sky layers, Starlink.
+  const [more, setMore] = useState(false);
+  const [simulated, setSimulatedState] = useState(isSimulated);
+  // The confirmation time shown large: fibre's (how nodes really talk), unless only Starlink is drawn.
+  const headline = s.mode === 'starlink' ? (stats?.space ?? null) : (stats?.fibre ?? stats?.space ?? null);
   const scale = Math.max(stats?.fibre?.maxMs ?? 0, stats?.space?.maxMs ?? 0, 1);
-  // Travel's part of the confirmation time shown: fibre's, unless only Starlink is drawn.
-  const travel = (s.mode === 'starlink' ? stats?.space : (stats?.fibre ?? stats?.space))?.quorumTravelMs ?? null;
+  // When the first round of votes reached a quorum at the sender: fibre's, unless only Starlink is drawn.
+  const votes = (s.mode === 'starlink' ? stats?.space : (stats?.fibre ?? stats?.space))?.votesMs ?? null;
 
   return (
     <div className="pointer-events-none flex max-h-full w-full flex-col items-end gap-2 text-xs text-gray-300 select-none md:w-[19.5rem]">
@@ -194,7 +203,7 @@ export const Dashboard: React.FC<{ starlink: StarlinkFile | null }> = ({ starlin
             {open ? <ChevronUp className="h-4 w-4 shrink-0 text-gray-500" /> : <ChevronDown className="h-4 w-4 shrink-0 text-gray-500" />}
           </div>
           <div className="mt-1.5 truncate text-[11px] text-gray-500">
-            {feed.total.toLocaleString('en-US')} this visit · {nodes.online} of {nodes.total} nodes online
+            {feed.total.toLocaleString('en-US')} this visit · {nodes.live} live nodes, {nodes.online} voting
           </div>
         </button>
 
@@ -233,7 +242,66 @@ export const Dashboard: React.FC<{ starlink: StarlinkFile | null }> = ({ starlin
               )}
             </Section>
 
-            <Section title="Signal path" note={routed ? (s.slowMo === 1 ? 'real time' : `slowed ${s.slowMo}×`) : undefined}>
+            {routed && (
+              <Section title="Confirmation" note={s.slowMo === 1 ? 'real time' : `${s.slowMo}× slower`}>
+                <>
+                  {/* The headline: how long this block took to confirm, each way. */}
+                  <div className="flex items-end justify-between gap-3">
+                    <div>
+                      <div className="text-[10px] uppercase tracking-[0.14em] text-gray-500">Confirmed in</div>
+                      <div className="mt-0.5 text-2xl font-light leading-none tabular-nums" style={{ color: CONFIRMED }}>
+                        {quorum(headline) ?? '–'}
+                      </div>
+                    </div>
+                    {s.mode === 'race' && quorum(stats?.space ?? null) && (
+                      <div className="text-right text-[11px] leading-snug text-gray-400">
+                        by fibre
+                        <br />
+                        <span style={{ color: SPACE }}>{quorum(stats?.space ?? null)}</span> by Starlink
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-3 flex flex-col gap-2">
+                    {stats?.fibre && s.mode !== 'starlink' && <TimingRow label="Fibre" color={FIBRE} leg={stats.fibre} scale={scale} />}
+                    {stats?.space && s.mode !== 'cables' && <TimingRow label="Starlink" color={SPACE} leg={stats.space} scale={scale} />}
+                    {!stats && <div className="text-gray-500">Waiting for a confirmation to route…</div>}
+                  </div>
+
+                </>
+              </Section>
+            )}
+
+            <button
+              className="flex w-full items-center justify-between px-4 py-2.5 text-[10px] font-medium uppercase tracking-[0.14em] text-gray-500 hover:text-gray-300"
+              onClick={() => setMore((v) => !v)}
+              aria-expanded={more}
+            >
+              <span>More options</span>
+              {more ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            </button>
+
+            {more && (
+              <>
+            <Section title="Traffic">
+              <Pill
+                on={simulated}
+                onClick={() => {
+                  setSimulated(!simulated);
+                  setSimulatedState(!simulated);
+                }}
+                title="Sample transactions at a steady pace, instead of the live network"
+              >
+                Simulate traffic
+              </Pill>
+              <div className="mt-2 text-[11px] leading-snug text-gray-500">
+                {simulated
+                  ? 'Showing sample transactions, one every few seconds. These are not real payments.'
+                  : 'Showing the live Nano network. When it is quiet, switch this on to see how a transaction confirms.'}
+              </div>
+            </Section>
+
+            <Section title="Signal path">
               <div className="grid grid-cols-4 gap-1 rounded-lg bg-white/5 p-0.5">
                 {MODES.map((m) => (
                   <button
@@ -251,75 +319,8 @@ export const Dashboard: React.FC<{ starlink: StarlinkFile | null }> = ({ starlin
 
               {routed && (
                 <>
-                  <div className="mt-2.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-gray-400">
-                    {s.mode !== 'starlink' && (
-                      <span className="flex items-center gap-1.5">
-                        <span className="h-0.5 w-4 rounded-full" style={{ background: FIBRE, boxShadow: `0 0 6px ${FIBRE}` }} />
-                        fibre cable
-                      </span>
-                    )}
-                    {s.mode !== 'cables' && (
-                      <span className="flex items-center gap-1.5">
-                        <span className="h-0.5 w-4 rounded-full" style={{ background: SPACE, boxShadow: `0 0 6px ${SPACE}` }} />
-                        Starlink laser
-                      </span>
-                    )}
-                    <span className="flex items-center gap-1.5">
-                      <span className="h-px w-4 rounded-full" style={{ background: s.mode === 'starlink' ? '#cdf5ff' : VOTE }} />
-                      vote coming back
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <span className="h-2.5 w-2.5 rounded-full border" style={{ borderColor: CONFIRMED, boxShadow: `0 0 6px ${CONFIRMED}` }} />
-                      confirmed
-                    </span>
-                  </div>
-
-                  <div className="mt-2.5 flex flex-col gap-2">
-                    {stats?.fibre && s.mode !== 'starlink' && <TimingRow label="Fibre" color={FIBRE} leg={stats.fibre} scale={scale} />}
-                    {stats?.space && s.mode !== 'cables' && <TimingRow label="Starlink" color={SPACE} leg={stats.space} scale={scale} />}
-                    {!stats && <div className="text-gray-500">Waiting for a confirmation to route…</div>}
-                  </div>
-
-                  {stats && (
-                    <div className="mt-2 text-[11px] leading-snug text-gray-500">
-                      <div className="text-gray-400">
-                        {stats.drawn >= stats.online
-                          ? `Sent to all ${stats.online} other online nodes; each votes back.`
-                          : `Busy network: drawing ${stats.drawn} of ${stats.online} nodes.`}
-                      </div>
-                      {(quorum(stats.fibre) || quorum(stats.space)) && (
-                        <div className="text-gray-400" title="Nano confirms a block once votes carrying 67% of the online voting weight have arrived">
-                          <span style={{ color: CONFIRMED }}>Confirmed</span> (two-thirds of the vote back):{' '}
-                          {[s.mode !== 'starlink' && quorum(stats.fibre) && `${quorum(stats.fibre)}${s.mode === 'race' ? ' by fibre' : ''}`,
-                            s.mode !== 'cables' && quorum(stats.space) && `${quorum(stats.space)}${s.mode === 'race' ? ' by Starlink' : ''}`]
-                            .filter(Boolean)
-                            .join(' · ')}
-                        </div>
-                      )}
-                      {s.mode === 'race' && stats.pairs > 0 && (
-                        <div className="text-gray-400">
-                          Starlink got there first for {stats.spaceFirst} of {stats.pairs} nodes
-                          {stats.totalPairs > stats.pairs && ` (${Math.round((stats.totalSpaceFirst / stats.totalPairs) * 100)}% overall)`}
-                        </div>
-                      )}
-                      {s.mode !== 'starlink' && stats.cables.length > 0 && (
-                        <div className="truncate" title={stats.cables.join(' → ')}>
-                          via {stats.cables.join(' → ')}
-                        </div>
-                      )}
-                      {s.mode === 'starlink' && stats.hops > 0 && <div>longest route relayed by {stats.hops} satellites</div>}
-                      <div>
-                        {travel !== null && `${ms(travel)} of that is travel at light speed. `}
-                        The rest is each node checking the block and voting: an estimate (about {VOTE_WORK_MS} ms), set to match Nano&rsquo;s usual 0.3 s.
-                        {s.mode !== 'cables' && ' Starlink is a what-if: real nodes are on fibre.'}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="mt-2.5 flex items-center justify-between">
-                    <span className="text-gray-400" title="Light crosses an ocean in about 40 ms and a block confirms in about 0.3 s. Slow it down to follow one">
-                      Slow motion
-                    </span>
+                  <div className="mt-3 flex items-center justify-between">
+                    <span className="text-gray-400">Speed</span>
                     <div className="flex gap-0.5 rounded-lg bg-white/5 p-0.5">
                       {SLOW.map((f) => (
                         <button
@@ -334,6 +335,78 @@ export const Dashboard: React.FC<{ starlink: StarlinkFile | null }> = ({ starlin
                       ))}
                     </div>
                   </div>
+                  <div className="mt-1.5 text-[11px] leading-snug text-gray-500">
+                    {s.slowMo === 1
+                      ? 'Nano is fast: the block, every vote and every final vote are done in about 0.3 s. Slow it down to follow one.'
+                      : `Slowed ${s.slowMo}× so you can follow the block, the votes and the final votes. The times shown are the real ones.`}
+                  </div>
+
+                  <button
+                    className="mt-2.5 flex w-full items-center justify-between text-[11px] text-gray-500 hover:text-gray-300"
+                    onClick={() => setDetails((v) => !v)}
+                    aria-expanded={details}
+                  >
+                    <span>How it works</span>
+                    {details ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                  </button>
+
+                  {details && (
+                    <div className="mt-2 text-[11px] leading-snug text-gray-500">
+                      <div className="mb-2 flex flex-wrap gap-x-3 gap-y-1 text-gray-400">
+                        {s.mode !== 'starlink' && (
+                          <span className="flex items-center gap-1.5">
+                            <span className="h-0.5 w-4 rounded-full" style={{ background: FIBRE, boxShadow: `0 0 6px ${FIBRE}` }} />
+                            block by fibre
+                          </span>
+                        )}
+                        {s.mode !== 'cables' && (
+                          <span className="flex items-center gap-1.5">
+                            <span className="h-0.5 w-4 rounded-full" style={{ background: SPACE, boxShadow: `0 0 6px ${SPACE}` }} />
+                            block by Starlink
+                          </span>
+                        )}
+                        <span className="flex items-center gap-1.5">
+                          <span className="h-px w-4 rounded-full" style={{ background: s.mode === 'starlink' ? SPACE_VOTE : VOTE }} />
+                          vote
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <span className="h-px w-4 rounded-full" style={{ background: '#a8ffcf' }} />
+                          final vote
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <span className="h-2.5 w-2.5 rounded-full border" style={{ borderColor: CONFIRMED, boxShadow: `0 0 6px ${CONFIRMED}` }} />
+                          confirmed
+                        </span>
+                      </div>
+                      {stats && (
+                        <>
+                          <div className="text-gray-400">
+                            {stats.drawn >= stats.online
+                              ? `The block goes to all ${stats.online} other voting nodes. Each votes, then sends a final vote once it has seen two-thirds of the votes.`
+                              : `Busy network: drawing ${stats.drawn} of ${stats.online} voting nodes.`}{' '}
+                            A node counts the block as confirmed when it has two-thirds of the final votes; every node does this for itself.
+                            {votes !== null && ` Here the sender had two-thirds of the first votes at ${ms(votes)}.`}
+                          </div>
+                          {s.mode === 'race' && stats.pairs > 0 && (
+                            <div className="mt-1 text-gray-400">
+                              Starlink got there first for {stats.spaceFirst} of {stats.pairs} nodes
+                              {stats.totalPairs > stats.pairs && ` (${Math.round((stats.totalSpaceFirst / stats.totalPairs) * 100)}% overall)`}. It is a what-if: real nodes are on fibre.
+                            </div>
+                          )}
+                          {s.mode !== 'starlink' && stats.cables.length > 0 && (
+                            <div className="mt-1 truncate" title={stats.cables.join(' → ')}>
+                              via {stats.cables.join(' → ')}
+                            </div>
+                          )}
+                          {s.mode === 'starlink' && stats.hops > 0 && <div className="mt-1">longest route relayed by {stats.hops} satellites</div>}
+                        </>
+                      )}
+                      <div className="mt-1">
+                        Travel is at light speed on real routes. Each node&rsquo;s time to check and vote is an estimate (about {VOTE_WORK_MS} ms, then{' '}
+                        {FINAL_VOTE_WORK_MS} ms for the final vote), set to match Nano&rsquo;s usual 0.3 s.
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
             </Section>
@@ -421,11 +494,13 @@ export const Dashboard: React.FC<{ starlink: StarlinkFile | null }> = ({ starlin
                 <div className="mt-1 text-[11px] text-gray-600">Version estimated from launch date</div>
               </Section>
             )}
+              </>
+            )}
           </div>
         )}
       </div>
 
-      <div className="pointer-events-auto">
+      <div className="pointer-events-auto w-full">
         <DonationImagePopover />
       </div>
     </div>

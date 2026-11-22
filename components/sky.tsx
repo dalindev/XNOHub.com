@@ -14,34 +14,48 @@ const MOON_RADIUS = 1737.4 / 6371; // Earth radii
 const SUN_LIGHT_DISTANCE = 50; // the light only needs a direction
 const UPDATE_EVERY = 1 / 30; // s of real time between ephemeris updates (smooth under time warp)
 
+// The air seen from outside: a thin line of light along the horizon, brightest
+// at the edge of the Earth and fading smoothly into space, with a little haze
+// just inside the edge. Worked out per pixel from how close the line of sight
+// passes to the Earth, so it has no outline of its own from any height.
+// Blue on the day side, warm at the terminator, gone at night.
 const atmosphereVertex = /* glsl */ `
-  varying vec3 vNormalW;
-  varying vec3 vViewDirW;
+  varying vec3 vWorld;
   void main() {
     vec4 world = modelMatrix * vec4(position, 1.0);
-    vNormalW = normalize(mat3(modelMatrix) * normal);
-    vViewDirW = normalize(cameraPosition - world.xyz);
+    vWorld = world.xyz;
     gl_Position = projectionMatrix * viewMatrix * world;
   }
 `;
 
-// Thin limb glow, blue on the day side, warm at the terminator, gone at night.
 const atmosphereFragment = /* glsl */ `
   uniform vec3 uSunDir;
-  varying vec3 vNormalW;
-  varying vec3 vViewDirW;
+  uniform vec3 uShape; // the Earth's radii (equatorial, polar, equatorial)
+  uniform float uHeight; // how far the glow reaches, in Earth radii (its e-folding height)
+  varying vec3 vWorld;
   void main() {
-    float rim = 1.0 - abs(dot(vNormalW, vViewDirW));
-    float glow = pow(rim, 3.0);
-    float day = dot(vNormalW, uSunDir);
+    // In a frame where the Earth is a unit ball.
+    vec3 o = cameraPosition / uShape;
+    vec3 dir = normalize(vWorld / uShape - o);
+    vec3 nearest = o - dir * dot(o, dir); // where the line of sight passes closest to the centre
+    float d = length(nearest);
+    float glow = d > 1.0 ? exp(-(d - 1.0) / uHeight) : exp(-(1.0 - d) / (uHeight * 1.6));
+    float day = dot(nearest / max(d, 1e-4), uSunDir);
     float lit = smoothstep(-0.25, 0.35, day);
-    vec3 dayColor = vec3(0.30, 0.55, 1.0);
+    vec3 dayColor = vec3(0.36, 0.6, 1.0);
     vec3 duskColor = vec3(1.0, 0.45, 0.2);
     vec3 color = mix(duskColor, dayColor, smoothstep(-0.05, 0.4, day));
-    float a = glow * lit * 0.9;
+    float a = glow * lit * 0.75;
     gl_FragColor = vec4(color * a, a);
   }
 `;
+
+// The glow's reach follows the camera's height, so it stays a few pixels wide
+// from far away (the real 8 km would be invisible) and thin from low orbit; and
+// its shell is always below the camera.
+const glowHeight = (altitude: number) => THREE.MathUtils.clamp(altitude / 12, 0.0015, 0.012);
+const SHELL_HEIGHTS = 6; // the shell sits this many glow heights up, where the glow is 0.2% of its peak
+const EARTH_SHAPE = new THREE.Vector3(6378.137 / 6371, 6356.752 / 6371, 6378.137 / 6371);
 
 interface SkyProps {
   lightRef: React.RefObject<THREE.DirectionalLight | null>;
@@ -64,6 +78,7 @@ export const Sky: React.FC<SkyProps> = ({ lightRef, starsRef }) => {
   const moonRef = useRef<THREE.Mesh>(null);
   const moonTexture = useLoader(THREE.TextureLoader, '/moon_1k.jpg');
   const last = useRef(-Infinity);
+  const shell = useRef<THREE.Mesh>(null);
 
   useEffect(() => {
     moonTexture.colorSpace = THREE.SRGBColorSpace;
@@ -74,7 +89,7 @@ export const Sky: React.FC<SkyProps> = ({ lightRef, starsRef }) => {
       new THREE.ShaderMaterial({
         vertexShader: atmosphereVertex,
         fragmentShader: atmosphereFragment,
-        uniforms: { uSunDir: { value: new THREE.Vector3(1, 0, 0) } },
+        uniforms: { uSunDir: { value: new THREE.Vector3(1, 0, 0) }, uShape: { value: EARTH_SHAPE }, uHeight: { value: 0.01 } },
         transparent: true,
         depthWrite: false,
         side: THREE.FrontSide,
@@ -99,6 +114,10 @@ export const Sky: React.FC<SkyProps> = ({ lightRef, starsRef }) => {
     fog.density = 18 * low * low; // per Earth radius: ~50% haze at ~250 km
     scene.fog = low > 0 ? fog : null;
     if (starsRef?.current) starsRef.current.visible = day * low < 0.35;
+
+    const h = glowHeight(world.altitude);
+    atmosphere.uniforms.uHeight.value = h;
+    shell.current?.scale.copy(EARTH_SHAPE).multiplyScalar(1 + SHELL_HEIGHTS * h);
 
     const t = state.clock.elapsedTime;
     if (t - last.current < UPDATE_EVERY) return;
@@ -125,8 +144,8 @@ export const Sky: React.FC<SkyProps> = ({ lightRef, starsRef }) => {
         <sphereGeometry args={[MOON_RADIUS, 64, 32]} />
         <meshStandardMaterial map={moonTexture} roughness={1} metalness={0} />
       </mesh>
-      <mesh material={atmosphere} renderOrder={1}>
-        <sphereGeometry args={[1.025, 96, 48]} />
+      <mesh ref={shell} material={atmosphere} renderOrder={1}>
+        <sphereGeometry args={[1, 96, 48]} />
       </mesh>
     </>
   );

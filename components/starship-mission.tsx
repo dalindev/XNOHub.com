@@ -14,7 +14,8 @@ import {
   MISSION_END_S,
   type Phase
 } from '@/lib/missions/starship';
-import { chase, METRE } from '@/lib/chase-camera';
+import { METRE } from '@/lib/chase-camera';
+import { useOrbitView, placeOrbitCamera } from '@/components/use-orbit-view';
 import { world } from '@/lib/world';
 
 // One Starship mission at a time: stack lifts off from Starbase, hot-stages,
@@ -55,6 +56,8 @@ function flame(radius: number, length: number, color: number) {
 export const StarshipMission: React.FC<Props> = ({ launchSignal, follow, onInfo }) => {
   const camera = useThree((s) => s.camera);
   const start = useRef<number | null>(null);
+  // Riding along, the camera is the viewer's: drag to look round the ship, scroll to zoom.
+  const view = useOrbitView(follow, { azimuth: 1.1, elevation: 0.25, distance: 1 });
   const state = useMemo(() => createMissionState(), []);
 
   const parts = useMemo(() => {
@@ -98,7 +101,7 @@ export const StarshipMission: React.FC<Props> = ({ launchSignal, follow, onInfo 
   const centre = useMemo(() => new THREE.Vector3(), []);
   const stackOffset = useMemo(() => new THREE.Vector3(), []);
 
-  useFrame(({ clock }) => {
+  useFrame(({ clock }, delta) => {
     const { root, shipRoot, boosterRoot, ship, shipFlame, boosterFlame, sats } = parts;
     if (start.current === null) {
       root.visible = false;
@@ -170,7 +173,13 @@ export const StarshipMission: React.FC<Props> = ({ launchSignal, follow, onInfo 
       centre.addScaledVector(new THREE.Vector3(0, 1, 0).applyQuaternion(state.ship.quat), 26 * METRE);
       const deploying = t > DEPLOY_S - 4;
       const distM = t < 26 ? 330 : deploying ? 150 : 200;
-      chase(camera, centre, up, fwd, distM, 1.1 + clock.elapsedTime * 0.04, deploying ? 0.8 : 0.25);
+      const v = view.current;
+      if (!v.held) {
+        // Until the viewer takes hold: circle slowly, and climb to look down into the bay for the release.
+        v.azimuth += delta * 0.04;
+        v.elevation = THREE.MathUtils.damp(v.elevation, deploying ? 0.67 : 0.25, 1.5, delta);
+      }
+      placeOrbitCamera(camera, centre, up, fwd, distM, v);
     }
 
     if (clock.elapsedTime - lastInfo.current > 0.25) {
