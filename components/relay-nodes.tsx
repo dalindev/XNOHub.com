@@ -4,8 +4,8 @@ import React, { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import { useReps } from '@/lib/reps';
-import { latLonToUnit } from '@/lib/geo';
-import { ellipsoidRadius, markerScale } from '@/lib/world';
+import { latLonToUnit, ellipsoidRadius } from '@/lib/geo';
+import { markerScale } from '@/lib/world';
 import { packetClock, takeDueRelays } from '@/lib/node-pulse';
 
 // The live Nano nodes that don't vote: about two-thirds of the network. They

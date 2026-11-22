@@ -36,8 +36,8 @@ describe('city lights', () => {
       const [x, y, z] = lights.position.subarray(k * 3, k * 3 + 3);
       const r = Math.hypot(x, y, z);
       expect(r * 6371).toBeCloseTo(6366.1, 0);
-      // The same direction from the centre as the city, to within the patch (geodetic and geocentric latitude differ by up to 21 km here).
-      expect(Math.hypot(x / r - centre.x, y / r - centre.y, z / r - centre.z) * 6371).toBeLessThan(reach + 22);
+      // The same direction from the centre as the city's marker would be, to within the patch.
+      expect(Math.hypot(x / r - centre.x, y / r - centre.y, z / r - centre.z) * 6371).toBeLessThan(reach);
     }
   });
 

@@ -1,6 +1,5 @@
 import * as THREE from 'three';
-import { latLonToUnit, EARTH_RADIUS_KM } from '@/lib/geo';
-import { geocentricLatitude, surfaceRadiusGeocentric } from '@/lib/world';
+import { latLonToUnit, surfaceRadiusGeocentric, EARTH_RADIUS_KM } from '@/lib/geo';
 
 // A Starship Starlink mission as a function of mission elapsed time (MET,
 // real seconds after liftoff): ascent from Starbase, hot staging, the booster
@@ -74,9 +73,8 @@ export interface MissionState {
   door: number;
 }
 
-// The pad's direction from the Earth's centre: its latitude is geodetic, as
-// on the map tiles, so convert it to land on Starbase and not 16 km north.
-const U = latLonToUnit(geocentricLatitude(PAD.lat), PAD.lon);
+// The pad's direction from the Earth's centre (its latitude is the map's, geodetic).
+const U = latLonToUnit(PAD.lat, PAD.lon);
 /** The booster's engines clear the ground by this much on the pad (km). */
 const ON_PAD_KM = 0.004;
 // East at the pad: derivative of latLonToUnit with respect to longitude.

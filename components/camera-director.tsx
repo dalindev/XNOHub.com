@@ -6,8 +6,8 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { CameraControls } from '@react-three/drei';
 import type CameraControlsImpl from 'camera-controls';
 import { FlyControls } from '@/components/fly-controls';
-import { world, ellipsoidRadius } from '@/lib/world';
-import { unitToLatLon } from '@/lib/geo';
+import { world } from '@/lib/world';
+import { unitToLatLon, ellipsoidRadius } from '@/lib/geo';
 
 // One camera, one owner at a time:
 //   globe  → CameraControls orbit the Earth

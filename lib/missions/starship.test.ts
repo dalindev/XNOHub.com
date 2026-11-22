@@ -20,8 +20,7 @@ import {
   UNFOLD_AFTER_S,
   UNFOLD_S
 } from './starship';
-import { latLonToUnit, EARTH_RADIUS_KM } from '../geo';
-import { geocentricLatitude, surfaceRadiusGeocentric } from '../world';
+import { latLonToUnit, geocentricLatitude, surfaceRadiusGeocentric, EARTH_RADIUS_KM } from '../geo';
 
 const axis = (q: THREE.Quaternion, x: number, y: number, z: number) => new THREE.Vector3(x, y, z).applyQuaternion(q);
 const at = (t: number) => missionAt(t, createMissionState());
@@ -30,7 +29,7 @@ const SLOT_Y = 33.6, HULL_R = 4.5;
 describe('Starship mission', () => {
   it('stands on the ground at Starbase (the drawn ellipsoid, not the sphere under it) pointing up', () => {
     const s = at(0);
-    const pad = latLonToUnit(geocentricLatitude(PAD.lat), PAD.lon);
+    const pad = latLonToUnit(PAD.lat, PAD.lon);
     expect(s.ship.pos.clone().normalize().angleTo(pad)).toBeLessThan(1e-6);
     const aboveGroundM = (s.ship.pos.length() - surfaceRadiusGeocentric(geocentricLatitude(PAD.lat))) * EARTH_RADIUS_KM * 1000;
     expect(aboveGroundM).toBeGreaterThan(0);
@@ -88,7 +87,7 @@ describe('Starship mission', () => {
 
   it('brings the booster back to the pad by about T+6:45', () => {
     const s = at(BOOSTER_HOME_S - 0.5);
-    const pad = latLonToUnit(geocentricLatitude(PAD.lat), PAD.lon);
+    const pad = latLonToUnit(PAD.lat, PAD.lon);
     expect(s.booster.pos.clone().normalize().angleTo(pad) * EARTH_RADIUS_KM).toBeLessThan(2);
     expect(s.booster.altKm).toBeLessThan(0.2);
     expect(s.booster.speed).toBeLessThan(0.1); // slowed by its landing burn
