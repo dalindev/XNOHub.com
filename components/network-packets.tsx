@@ -57,6 +57,7 @@ const MAX_POINTS = 2_400; // packet tips + relay flashes
 // cost more: their satellites move, so their segments are rebuilt every frame.
 const FIBRE_BUDGET = 1_400;
 const SPACE_BUDGET = 600;
+const TAIL = 0.16; // the tail's fade time as a share of the trip; it is visible for about three times that
 const MIN_DRAWN = 6; // nodes drawn per confirmation when the network is very busy
 const LIFT = 1.0026; // surface routes float ~16 km up: clear of terrain and the ellipsoid bulge
 const SIMPLIFY = 5 * KM;
@@ -380,9 +381,10 @@ export const NetworkPackets: React.FC<Props> = ({ reps, cables }) => {
     const look = (t0: number, dur: number, color: THREE.Color, vote: boolean, conf: number, weight: number, crowd: number): Look => ({
       t0,
       dur,
-      // The afterglow. Short, so that in real time the block, the votes and the final votes read as three
-      // quick beats and not as one bolt of lightning that hangs in the air.
-      fade: THREE.MathUtils.clamp(dur * 0.22, 0.09, 0.9),
+      // How long the tail takes to fade behind the tip: a share of the trip itself, so at any speed the
+      // light is a bullet with a tail about half the route long and never the whole route lit at once.
+      // (A fixed time would do that in real time, where a trip takes 40 ms: lightning.)
+      fade: Math.min(dur * TAIL, 0.9),
       color,
       width: (vote ? 5 : 9) * weight * (1 - 0.4 * crowd),
       gain: (vote ? 0.55 : 1) * (1 - 0.4 * crowd),
