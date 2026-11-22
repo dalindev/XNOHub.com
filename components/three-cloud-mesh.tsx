@@ -112,7 +112,10 @@ const fragment = /* glsl */ `
 
     // Thicker toward the limb, where the line of sight crosses more cloud.
     float limb = 1.0 - abs(dot(n, vView));
-    float alpha = cover * mix(0.62, 0.94, day) * (1.0 + 0.35 * limb * limb);
+    // By day white cloud hides whatever is under it, so thin cloud is let through and only thick
+    // cloud banks stay solid. At night cloud is nearly as dark as the ground and needs no thinning.
+    float body = mix(cover, pow(cover, 1.8), day);
+    float alpha = body * mix(0.62, 0.74, day) * (1.0 + 0.35 * limb * limb);
     gl_FragColor = vec4(col, clamp(alpha, 0.0, 1.0) * uOpacity);
   }
 `;
