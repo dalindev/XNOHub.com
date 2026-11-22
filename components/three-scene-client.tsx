@@ -25,6 +25,8 @@ import { EarthBase } from '@/components/earth-base';
 import NanoRepNodes from '@/components/nano-rep-nodes';
 import { RelayNodes } from '@/components/relay-nodes';
 import { CloudMesh } from '@/components/three-cloud-mesh';
+import { Meteors } from '@/components/meteors';
+import { SpaceDust } from '@/components/space-dust';
 import { DonationAnimation } from '@/components/donation-animation';
 import { Button } from '@/components/ui/button';
 import { useStarlink } from '@/lib/starlink-data';
@@ -215,6 +217,8 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({ reps }) => {
         <CloudMesh meshRef={cloudRef} />
         <Sky lightRef={lightRef} starsRef={starsRef} />
         <Aurora />
+        <Meteors />
+        <SpaceDust />
         {starlink && <StarlinkConstellation data={starlink} />}
         {cables && <CableLines data={cables} />}
         {cables && <NetworkPackets reps={reps} cables={cables} />}

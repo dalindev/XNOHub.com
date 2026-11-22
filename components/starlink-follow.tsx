@@ -9,6 +9,7 @@ import { eciAt, eciToScene, siderealAngle, periodMinutes } from '@/lib/orbits';
 import { simNowMs } from '@/lib/sim-clock';
 import { buildStarlink, STARLINK_SPAN_M, type StarlinkVersion } from '@/lib/models/starlink-models';
 import { METRE } from '@/lib/chase-camera';
+import { useOrbitView, placeOrbitCamera } from '@/components/use-orbit-view';
 import { unitToLatLon, EARTH_RADIUS_KM } from '@/lib/geo';
 import { world } from '@/lib/world';
 
@@ -21,7 +22,6 @@ import { world } from '@/lib/world';
 // Earth sliding by, through a wider lens than the globe view, and drifts
 // slowly round until you take hold of it.
 
-const RIDE_FOV = 62; // degrees; the globe view uses 45
 const START = { azimuth: 0.45, elevation: 0.42, distance: 1.5 }; // radians, radians, model spans
 
 export interface StarlinkInfo {
@@ -44,49 +44,9 @@ interface Props {
 const CYCLE: StarlinkVersion[] = [2, 1, 0];
 
 export const StarlinkFollow: React.FC<Props> = ({ active, pick, onInfo }) => {
-  const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
-  const canvas = useThree((s) => s.gl.domElement);
+  const camera = useThree((s) => s.camera);
   const sat = useRef(-1);
-  const view = useRef({ ...START, held: false });
-
-  // Drag to orbit the satellite, scroll to zoom; a wider lens while riding.
-  useEffect(() => {
-    if (!active) return;
-    const before = camera.fov;
-    camera.fov = RIDE_FOV;
-    camera.updateProjectionMatrix();
-    Object.assign(view.current, START, { held: false });
-    let dragging = false;
-    const down = () => {
-      dragging = true;
-      view.current.held = true;
-    };
-    const up = () => (dragging = false);
-    const move = (e: PointerEvent) => {
-      if (!dragging) return;
-      const v = view.current;
-      v.azimuth -= e.movementX * 0.005;
-      v.elevation = THREE.MathUtils.clamp(v.elevation + e.movementY * 0.005, -1.4, 1.4);
-    };
-    const wheel = (e: WheelEvent) => {
-      e.preventDefault();
-      const v = view.current;
-      v.held = true;
-      v.distance = THREE.MathUtils.clamp(v.distance * Math.exp(e.deltaY * 0.001), 0.8, 40);
-    };
-    canvas.addEventListener('pointerdown', down);
-    window.addEventListener('pointerup', up);
-    window.addEventListener('pointermove', move);
-    canvas.addEventListener('wheel', wheel, { passive: false });
-    return () => {
-      canvas.removeEventListener('pointerdown', down);
-      window.removeEventListener('pointerup', up);
-      window.removeEventListener('pointermove', move);
-      canvas.removeEventListener('wheel', wheel);
-      camera.fov = before;
-      camera.updateProjectionMatrix();
-    };
-  }, [active, camera, canvas]);
+  const view = useOrbitView(active, START);
   // One memo for models and their parent: React may run a memo twice in dev,
   // and a second memo would move the models into a group that's then discarded.
   const { models, root } = useMemo(() => {
@@ -159,14 +119,7 @@ export const StarlinkFollow: React.FC<Props> = ({ active, pick, onInfo }) => {
     world.nearOverride = 0.5 * METRE;
     const v = view.current;
     if (!v.held) v.azimuth += delta * 0.03; // a slow drift until the viewer takes hold
-    const flat = Math.cos(v.elevation);
-    camera.position
-      .copy(pos)
-      .addScaledVector(fwd, -Math.cos(v.azimuth) * flat * span * v.distance * METRE)
-      .addScaledVector(x, Math.sin(v.azimuth) * flat * span * v.distance * METRE)
-      .addScaledVector(up, Math.sin(v.elevation) * span * v.distance * METRE);
-    camera.up.copy(up);
-    camera.lookAt(pos);
+    placeOrbitCamera(camera, pos, up, fwd, span, v);
 
     if (clock.elapsedTime - lastInfo.current > 0.5) {
       lastInfo.current = clock.elapsedTime;

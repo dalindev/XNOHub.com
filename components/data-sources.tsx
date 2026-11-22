@@ -42,7 +42,13 @@ const SOURCES: { what: string; who: string; href: string; note?: string }[] = [
     what: 'Aurora',
     who: 'NOAA Space Weather Prediction Center',
     href: 'https://www.swpc.noaa.gov/products/aurora-30-minute-forecast',
-    note: 'where it is and how strong are real; the curtains, their colours and the bursts that race through now and then are generated, on top of the live solar wind speed and how disturbed the magnetic field is'
+    note: 'where it is and how strong are real; the curtains, their colours and their gusts are generated, on top of the live solar wind speed and how disturbed the magnetic field is'
+  },
+  {
+    what: 'Meteors and dust',
+    who: 'generated; how meteors behave from NASA',
+    href: 'https://science.nasa.gov/solar-system/meteors-meteorites/',
+    note: 'not observed: nobody publishes each meteor as it happens. They burn at their real height (120 km down to about 80 km), are drawn a few pixels wide and, from far away, up to five times longer than real; the earthgrazer is sped up. The dust going past a satellite is for the feeling of speed only'
   },
   { what: 'Stars', who: 'Yale Bright Star Catalogue', href: 'http://tdc-www.harvard.edu/catalogs/bsc5.html', note: '9,096 stars' },
   {

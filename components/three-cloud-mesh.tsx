@@ -219,10 +219,10 @@ export const CloudMesh = ({ meshRef }: { meshRef?: React.RefObject<THREE.Mesh | 
 
   useFrame((_, delta) => {
     const u = material.uniforms;
-    // Riding a satellite or a Starship (the only views that set a near plane),
-    // the clouds are always on: there is no network to read, and the Earth
-    // from orbit looks bare without them.
-    const wanted = world.nearOverride !== null ? Math.max(settings.get().clouds, 0.9) : settings.get().clouds;
+    // Riding a satellite or a Starship (the only views that set a near plane)
+    // the clouds are off: from 500 km the weather picture's 5 to 20 km pixels
+    // show as blurry blocks.
+    const wanted = world.nearOverride !== null ? 0 : settings.get().clouds;
     const strength = u.uMap.value !== null ? wanted : 0;
     // The photo shows 5 to 20 km per pixel: from close up it is only a grey
     // blur over the ground. Gone below ~200 km, full above ~700 km.
