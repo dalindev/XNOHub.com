@@ -26,18 +26,22 @@
   };
 
   // Freeze the page on the code it loaded with, so editing the app while a
-  // take records can't reload or change it: the dev server's hot-reload
-  // socket never connects. (It never fails either: Next reloads the page
-  // after a few failed reconnects.)
+  // take records can't reload or change it. The dev server's hot-reload
+  // socket has to connect (Next's dev runtime needs it to start the app), so
+  // once the app is up, freeze() mutes it: it stays open, so Next never
+  // reconnects (after a few failed reconnects it would reload the page), and
+  // nothing it sends arrives.
   const RealSocket = window.WebSocket;
-  let frozen = false;
+  const hotReload = [];
+  let frozen = 0;
   window.WebSocket = new Proxy(RealSocket, {
     construct(target, args) {
-      if (!/\/_next\/(hmr|webpack-hmr)/.test(String(args[0]))) return Reflect.construct(target, args);
-      frozen = true;
-      return Object.assign(new EventTarget(), { url: String(args[0]), readyState: 0, binaryType: 'blob', send() {}, close() {} });
+      const ws = Reflect.construct(target, args);
+      if (/\/_next\/(hmr|webpack-hmr)/.test(String(args[0]))) hotReload.push(ws);
+      return ws;
     }
   });
+  const mute = (e) => e.stopImmediatePropagation();
 
   let seed = 20261122;
   Math.random = () => {
@@ -105,8 +109,13 @@
     get now() {
       return now;
     },
-    /** True once the dev server's hot reload has been shut out. */
-    get frozen() {
+    /** Mute the dev server's hot reload from here on; returns how many sockets were muted. */
+    freeze() {
+      for (const ws of hotReload.splice(0)) {
+        ws.onmessage = ws.onclose = ws.onerror = null;
+        for (const type of ['message', 'close', 'error']) ws.addEventListener(type, mute, { capture: true });
+        frozen++;
+      }
       return frozen;
     },
     realElapsed: () => realNow() - start,

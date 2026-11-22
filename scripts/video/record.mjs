@@ -109,14 +109,18 @@ const started = Date.now();
 await send('Page.navigate', { url });
 
 const dt = 1000 / fps;
-// Let the app start: run frames in (roughly) real time until its hooks are up.
-for (let i = 0; ; i++) {
+// Let the app start: run frames in (roughly) real time until its hooks are up (a minute and a half at most).
+const readyBy = Date.now() + 90_000;
+while (true) {
   await sleep(dt);
   const ready = await run(`window.__film ? (__film.step(${dt}), !!(window.__xno?.controls && __xno.starship && __xno.clock && __xno.settings)) : false`).catch(() => false);
   if (ready) break;
-  if (i > 60 * 60) throw new Error('the app never got ready (is the dev server running at ' + url + '?)');
+  if (Date.now() > readyBy) {
+    const hooks = await run(`JSON.stringify({ film: !!window.__film, xno: Object.keys(window.__xno ?? {}), title: document.title, body: document.body?.innerText.slice(0, 200) })`).catch((e) => String(e));
+    throw new Error(`the app never got ready (is the dev server running at ${url}?)\n  page: ${hooks}\n  errors: ${[...new Set(errors)].slice(0, 5).join(' | ') || 'none'}`);
+  }
 }
-console.log((await run('__film.frozen')) ? 'hot reload off: edits made while recording do not reach this take' : 'note: no hot-reload socket seen');
+console.log((await run('__film.freeze()')) ? 'hot reload muted: edits made while recording do not reach this take' : 'note: no hot-reload socket seen');
 
 const ffmpeg = spawn('ffmpeg', [
   '-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(fps), '-c:v', 'png', '-i', '-',
