@@ -25,6 +25,20 @@
     queue = queue.filter((q) => q.id !== id);
   };
 
+  // Freeze the page on the code it loaded with, so editing the app while a
+  // take records can't reload or change it: the dev server's hot-reload
+  // socket never connects. (It never fails either: Next reloads the page
+  // after a few failed reconnects.)
+  const RealSocket = window.WebSocket;
+  let frozen = false;
+  window.WebSocket = new Proxy(RealSocket, {
+    construct(target, args) {
+      if (!/\/_next\/(hmr|webpack-hmr)/.test(String(args[0]))) return Reflect.construct(target, args);
+      frozen = true;
+      return Object.assign(new EventTarget(), { url: String(args[0]), readyState: 0, binaryType: 'blob', send() {}, close() {} });
+    }
+  });
+
   let seed = 20261122;
   Math.random = () => {
     // mulberry32
@@ -90,6 +104,10 @@
     },
     get now() {
       return now;
+    },
+    /** True once the dev server's hot reload has been shut out. */
+    get frozen() {
+      return frozen;
     },
     realElapsed: () => realNow() - start,
     ease,

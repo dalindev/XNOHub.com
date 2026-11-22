@@ -116,6 +116,7 @@ for (let i = 0; ; i++) {
   if (ready) break;
   if (i > 60 * 60) throw new Error('the app never got ready (is the dev server running at ' + url + '?)');
 }
+console.log((await run('__film.frozen')) ? 'hot reload off: edits made while recording do not reach this take' : 'note: no hot-reload socket seen');
 
 const ffmpeg = spawn('ffmpeg', [
   '-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(fps), '-c:v', 'png', '-i', '-',
