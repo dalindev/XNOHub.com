@@ -40,8 +40,9 @@ import { VERSION_NAMES } from '@/lib/orbits';
 import { APP_CONFIG } from '@/constants/config';
 
 // Three views: the Earth (default), riding a real Starlink, and a Starship
-// mission. Everything is drawn to real positions and times; where something
-// is enlarged to be visible at all, the UI says so.
+// mission. Everything is drawn to real positions, sizes and times; where
+// something is too small to see it is marked, and where time is sped up the
+// UI says so.
 
 interface ThreeSceneClientProps {
   reps: RepNode[];
@@ -65,6 +66,8 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({ reps }) => {
   const [isStarshipView, setIsStarshipView] = useState(false);
   const [launchSignal, setLaunchSignal] = useState(0);
   const [missionInfo, setMissionInfo] = useState<MissionInfo | null>(null);
+  // How fast the Starship mission's clock runs: real events, sped up.
+  const [missionSpeed, setMissionSpeed] = useState(10);
   const [hoveredNode, setHoveredNode] = useState<RepNode | null>(null);
   const missionFlying = useRef(false);
   const starlink = useStarlink();
@@ -206,8 +209,9 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({ reps }) => {
         <directionalLight ref={lightRef} color={0xffffff} intensity={2} />
         <ambientLight intensity={0.1} />
 
-        {/* Fill light for a vehicle watched up close. The Earth lights itself (lib/earth-light). */}
-        {cameraMode === 'follow' && <hemisphereLight args={[0x9cc4ff, 0x4a3f34, 1.1]} />}
+        {/* Fill light for a Starlink watched up close. The Earth lights itself (lib/earth-light); the
+            Starship view has none: the Sun, the Earth's glow and its engines light it (starship-mission). */}
+        {cameraMode === 'follow' && !isStarshipView && <hemisphereLight args={[0x9cc4ff, 0x4a3f34, 1.1]} />}
 
         <EarthBase />
         <TiledEarth />
@@ -226,7 +230,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({ reps }) => {
         {/* Late loaders: keep the page up while models load */}
         <Suspense fallback={null}>
           <StarlinkFollow active={isStarlinkView} pick={starlinkPick} onInfo={setStarlinkInfo} />
-          <StarshipMission launchSignal={launchSignal} follow={isStarshipView} onInfo={onMissionInfo} />
+          <StarshipMission launchSignal={launchSignal} follow={isStarshipView} speed={missionSpeed} onInfo={onMissionInfo} />
           <DonationAnimation />
         </Suspense>
       </Canvas>
@@ -269,19 +273,35 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({ reps }) => {
         </div>
       )}
 
-      {missionInfo && (isStarshipView || missionInfo.enlarged) && (
+      {missionInfo && (isStarshipView || missionInfo.marked) && (
         <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-10 text-center text-xs text-gray-300 select-none">
           <div className="text-base text-white">
             Starship · {missionInfo.phase} · T+{Math.floor(missionInfo.t / 60)}:
             {String(Math.floor(missionInfo.t % 60)).padStart(2, '0')}
           </div>
           <div>
-            {missionInfo.altKm.toFixed(0)} km up
-            {missionInfo.compression > 1 ? ` · time ×${missionInfo.compression}` : ' · real time'}
-            {missionInfo.deployed > 0 && ` · ${missionInfo.deployed} Starlink V3 deployed`}
+            {missionInfo.altKm < 1 ? `${(missionInfo.altKm * 1000).toFixed(0)} m` : `${missionInfo.altKm.toFixed(0)} km`} up ·{' '}
+            {missionInfo.speedKms < 1 ? `${(missionInfo.speedKms * 3600).toFixed(0)} km/h` : `${missionInfo.speedKms.toFixed(1)} km/s`}
+            {missionInfo.deployed > 0 && ` · ${missionInfo.deployed} of 60 Starlink V3 out`}
+            {missionInfo.unfolded > 0 && ` · ${missionInfo.unfolded} with arrays open`}
           </div>
-          {missionInfo.enlarged && !isStarshipView && <div className="text-gray-500">vehicles drawn larger than real</div>}
-          {isStarshipView && <div className="text-gray-500">true scale · V3 sizes are estimates</div>}
+          {missionInfo.inShadow && <div className="text-gray-400">in the Earth&apos;s shadow: lit only by the Earth and its engines</div>}
+          {missionInfo.marked && <div className="text-gray-500">marked: at true scale it is too small to see from here</div>}
+          {isStarshipView && (
+            <div className="mt-1 flex items-center justify-center gap-1 text-gray-400">
+              <span>time</span>
+              {[1, 5, 10, 50].map((x) => (
+                <button
+                  key={x}
+                  onClick={() => setMissionSpeed(x)}
+                  className={`rounded border px-1.5 py-0.5 ${x === missionSpeed ? 'border-white/40 text-white' : 'border-white/10 hover:border-white/30'}`}
+                >
+                  {x === 1 ? 'real' : `×${x}`}
+                </button>
+              ))}
+            </div>
+          )}
+          {isStarshipView && <div className="text-gray-500">mission clock as on Starship Flight 10 · true scale · V3 sizes are estimates</div>}
         </div>
       )}
     </div>

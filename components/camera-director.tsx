@@ -37,7 +37,10 @@ const ZOOM_SPEED = 0.6;
 
 const WorldWatcher: React.FC = () => {
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
+  const height = useThree((s) => s.size.height);
   useFrame(() => {
+    const distance = camera.position.length();
+    world.earthPx = (Math.tan(Math.asin(Math.min(1, 1 / distance))) / Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2)) * (height / 2);
     const { lat } = unitToLatLon(camera.position);
     const alt = camera.position.length() - ellipsoidRadius(lat) - (world.groundAltitude ?? 0);
     world.altitude = alt;

@@ -14,7 +14,8 @@ const dpr = Number(process.env.SHOT_DPR ?? 1);
 // SHOT_NET=1 prints what was downloaded, per server.
 const net = new Map(); // requestId -> host
 const downloaded = new Map(); // host -> { n, bytes }
-const profile = await mkdtemp(join(tmpdir(), 'xno-chrome-'));
+// SHOT_CACHE=dir keeps the browser profile (and its HTTP cache) there between runs, so map tiles download once.
+const profile = process.env.SHOT_CACHE ?? (await mkdtemp(join(tmpdir(), 'xno-chrome-')));
 const port = 9300 + Math.floor(Math.random() * 500);
 const chrome = spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', [
   '--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,

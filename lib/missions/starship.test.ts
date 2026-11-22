@@ -1,41 +1,141 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { createMissionState, missionAt, PAD, ORBIT_S, DEPLOY_S, MISSION_END_S } from './starship';
+import {
+  createMissionState,
+  missionAt,
+  satelliteAt,
+  newSatellitePose,
+  travelled,
+  PAD,
+  STAGING_S,
+  SECO_S,
+  BOOSTER_HOME_S,
+  DOOR_OPEN_S,
+  FIRST_RELEASE_S,
+  RELEASE_EVERY_S,
+  DEPLOY_COUNT,
+  LAST_RELEASE_S,
+  MISSION_END_S,
+  SLIDE_S,
+  UNFOLD_AFTER_S,
+  UNFOLD_S
+} from './starship';
 import { latLonToUnit, EARTH_RADIUS_KM } from '../geo';
+import { geocentricLatitude, surfaceRadiusGeocentric } from '../world';
 
 const axis = (q: THREE.Quaternion, x: number, y: number, z: number) => new THREE.Vector3(x, y, z).applyQuaternion(q);
+const at = (t: number) => missionAt(t, createMissionState());
+const SLOT_Y = 33.6, HULL_R = 4.5;
 
 describe('Starship mission', () => {
-  it('lifts off from Starbase pointing up', () => {
-    const s = missionAt(0.01, createMissionState());
-    const pad = latLonToUnit(PAD.lat, PAD.lon);
-    expect(s.ship.pos.clone().normalize().angleTo(pad)).toBeLessThan(1e-3);
-    expect(axis(s.ship.quat, 0, 1, 0).dot(pad)).toBeGreaterThan(0.99);
+  it('stands on the ground at Starbase (the drawn ellipsoid, not the sphere under it) pointing up', () => {
+    const s = at(0);
+    const pad = latLonToUnit(geocentricLatitude(PAD.lat), PAD.lon);
+    expect(s.ship.pos.clone().normalize().angleTo(pad)).toBeLessThan(1e-6);
+    const aboveGroundM = (s.ship.pos.length() - surfaceRadiusGeocentric(geocentricLatitude(PAD.lat))) * EARTH_RADIUS_KM * 1000;
+    expect(aboveGroundM).toBeGreaterThan(0);
+    expect(aboveGroundM).toBeLessThan(10);
+    expect(axis(s.ship.quat, 0, 1, 0).dot(pad)).toBeGreaterThan(0.999);
   });
 
-  it('flies level in orbit with the slot side facing away from Earth', () => {
-    const s = missionAt(DEPLOY_S + 5, createMissionState());
+  it('puts the pad where the map tiles have Starbase: same place on the WGS84 ellipsoid as its geodetic coordinates', () => {
+    // ECEF of the geodetic point, turned into the scene frame (x, z, -y) the tiles use.
+    const a = 6378.137, b = 6356.752, e2 = 1 - (b * b) / (a * a);
+    const phi = THREE.MathUtils.degToRad(PAD.lat), lam = THREE.MathUtils.degToRad(PAD.lon);
+    const n = a / Math.sqrt(1 - e2 * Math.sin(phi) ** 2);
+    const ecef = new THREE.Vector3(n * Math.cos(phi) * Math.cos(lam), n * Math.cos(phi) * Math.sin(lam), n * (1 - e2) * Math.sin(phi));
+    const scene = new THREE.Vector3(ecef.x, ecef.z, -ecef.y).divideScalar(EARTH_RADIUS_KM);
+    const pad = at(0).booster.pos;
+    expect(pad.distanceTo(scene) * EARTH_RADIUS_KM * 1000).toBeLessThan(10); // metres
+  });
+
+  it('climbs nearly straight up at first, tipping over gently', () => {
+    const tilt = (t: number) => {
+      const s = at(t);
+      return THREE.MathUtils.radToDeg(axis(s.ship.quat, 0, 1, 0).angleTo(s.ship.pos.clone().normalize()));
+    };
+    expect(tilt(10)).toBeLessThan(5);
+    expect(tilt(30)).toBeLessThan(15);
+    expect(tilt(60)).toBeGreaterThan(15);
+    expect(tilt(60)).toBeLessThan(35);
+  });
+
+  it('hot-stages at T+2:38 about 67 km up at about 5,700 km/h, and reaches orbit at SECO about T+8:40', () => {
+    expect(STAGING_S).toBe(158);
+    const staging = at(STAGING_S - 1);
+    expect(staging.ship.altKm).toBeGreaterThan(60);
+    expect(staging.ship.altKm).toBeLessThan(70);
+    expect(staging.ship.speed * 3600).toBeGreaterThan(5000);
+    expect(staging.ship.speed * 3600).toBeLessThan(6500);
+    expect(at(60).ship.altKm).toBeGreaterThan(8);
+    expect(at(60).ship.altKm).toBeLessThan(14);
+    expect(SECO_S).toBe(520);
+    expect(at(SECO_S - 30).ship.flame).toBeGreaterThan(0.9);
+    expect(at(SECO_S + 5).ship.flame).toBe(0);
+    expect(at(SECO_S + 5).phase).toBe('coast');
+  });
+
+  it('flies level in orbit at orbital speed, the slot side facing away from Earth', () => {
+    const s = at(FIRST_RELEASE_S + 5);
     const up = s.ship.pos.clone().normalize();
-    expect(s.ship.altKm).toBeCloseTo(230);
-    expect(Math.abs(axis(s.ship.quat, 0, 1, 0).dot(up))).toBeLessThan(0.05); // nose horizontal
-    expect(axis(s.ship.quat, 0, 0, 1).dot(up)).toBeGreaterThan(0.95); // PEZ slot up
+    expect(s.ship.altKm).toBeCloseTo(200);
+    expect(Math.abs(axis(s.ship.quat, 0, 1, 0).dot(up))).toBeLessThan(0.02); // nose horizontal
+    expect(axis(s.ship.quat, 0, 0, 1).dot(up)).toBeGreaterThan(0.99); // PEZ slot up
+    expect(s.ship.speed).toBeGreaterThan(7.6);
+    expect(s.ship.speed).toBeLessThan(8.0);
     expect(s.phase).toBe('deploying');
-    expect(s.deployed).toBeGreaterThan(0);
   });
 
-  it('moves at orbital speed in real time once in orbit', () => {
-    const a = missionAt(ORBIT_S + 10, createMissionState()).ship.pos.clone();
-    const b = missionAt(ORBIT_S + 11, createMissionState()).ship.pos.clone();
-    const kmPerS = a.distanceTo(b) * EARTH_RADIUS_KM;
-    expect(kmPerS).toBeGreaterThan(7.5);
-    expect(kmPerS).toBeLessThan(8.3);
-  });
-
-  it('brings the booster back to the pad', () => {
-    const s = missionAt(ORBIT_S - 2, createMissionState());
-    const pad = latLonToUnit(PAD.lat, PAD.lon);
+  it('brings the booster back to the pad by about T+6:45', () => {
+    const s = at(BOOSTER_HOME_S - 0.5);
+    const pad = latLonToUnit(geocentricLatitude(PAD.lat), PAD.lon);
     expect(s.booster.pos.clone().normalize().angleTo(pad) * EARTH_RADIUS_KM).toBeLessThan(2);
-    expect(s.booster.altKm).toBeLessThan(1);
-    expect(missionAt(MISSION_END_S + 1, createMissionState()).phase).toBe('done');
+    expect(s.booster.altKm).toBeLessThan(0.2);
+    expect(s.booster.speed).toBeLessThan(0.1); // slowed by its landing burn
+    expect(at(MISSION_END_S + 1).phase).toBe('done');
+  });
+
+  it('opens the door at T+18:27 and lets one satellite out every 53 s', () => {
+    expect(at(DOOR_OPEN_S - 1).door).toBe(0);
+    expect(at(FIRST_RELEASE_S).door).toBe(1);
+    expect(at(FIRST_RELEASE_S - 1).deployed).toBe(0);
+    expect(at(FIRST_RELEASE_S + RELEASE_EVERY_S * 10 + 1).deployed).toBe(11);
+    expect(at(LAST_RELEASE_S + 1).deployed).toBe(DEPLOY_COUNT);
+    expect(at(MISSION_END_S - 1).door).toBe(0);
+  });
+
+  it('sends each satellite straight out of the slot, in line, evenly spaced and without turning', () => {
+    const p = newSatellitePose();
+    const t = LAST_RELEASE_S + 10;
+    let last = Infinity;
+    for (let k = 0; k < DEPLOY_COUNT; k++) {
+      const s = satelliteAt(k, t, SLOT_Y, HULL_R, p);
+      expect(s.visible).toBe(true);
+      // No sideways or fore-and-aft drift: it keeps the ship's speed.
+      expect(s.pos.x).toBe(0);
+      expect(s.pos.y).toBe(SLOT_Y);
+      expect(s.quat.angleTo(new THREE.Quaternion())).toBe(0);
+      if (k > 0 && k < DEPLOY_COUNT - 1) expect(last - s.pos.z).toBeCloseTo(0.3 * RELEASE_EVERY_S, 6);
+      last = s.pos.z;
+    }
+    // Starts inside the hull, clear of it once the dispenser lets go.
+    expect(satelliteAt(0, FIRST_RELEASE_S, SLOT_Y, HULL_R, p).pos.z).toBeLessThan(HULL_R);
+    expect(satelliteAt(0, FIRST_RELEASE_S + SLIDE_S, SLOT_Y, HULL_R, p).pos.z - 1.5).toBeGreaterThan(HULL_R + 0.4);
+    // Never back toward the ship.
+    for (let a = 0; a < 600; a += 5) expect(travelled(a + 5)).toBeGreaterThan(travelled(a));
+  });
+
+  it('opens each satellite’s arrays only long after release, slowly, far from the ship', () => {
+    const p = newSatellitePose();
+    const t0 = FIRST_RELEASE_S + 7 * RELEASE_EVERY_S;
+    expect(satelliteAt(7, t0 + UNFOLD_AFTER_S - 1, SLOT_Y, HULL_R, p).unfold).toBe(0);
+    const mid = satelliteAt(7, t0 + UNFOLD_AFTER_S + UNFOLD_S / 2, SLOT_Y, HULL_R, p).unfold;
+    expect(mid).toBeGreaterThan(0.3);
+    expect(mid).toBeLessThan(0.7);
+    expect(UNFOLD_S).toBeGreaterThanOrEqual(120);
+    expect(satelliteAt(DEPLOY_COUNT - 1, MISSION_END_S - 1, SLOT_Y, HULL_R, p).unfold).toBe(1);
+    // Far from the ship when it starts, with the neighbours 3 m-deep satellites well apart.
+    expect(satelliteAt(7, t0 + UNFOLD_AFTER_S, SLOT_Y, HULL_R, p).pos.z).toBeGreaterThan(60);
+    expect(0.3 * RELEASE_EVERY_S).toBeGreaterThan(3 * 4);
   });
 });

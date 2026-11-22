@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import { useReps } from '@/lib/reps';
 import { latLonToUnit } from '@/lib/geo';
-import { ellipsoidRadius } from '@/lib/world';
+import { ellipsoidRadius, markerScale } from '@/lib/world';
 import { packetClock, takeDueRelays } from '@/lib/node-pulse';
 
 // The live Nano nodes that don't vote: about two-thirds of the network. They
@@ -78,7 +78,7 @@ export const RelayNodes: React.FC = () => {
 
   useFrame((state) => {
     const u = (points.material as THREE.ShaderMaterial).uniforms;
-    u.uSize.value = 9 * state.viewport.dpr;
+    u.uSize.value = 9 * state.viewport.dpr * Math.max(0.3, markerScale());
     u.uTime.value = packetClock();
     const confirmed = points.geometry.getAttribute('aConfirmed') as THREE.BufferAttribute | undefined;
     if (!confirmed) return;
