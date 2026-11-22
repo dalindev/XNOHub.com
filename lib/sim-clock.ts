@@ -58,3 +58,9 @@ export function useClockState() {
     () => snapshot
   );
 }
+
+// Development only: __xno.clock.setSimTime(ms) / setWarp(x) / resetClock(), for the video recorder.
+if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+  const w = window as unknown as { __xno?: Record<string, unknown> };
+  w.__xno = { ...(w.__xno ?? {}), clock: { setSimTime, setWarp, resetClock } };
+}

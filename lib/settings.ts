@@ -45,3 +45,9 @@ const subscribe = (l: () => void) => {
 export function useSettings(): Settings {
   return useSyncExternalStore(subscribe, settings.get, settings.get);
 }
+
+// Development only: __xno.settings.set({ slowMo: 10 }), for the video recorder.
+if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+  const w = window as unknown as { __xno?: Record<string, unknown> };
+  w.__xno = { ...(w.__xno ?? {}), settings };
+}
