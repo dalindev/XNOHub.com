@@ -43,7 +43,7 @@ function startSample(): () => void {
       const base = SampleConfirmationData2[i++ % SampleConfirmationData2.length];
       // Sample data repeats; give each copy its own hash so it isn't a "repeat".
       emit({ ...base, message: { ...base.message, hash: `${base.message.hash}-${i}` } });
-    }, APP_CONFIG.simulation.interval);
+    }, simulationInterval());
   });
   return () => {
     cancelled = true;
@@ -67,10 +67,29 @@ function startWorker(): () => void {
   };
 }
 
+// Simulated traffic: sample confirmations at a steady pace, for when the real network is quiet
+// (and for offline work, with NEXT_PUBLIC_USE_SAMPLE_DATA=true). The viewer can switch it on in
+// the dashboard; it replaces the live feed while it is on, so the two are never mixed up.
+let simulated = APP_CONFIG.debug.useSampleData;
+/** One every 3 s unless the environment sets a pace: long enough for each to play through. */
+const simulationInterval = () => (process.env.NEXT_PUBLIC_SIMULATION_INTERVAL_MS ? APP_CONFIG.simulation.interval : 3000);
+const startSource = () => (simulated ? startSample() : startWorker());
+
+export const isSimulated = () => simulated;
+
+export function setSimulated(on: boolean) {
+  if (on === simulated) return;
+  simulated = on;
+  if (refs > 0) {
+    stopSource?.();
+    stopSource = startSource();
+  }
+}
+
 /** Starts the feed on first use; returns a release function. */
 export function acquireFeed(): () => void {
   if (refs++ === 0) {
-    stopSource = APP_CONFIG.debug.useSampleData ? startSample() : startWorker();
+    stopSource = startSource();
   }
   return () => {
     if (--refs === 0) {

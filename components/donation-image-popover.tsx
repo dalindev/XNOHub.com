@@ -1,11 +1,16 @@
-import React from 'react';
+'use client';
+
+import React, { useState } from 'react';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger
 } from '@/components/ui/popover';
 
+const ADDRESS = 'nano_1osom16ctb773i6zi5fnepfro7bcmr5yqxb4qnmtzxkmdg88o4x6obmchzna';
+
 export const DonationImagePopover = () => {
+  const [copied, setCopied] = useState(false);
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -17,27 +22,36 @@ export const DonationImagePopover = () => {
           <span className="text-[10px] uppercase tracking-[0.14em] text-[#4db8ff]">Ӿ tip</span>
         </button>
       </PopoverTrigger>
-      <PopoverContent className="mb-2 w-[90vw] overflow-hidden rounded-xl border border-white/10 bg-black/80 p-0 shadow-2xl backdrop-blur-md md:w-auto">
-        <div className="flex flex-col items-center pb-2 text-gray-300">
-          <img
-            src="/donation/my_nano_donation_account.jpg"
-            alt="Nano Donation QR Code"
-            className="max-w-full max-h-fit md:max-w-[510px] md:max-h-[300px] object-contain"
-          />
-          <p className="text-center text-[14px] my-3 text-wrap break-words w-3/4">
-            nano_1osom16ctb773i6zi5fnepfro7bcmr5yqxb4qnmtzxkmdg88o4x6obmchzna
+      <PopoverContent
+        side="top"
+        align="end"
+        className="mb-2 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-white/10 bg-black/85 p-0 text-gray-300 shadow-2xl backdrop-blur-md"
+      >
+        <div className="px-4 pb-1 pt-3.5">
+          <div className="text-sm font-medium text-white">Summon a meteor ☄️</div>
+          <p className="mt-1 text-[11px] leading-snug text-gray-400">
+            Send any amount of Nano to this address and a meteor comes down on the globe for it.
           </p>
-          <p className="text-center text-base md:text-[18px] text-green-600 select-none">
-            Summon meteors ☄️, confuse dinos 🦕!<br></br> Rockets? What rockets?
-            🚀
-          </p>
-          <p className="text-center text-[12px] text-gray-400 mb-1">
-            Sent by mistake? Let me know at &nbsp;
-            <a
-              href="https://x.com/dalinhuang"
-              className="text-[#209ce9]"
-              target="_blank"
-            >
+        </div>
+        <img src="/donation/my_nano_donation_account.jpg" alt="QR code of the Nano tip address" className="mx-auto block w-full object-contain px-4 py-2" />
+        <div className="px-4 pb-3.5">
+          <div className="text-[10px] font-medium uppercase tracking-[0.14em] text-gray-500">Tip address</div>
+          <button
+            className="mt-1 w-full break-all rounded-lg border border-white/10 bg-white/5 px-2.5 py-2 text-left font-mono text-[11px] leading-snug text-gray-200 transition-colors hover:border-[#209ce9]/60"
+            title="Copy the address"
+            onClick={() => {
+              navigator.clipboard?.writeText(ADDRESS).then(() => {
+                setCopied(true);
+                setTimeout(() => setCopied(false), 1500);
+              });
+            }}
+          >
+            {ADDRESS}
+            <span className="mt-1 block font-sans text-[10px] uppercase tracking-[0.14em] text-[#4db8ff]">{copied ? 'Copied' : 'Click to copy'}</span>
+          </button>
+          <p className="mt-2.5 text-[11px] text-gray-500">
+            Sent by mistake? Tell me at{' '}
+            <a href="https://x.com/dalinhuang" className="text-[#4db8ff] hover:underline" target="_blank" rel="noreferrer">
               x.com/dalinhuang
             </a>
           </p>

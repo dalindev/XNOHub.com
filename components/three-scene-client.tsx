@@ -144,7 +144,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({ reps }) => {
           {feedStatus.state === 'open'
             ? `Live · ${feedStatus.url ? new URL(feedStatus.url).host : ''}`
             : feedStatus.state === 'sample'
-              ? 'Sample data'
+              ? 'Simulated traffic'
               : 'Connecting…'}
         </div>
       </div>

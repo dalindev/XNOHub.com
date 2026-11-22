@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowDownLeft, ArrowUpRight, ChevronDown, ChevronUp } from 'lucide-react';
 import { useConfirmations } from '@/providers/confirmation-provider';
-import { onConfirmation, confirmationsPerSecond } from '@/lib/feed/bus';
+import { onConfirmation, confirmationsPerSecond, isSimulated, setSimulated } from '@/lib/feed/bus';
 import { parseNanoAmount } from '@/lib/parse-nano-amount';
 import { getStyleByNanoAmount } from '@/lib/get-style-by-nano-amount';
 import { getRepName, useReps, formatWeight } from '@/lib/reps';
@@ -182,6 +182,7 @@ export const Dashboard: React.FC<{ starlink: StarlinkFile | null }> = ({ starlin
   const [details, setDetails] = useState(false);
   // Everything that isn't the live numbers: how signals are drawn, speed, the Earth and sky layers, Starlink.
   const [more, setMore] = useState(false);
+  const [simulated, setSimulatedState] = useState(isSimulated);
   // The confirmation time shown large: fibre's (how nodes really talk), unless only Starlink is drawn.
   const headline = s.mode === 'starlink' ? (stats?.space ?? null) : (stats?.fibre ?? stats?.space ?? null);
   const scale = Math.max(stats?.fibre?.maxMs ?? 0, stats?.space?.maxMs ?? 0, 1);
@@ -282,6 +283,24 @@ export const Dashboard: React.FC<{ starlink: StarlinkFile | null }> = ({ starlin
 
             {more && (
               <>
+            <Section title="Traffic">
+              <Pill
+                on={simulated}
+                onClick={() => {
+                  setSimulated(!simulated);
+                  setSimulatedState(!simulated);
+                }}
+                title="Sample transactions at a steady pace, instead of the live network"
+              >
+                Simulate traffic
+              </Pill>
+              <div className="mt-2 text-[11px] leading-snug text-gray-500">
+                {simulated
+                  ? 'Showing sample transactions, one every few seconds. These are not real payments.'
+                  : 'Showing the live Nano network. When it is quiet, switch this on to see how a transaction confirms.'}
+              </div>
+            </Section>
+
             <Section title="Signal path">
               <div className="grid grid-cols-4 gap-1 rounded-lg bg-white/5 p-0.5">
                 {MODES.map((m) => (

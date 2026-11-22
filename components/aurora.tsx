@@ -100,6 +100,7 @@ const CLOCK_WRAP = 64_000;
 // once per vertex, every 2 degrees, and only the fine structure per pixel.
 const vertex = /* glsl */ `
   uniform float uTime;
+  uniform vec3 uSunDir;
   attribute float aShell;
   varying vec3 vDir;
   varying float vShell;
@@ -118,6 +119,16 @@ const vertex = /* glsl */ `
     vDir = position;
     vShell = aShell;
     vec3 d = normalize(position);
+    // Most of the aurora's cost was drawing six see-through shells over the whole view only to
+    // throw five away pixel by pixel. So a shell is dropped here, before any pixel is drawn,
+    // wherever the fragment shader would discard it anyway: on the day side, and (all but the
+    // carrier shell) wherever the view is steep enough that the shells are merged into one.
+    float steep = abs(dot(normalize(cameraPosition - position), d));
+    bool carrier = abs(aShell - ${(CARRIER / (SHELLS_KM.length - 1)).toFixed(3)}) < 0.05;
+    if ((steep > 0.56 && !carrier) || dot(d, uSunDir) > 0.1) {
+      gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+      return;
+    }
     float t = uTime;
     // The map has one cell per degree, the first centred on 180° W and on the
     // south pole. Longitude comes from the sphere's own texture coordinate,
@@ -185,10 +196,11 @@ const fragment = /* glsl */ `
 
     // Green arcs are thin. Red light comes from higher, thinner air and
     // spreads wider than the green arc under it: a soft halo around each arc.
-    float arcs = mix(pow(lobe, 5.0), 0.85 * pow(lobe, 1.6), top);
+    // Soft bands, not lines: aurora seen from above is a veil with no hard edge.
+    float arcs = mix(pow(lobe, 2.0), 0.85 * pow(lobe, 1.3), top);
     // The pink border shows along one edge of the arc, as a curtain's lower
     // edge does when it is seen at a slant.
-    if (border > 0.0) arcs = mix(arcs, 1.3 * pow(0.5 + 0.5 * cos(TAU * (phase - 0.08)), 8.0), border);
+    if (border > 0.0) arcs = mix(arcs, 1.3 * pow(0.5 + 0.5 * cos(TAU * (phase - 0.08)), 3.0), border);
 
     // Green is brightest around 115 km and fades upward; red takes over above
     // 200 km, more of it the taller the rays stand.
@@ -202,7 +214,7 @@ const fragment = /* glsl */ `
     // Near the day-night line the tops stand in sunlight above dark ground,
     // and sunlit nitrogen glows violet-blue.
     col = mix(col, VIOLET, top * sunlit * 0.75);
-    return col * weight * (glow + 1.5 * arcs * arcsShow);
+    return col * weight * (glow + 1.0 * arcs * arcsShow);
   }
 
   void main() {
@@ -215,7 +227,9 @@ const fragment = /* glsl */ `
     // carrying the light of all six: a sixth of the work, just where the
     // aurora covers the most pixels. Seen at a slant they are drawn apart,
     // which is what gives the curtains their height.
-    float merged = smoothstep(0.55, 0.8, abs(dot(normalize(cameraPosition - vDir), d)));
+    // (Separate shells only matter near the horizon; from 0.55-0.8 this was lowered to 0.3-0.5,
+    // which is where most of the drawing cost went.)
+    float merged = smoothstep(0.3, 0.5, abs(dot(normalize(cameraPosition - vDir), d)));
     bool carrier = abs(vShell - ${(CARRIER / (SHELLS_KM.length - 1)).toFixed(3)}) < 0.05;
     if (merged >= 1.0 && !carrier) discard;
 
@@ -237,7 +251,7 @@ const fragment = /* glsl */ `
     float away = abs(mod(lon - uSurge.x + 3.14159265, TAU) - 3.14159265);
     front = uSurge.y * exp(-away * away / 0.18);
     lively = max(lively, front);
-    bluish = clamp(0.7 * uHue.x * smoothstep(0.2, 0.9, vBroad.w) + 0.6 * front, 0.0, 1.0);
+    bluish = clamp(0.4 * uHue.x * smoothstep(0.2, 0.9, vBroad.w) + 0.6 * front, 0.0, 1.0);
     // How tall the rays stand here: taller in lively aurora and in a disturbed
     // field, and in slow patches of its own.
     tall = clamp(vBroad.x * 0.9 + lively * 0.5 + uActivity * 0.5 - 0.25, 0.0, 1.0);
@@ -254,23 +268,17 @@ const fragment = /* glsl */ `
     lobe = 0.5 + 0.5 * cos(TAU * phase);
     // From far away the arcs are finer than a pixel: fall back to their average.
     float resolved = clamp(1.0 - fwidth(phase) * 1.6, 0.0, 1.0);
-    arcsShow = mix(smoothstep(0.3, 0.7, vBroad.w), 1.0, lively * 0.6) * resolved;
+    arcsShow = mix(smoothstep(0.15, 0.85, vBroad.w), 1.0, lively * 0.6) * resolved;
 
-    // Rays along the curtains, 30 km apart: a slow shimmer when calm, a quick
-    // one when lively. Left out where one pixel covers several of them.
+    // No fine rays: from orbit aurora reads as soft drifting veils, and the two extra layers of
+    // detail they needed cost more than anything else here (frames dropped when the aurora
+    // filled a high-density screen). Lively stretches still billow, in broad slow folds.
     float rays = 1.0;
-    float fine = resolved * (1.0 - smoothstep(0.0015, 0.004, pixel));
-    if (fine > 0.0) {
-      float slow = lively < 0.999 ? 0.6 + 0.4 * noise(d * 190.0 + vec3(t * 0.25, t * 0.6, 0.0)) : 0.0;
-      float fast = lively > 0.001 ? 0.6 + 0.4 * noise(d * 170.0 + vec3(t * 0.9, -t * 1.7, t * 0.5)) : 0.0;
-      rays = mix(1.0, mix(slow, fast, lively), fine);
-    }
-    // Lively curtains also billow: folds a hundred km across that sweep along quickly.
-    if (lively > 0.001) rays *= mix(1.0, 0.7 + 0.6 * noise(d * 45.0 + vec3(t * 0.45, -t * 0.7, t * 0.25)), lively);
+    if (lively > 0.001) rays = mix(1.0, 0.75 + 0.5 * noise(d * 30.0 + vec3(t * 0.45, -t * 0.7, t * 0.25)), lively * resolved);
 
     // Away from the lively stretches, patches of the soft glow switch on and
     // off every few seconds (pulsating aurora).
-    float pulsing = smoothstep(0.5, 0.7, vPulse.x) * (1.0 - lively);
+    float pulsing = smoothstep(0.3, 0.9, vPulse.x) * (1.0 - lively);
     float blink = smoothstep(0.3, 0.7, 0.5 + 0.5 * sin(t * 1.6 + vPulse.y));
     glow = 0.5 * mix(1.0, 0.55 + 0.8 * blink, pulsing);
 
@@ -279,7 +287,7 @@ const fragment = /* glsl */ `
     // The shells add up on screen (about four shells' worth, seen from above).
     // Bright aurora is eased toward a ceiling so it keeps its colour instead
     // of burning out to white.
-    float summed = lit * (glow + 1.5 * pow(lobe, 5.0) * arcsShow) * 4.0;
+    float summed = lit * (glow + 1.0 * pow(lobe, 2.0) * arcsShow) * 4.0;
     float eased = min(summed, 0.6) + 0.55 * (1.0 - exp(-max(summed - 0.6, 0.0) / 0.55));
     lit *= eased / max(summed, 1e-4);
 
