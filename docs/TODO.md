@@ -95,6 +95,7 @@ Open:
 - [ ] Run `pnpm build` (not run this phase: the dev server was using `.next`), then look at it by hand in a real browser
 - [ ] Dalin saw lag in his browser; it didn't reproduce headless on the same Mac (GPU about 8.5 ms a frame at 3456×2234, CPU 72% idle). The changes above target the two likely causes; needs his check
 - [ ] Close up on a high-density screen the ground is a little soft (one picture pixel per 4 device pixels, to halve the tile count); sharper costs more data
+- [x] Starlink ride, tip pop-up, calmer aurora (2026-11-21): the ride camera is free (drag to orbit, scroll to zoom, 62 degree lens, drifts until held) and clouds are always on while riding; the tip pop-up opens below its button with a 19 rem QR beside the text (above it on a phone); the aurora's racing front and blinking are off (colour drift and gusts stay). Not done: a detailed Starlink model loaded only in the ride view (needs a model with a usable licence)
 
 ## Phase 3: launch sites and Starship operations
 

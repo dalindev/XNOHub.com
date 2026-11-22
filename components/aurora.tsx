@@ -280,7 +280,8 @@ const fragment = /* glsl */ `
     // off every few seconds (pulsating aurora).
     float pulsing = smoothstep(0.3, 0.9, vPulse.x) * (1.0 - lively);
     float blink = smoothstep(0.3, 0.7, 0.5 + 0.5 * sin(t * 1.6 + vPulse.y));
-    glow = 0.5 * mix(1.0, 0.55 + 0.8 * blink, pulsing);
+    // (The glow used to blink on and off in patches; too regular to look real, so it holds steady.)
+    glow = 0.5;
 
     // Lively stretches are brighter, and the whole oval breathes a little.
     float lit = base * night * uOpacity * rays * (1.0 + lively * (0.35 + 0.9 * uActivity) + 1.2 * front) * vBroad.y;
@@ -379,16 +380,16 @@ export const Aurora: React.FC = () => {
     const drive = auroraDrive(spaceWeather.get());
     // The forecast changes every half hour; real aurora changes by the second. So, on top of the
     // real level, a burst comes through now and then (generated, not measured): for 10 to 20
-    // seconds the solar wind gusts, everything speeds up and brightens, and a front races round
-    // the oval. The colours drift the same way.
+    // seconds the solar wind gusts and everything speeds up and brightens a little. The colours
+    // drift the same way.
     const dt = Math.min(delta, 0.1);
     clock.current += dt;
     const now = clock.current;
     const gust = forcedGust ?? THREE.MathUtils.smoothstep(drift(now / 16, 1), 0.58, 0.8);
-    u.uTime.value = (u.uTime.value + dt * drive.pace * (1 + 1.8 * gust)) % CLOCK_WRAP;
-    u.uActivity.value = THREE.MathUtils.damp(u.uActivity.value, Math.min(1, drive.activity + 0.5 * gust), 1.2, delta);
+    u.uTime.value = (u.uTime.value + dt * drive.pace * (1 + 0.6 * gust)) % CLOCK_WRAP;
+    u.uActivity.value = THREE.MathUtils.damp(u.uActivity.value, Math.min(1, drive.activity + 0.3 * gust), 1.2, delta);
     // The front runs west, a full turn of the oval in about 40 seconds while a burst lasts.
-    u.uSurge.value.set((u.uSurge.value.x - dt * (0.05 + 0.16 * gust) * drive.pace + Math.PI * 2) % (Math.PI * 2), gust);
+    u.uSurge.value.set((u.uSurge.value.x - dt * (0.05 + 0.16 * gust) * drive.pace + Math.PI * 2) % (Math.PI * 2), 0); // the racing front is off: it read as a hard pulse, not as aurora
     u.uHue.value.set(
       THREE.MathUtils.smoothstep(drift(now / 31, 2) + 0.3 * drive.activity, 0.45, 0.85),
       THREE.MathUtils.smoothstep(drift(now / 43, 3) + 0.3 * drive.activity, 0.5, 0.9)
