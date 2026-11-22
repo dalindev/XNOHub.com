@@ -1,35 +1,49 @@
 import { describe, expect, it } from 'vitest';
-import { confirmTime, voteWorkMs, VOTE_WORK_MS } from './confirm-time';
+import { simulateElection, voteWorkMs, finalVoteWorkMs, VOTE_WORK_MS, FINAL_VOTE_WORK_MS } from './confirm-time';
 
-describe('confirmTime', () => {
-  it('is confirmed when the vote that crosses two-thirds is back: out, work, back', () => {
-    const trips = [
-      { travelMs: 10, workMs: 100, share: 30 }, // back at 120
-      { travelMs: 40, workMs: 100, share: 30 }, // back at 180: 10 + 30 + 30 = 70 >= 67
-      { travelMs: 90, workMs: 100, share: 30 }
-    ];
-    expect(confirmTime(10, trips)).toEqual({ totalMs: 180, travelMs: 80 });
+// Four nodes on a line, 10 ms apart: 0 - 1 - 2 - 3.
+const line = (from: number, to: number) => Math.abs(from - to) * 10;
+const run = (share: number[], origin = 0, delay = line) =>
+  simulateElection({ origin, share, delay, voteWork: () => 100, finalWork: () => 40 });
+
+describe('simulateElection', () => {
+  it('block out, a vote from each node, then a final vote once a node has seen two-thirds', () => {
+    const e = run([25, 25, 25, 25]);
+    expect([...e.blockAt]).toEqual([0, 10, 20, 30]);
+    expect([...e.voteSentAt]).toEqual([100, 110, 120, 130]);
+    // Node 0 needs three votes (75%): its own at 100, node 1's at 120, node 2's at 140. Then 40 ms to send a final vote.
+    // Node 2, in the middle, hears nodes 0 and 1 by 120, just as its own vote leaves.
+    expect([...e.finalSentAt]).toEqual([180, 170, 160, 170]);
+    // Confirmed at node 0 when three final votes are in: its own (180), node 1's (170 + 10), node 2's (160 + 20).
+    expect(e.confirmedAt[0]).toBe(180);
   });
 
-  it('orders votes by when they are back, not by distance', () => {
-    const trips = [
-      { travelMs: 10, workMs: 300, share: 40 }, // near but slow: back at 320
-      { travelMs: 50, workMs: 100, share: 40 }, // far but quick: back at 200
-      { travelMs: 60, workMs: 100, share: 40 } // back at 220: 40 + 40 = 80
-    ];
-    expect(confirmTime(0, trips)).toEqual({ totalMs: 220, travelMs: 120 });
+  it('every node confirms for itself, at its own time', () => {
+    const e = run([25, 25, 25, 25]);
+    expect([...e.confirmedAt]).toEqual([180, 190, 180, 190]);
   });
 
-  it('needs no trip when the sender alone holds a quorum, and is null when votes never add up', () => {
-    expect(confirmTime(70, [])).toEqual({ totalMs: 0, travelMs: 0 });
-    expect(confirmTime(10, [{ travelMs: 5, workMs: 5, share: 20 }])).toBeNull();
+  it('a heavy far node holds everyone up; light near ones cannot confirm alone', () => {
+    const e = run([10, 10, 10, 70]);
+    // Nobody has two-thirds before node 3's vote (sent at 130) arrives.
+    expect(e.finalSentAt[3]).toBe(170);
+    expect([...e.finalSentAt]).toEqual([200, 190, 180, 170]);
+    expect(e.confirmedAt[0]).toBe(200); // node 3's final vote, 170 + 30
+  });
+
+  it('never confirms when the nodes that can be reached hold less than two-thirds', () => {
+    const cut = (from: number, to: number) => (from === 3 || to === 3 ? Infinity : line(from, to));
+    const e = run([20, 20, 20, 40], 0, cut);
+    expect(e.confirmedAt[0]).toBe(Infinity);
+    expect(e.finalSentAt[1]).toBe(Infinity);
   });
 });
 
-describe('voteWorkMs', () => {
-  it('stays within 40 ms of the estimate and is the same for a node every time', () => {
+describe('work estimates', () => {
+  it('stay within 30% of the estimate and are the same for a node every time', () => {
     for (let node = 0; node < 500; node++) {
-      expect(Math.abs(voteWorkMs(node) - VOTE_WORK_MS)).toBeLessThanOrEqual(40);
+      expect(Math.abs(voteWorkMs(node) - VOTE_WORK_MS)).toBeLessThanOrEqual(VOTE_WORK_MS * 0.3 + 1e-9);
+      expect(Math.abs(finalVoteWorkMs(node) - FINAL_VOTE_WORK_MS)).toBeLessThanOrEqual(FINAL_VOTE_WORK_MS * 0.3 + 1e-9);
       expect(voteWorkMs(node)).toBe(voteWorkMs(node));
     }
   });

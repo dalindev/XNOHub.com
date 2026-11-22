@@ -1,44 +1,86 @@
-// When a block counts as confirmed, and how long that takes.
+// How Nano confirms a block, and how long that takes.
 //
-// Nano confirms a block once votes carrying two-thirds of the online voting
-// weight have come back. Two things take time:
-//   - travel: the block out to each node and its vote back, at the speed of
-//     light in fibre or vacuum. This part is computed from real routes.
-//   - work: each node checks the block (signature, balance, fork), then signs
-//     and sends its vote. The public feed doesn't report this, so it is an
-//     estimate: Nano's confirmations typically take about 0.3 s end to end and
-//     travel accounts for roughly 0.1 s of that, which leaves about 180 ms.
+// From the Nano docs (protocol design: ORV consensus; node implementation:
+// voting; release notes V22):
+//   1. The node that has a new block publishes it straight to every principal
+//      representative.
+//   2. Each representative checks the block and broadcasts a vote to every
+//      other representative (not back to the sender alone).
+//   3. Once a representative has seen votes carrying 67% of the online voting
+//      weight, it broadcasts a second, final vote.
+//   4. A node counts the block as confirmed once it has seen final votes
+//      carrying 67% of the online weight. Every node tallies for itself: no
+//      one node decides for the rest.
+//
+// What takes time is travel (computed from real routes, at the speed of light
+// in fibre or vacuum) and each node's own work: checking the block and signing
+// a vote, then signing the final vote. The public feeds don't report that
+// work, so it is an estimate, set so that the whole thing takes about the
+// 0.3 s Nano typically needs.
 
-/** Percent of the online voting weight that confirms a block. */
+/** Percent of the online voting weight that makes a quorum. */
 export const QUORUM = 67;
-/** Estimated time for a node to check a block and send its vote, in ms. */
-export const VOTE_WORK_MS = 180;
-const SPREAD_MS = 40;
+/** Estimated time for a node to check a block and send its first vote, in ms. */
+export const VOTE_WORK_MS = 100;
+/** Estimated time for a node that has seen a quorum to send its final vote, in ms. */
+export const FINAL_VOTE_WORK_MS = 40;
 
-/** A node's share of that estimate: nodes differ, so each gets a fixed value within 40 ms of it. */
-export const voteWorkMs = (node: number) => VOTE_WORK_MS - SPREAD_MS + ((node * 37) % (2 * SPREAD_MS + 1));
+// Nodes differ, so each gets a fixed value within 30% of the estimate.
+const spread = (node: number, ms: number) => ms * (0.7 + (((node * 37) % 61) / 60) * 0.6);
+export const voteWorkMs = (node: number) => spread(node, VOTE_WORK_MS);
+export const finalVoteWorkMs = (node: number) => spread(node + 17, FINAL_VOTE_WORK_MS);
 
-export interface Trip {
-  /** One-way travel time to the node, ms. */
-  travelMs: number;
-  /** Time the node takes before its vote leaves, ms. */
-  workMs: number;
-  /** The node's share of the online voting weight, percent. */
-  share: number;
+export interface ElectionInput {
+  /** Voting nodes; `origin` indexes into every array here. */
+  origin: number;
+  /** Each node's share of the online voting weight, percent. */
+  share: ArrayLike<number>;
+  /** One-way travel time between two nodes, ms. Infinity if they can't reach each other. */
+  delay: (from: number, to: number) => number;
+  voteWork: (node: number) => number;
+  finalWork: (node: number) => number;
 }
 
-/**
- * Time from sending a block until the votes that are back add up to a quorum,
- * and how much of that was travel. The sender's own vote needs no trip.
- * Null if the votes never add up.
- */
-export function confirmTime(ownShare: number, trips: Trip[]): { totalMs: number; travelMs: number } | null {
-  let have = ownShare;
-  if (have >= QUORUM) return { totalMs: 0, travelMs: 0 };
-  const back = (t: Trip) => 2 * t.travelMs + t.workMs;
-  for (const t of [...trips].sort((a, b) => back(a) - back(b))) {
-    have += t.share;
-    if (have >= QUORUM) return { totalMs: back(t), travelMs: 2 * t.travelMs };
+export interface Election {
+  /** When the block reaches each node (0 for the origin). */
+  blockAt: Float64Array;
+  /** When each node sends its first vote. */
+  voteSentAt: Float64Array;
+  /** When each node has seen a quorum of votes and sends its final vote. Infinity if it never does. */
+  finalSentAt: Float64Array;
+  /** When each node has seen a quorum of final votes: the block is confirmed there. Infinity if never. */
+  confirmedAt: Float64Array;
+}
+
+/** When the weight arriving at each node (sent at `sentAt`, a node's own counting at once) adds up to a quorum. */
+function quorumAt(n: number, sentAt: Float64Array, share: ArrayLike<number>, delay: ElectionInput['delay']) {
+  const out = new Float64Array(n).fill(Infinity);
+  const arrivals: [number, number][] = [];
+  for (let at = 0; at < n; at++) {
+    arrivals.length = 0;
+    for (let from = 0; from < n; from++) {
+      const t = sentAt[from] + (from === at ? 0 : delay(from, at));
+      if (Number.isFinite(t)) arrivals.push([t, share[from]]);
+    }
+    arrivals.sort((a, b) => a[0] - b[0]);
+    let have = 0;
+    for (const [t, weight] of arrivals) {
+      have += weight;
+      if (have >= QUORUM) {
+        out[at] = t;
+        break;
+      }
+    }
   }
-  return null;
+  return out;
+}
+
+/** Plays one block through the two rounds of voting. All times are ms after the origin publishes it. */
+export function simulateElection({ origin, share, delay, voteWork, finalWork }: ElectionInput): Election {
+  const n = share.length;
+  const blockAt = Float64Array.from({ length: n }, (_, i) => (i === origin ? 0 : delay(origin, i)));
+  const voteSentAt = blockAt.map((t, i) => t + voteWork(i));
+  const finalSentAt = quorumAt(n, voteSentAt, share, delay).map((t, i) => t + finalWork(i));
+  const confirmedAt = quorumAt(n, finalSentAt, share, delay);
+  return { blockAt, voteSentAt, finalSentAt, confirmedAt };
 }

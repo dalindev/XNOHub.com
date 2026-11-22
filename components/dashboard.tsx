@@ -9,7 +9,7 @@ import { getStyleByNanoAmount } from '@/lib/get-style-by-nano-amount';
 import { getRepName, useReps, formatWeight } from '@/lib/reps';
 import { settings, useSettings, type SignalMode } from '@/lib/settings';
 import { useRouteStats, type LegStats } from '@/lib/route-stats';
-import { VOTE_WORK_MS } from '@/lib/confirm-time';
+import { VOTE_WORK_MS, FINAL_VOTE_WORK_MS } from '@/lib/confirm-time';
 import { useSpaceWeather, kpLabel } from '@/lib/space-weather';
 import { useCloudSource } from '@/lib/live-clouds';
 import { VERSION_NAMES, periodMinutes, type StarlinkFile } from '@/lib/orbits';
@@ -177,8 +177,8 @@ export const Dashboard: React.FC<{ starlink: StarlinkFile | null }> = ({ starlin
 
   const routed = s.mode !== 'classic';
   const scale = Math.max(stats?.fibre?.maxMs ?? 0, stats?.space?.maxMs ?? 0, 1);
-  // Travel's part of the confirmation time shown: fibre's, unless only Starlink is drawn.
-  const travel = (s.mode === 'starlink' ? stats?.space : (stats?.fibre ?? stats?.space))?.quorumTravelMs ?? null;
+  // When the first round of votes reached a quorum at the sender: fibre's, unless only Starlink is drawn.
+  const votes = (s.mode === 'starlink' ? stats?.space : (stats?.fibre ?? stats?.space))?.votesMs ?? null;
 
   return (
     <div className="pointer-events-none flex max-h-full w-full flex-col items-end gap-2 text-xs text-gray-300 select-none md:w-[19.5rem]">
@@ -266,7 +266,11 @@ export const Dashboard: React.FC<{ starlink: StarlinkFile | null }> = ({ starlin
                     )}
                     <span className="flex items-center gap-1.5">
                       <span className="h-px w-4 rounded-full" style={{ background: s.mode === 'starlink' ? '#cdf5ff' : VOTE }} />
-                      vote coming back
+                      vote
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="h-px w-4 rounded-full" style={{ background: '#a8ffcf' }} />
+                      final vote
                     </span>
                     <span className="flex items-center gap-1.5">
                       <span className="h-2.5 w-2.5 rounded-full border" style={{ borderColor: CONFIRMED, boxShadow: `0 0 6px ${CONFIRMED}` }} />
@@ -284,12 +288,12 @@ export const Dashboard: React.FC<{ starlink: StarlinkFile | null }> = ({ starlin
                     <div className="mt-2 text-[11px] leading-snug text-gray-500">
                       <div className="text-gray-400">
                         {stats.drawn >= stats.online
-                          ? `Sent to all ${stats.online} other online nodes; each votes back.`
+                          ? `Sent to all ${stats.online} other online nodes; each votes, then votes again to finalise.`
                           : `Busy network: drawing ${stats.drawn} of ${stats.online} nodes.`}
                       </div>
                       {(quorum(stats.fibre) || quorum(stats.space)) && (
-                        <div className="text-gray-400" title="Nano confirms a block once votes carrying 67% of the online voting weight have arrived">
-                          <span style={{ color: CONFIRMED }}>Confirmed</span> (two-thirds of the vote back):{' '}
+                        <div className="text-gray-400" title="A node counts a block as confirmed once it has seen final votes carrying 67% of the online voting weight. Every node does this for itself">
+                          <span style={{ color: CONFIRMED }}>Confirmed</span> at the sender (two-thirds of the final votes in):{' '}
                           {[s.mode !== 'starlink' && quorum(stats.fibre) && `${quorum(stats.fibre)}${s.mode === 'race' ? ' by fibre' : ''}`,
                             s.mode !== 'cables' && quorum(stats.space) && `${quorum(stats.space)}${s.mode === 'race' ? ' by Starlink' : ''}`]
                             .filter(Boolean)
@@ -309,8 +313,9 @@ export const Dashboard: React.FC<{ starlink: StarlinkFile | null }> = ({ starlin
                       )}
                       {s.mode === 'starlink' && stats.hops > 0 && <div>longest route relayed by {stats.hops} satellites</div>}
                       <div>
-                        {travel !== null && `${ms(travel)} of that is travel at light speed. `}
-                        The rest is each node checking the block and voting: an estimate (about {VOTE_WORK_MS} ms), set to match Nano&rsquo;s usual 0.3 s.
+                        {votes !== null && `Two rounds: the sender has two-thirds of the first votes at ${ms(votes)}, then of the final votes. `}
+                        Travel is at light speed on real routes. Each node&rsquo;s own time to check and vote is an estimate (about {VOTE_WORK_MS} ms, then{' '}
+                        {FINAL_VOTE_WORK_MS} ms for the final vote), set to match Nano&rsquo;s usual 0.3 s.
                         {s.mode !== 'cables' && ' Starlink is a what-if: real nodes are on fibre.'}
                       </div>
                     </div>
