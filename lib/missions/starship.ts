@@ -216,23 +216,54 @@ export function travelled(age: number) {
   return a < SLIDE_S ? (SEPARATION_MS * a * a) / (2 * SLIDE_S) : SEPARATION_MS * (SLIDE_S / 2 + a - SLIDE_S);
 }
 
-/** The satellite's size along its push (m): it starts just inside the hull. */
-const DEPTH = 3.0;
+// The dispenser. The satellites wait in a stack in the payload bay, centred
+// STACK_Z toward the slot side so a folded one (bus, folded arrays, dishes
+// under it: about 6.2 m across, 5 m deep with the dishes, 1 m tall) sits
+// wholly inside the hull. The bottom one is at the slot's height; it is
+// pushed out, and once it is clear the stack lowers by one. Only the few
+// nearest the slot are drawn: the rest are higher up the bay, out of every
+// view. (Our estimates: SpaceX hasn't published the dispenser's layout.)
+export const STACK_Z = 1.0;
+export const STACK_PITCH = 1.05;
+export const STACK_SHOWN = 4;
+/** The satellite's middle sits this far above the slot's, so its dishes clear the sill. */
+export const SAT_LIFT = 0.1;
+const LOWER_FROM_S = 34; // after a release: the satellite has cleared the stack
+const LOWER_TO_S = 44;
+
+/** How far down the stack has come at `t`: one step per release, a little after it. */
+function lowered(t: number) {
+  const i = Math.floor((t - FIRST_RELEASE_S - LOWER_FROM_S) / RELEASE_EVERY_S);
+  if (i < 0) return 0;
+  const last = Math.min(i, DEPLOY_COUNT - 1);
+  const step = smooth(LOWER_FROM_S, LOWER_TO_S, t - FIRST_RELEASE_S - last * RELEASE_EVERY_S);
+  return last + step;
+}
 
 /**
- * Satellite `k` (0..59) at mission time `t`, in the ship's frame. It lies in
- * the stack across the ship (thin along the ship's length, its folded arrays
- * toward the nose), is pushed out of the slot along +Z and carries on
- * straight out at a steady speed, in line with the others and without
- * turning; its arrays open slowly once it is far from the ship.
- * `slotY` and `hullR` are the slot's height and the hull radius (metres).
+ * Satellite `k` (0..59) at mission time `t`, in the ship's frame. Until its
+ * turn it waits in the stack (drawn only near the slot). It lies across the
+ * ship (thin along the ship's length, its folded arrays toward the nose), is
+ * pushed out of the slot along +Z and carries on straight out at a steady
+ * speed, in line with the others and without turning; its arrays open slowly
+ * once it is far from the ship. `slotY` is the slot's height (metres).
  */
-export function satelliteAt(k: number, t: number, slotY: number, hullR: number, out: SatellitePose): SatellitePose {
+export function satelliteAt(k: number, t: number, slotY: number, out: SatellitePose): SatellitePose {
   const age = t - (FIRST_RELEASE_S + k * RELEASE_EVERY_S);
-  out.visible = age >= 0 && t < MISSION_END_S;
-  if (!out.visible) return out;
-  out.pos.set(0, slotY, hullR - DEPTH / 2 - 0.1 + travelled(age));
   out.quat.identity();
+  out.unfold = 0;
+  if (t >= MISSION_END_S) {
+    out.visible = false;
+    return out;
+  }
+  if (age < 0) {
+    const level = k - lowered(t);
+    out.visible = level <= STACK_SHOWN;
+    out.pos.set(0, slotY + SAT_LIFT + level * STACK_PITCH, STACK_Z);
+    return out;
+  }
+  out.visible = true;
+  out.pos.set(0, slotY + SAT_LIFT, STACK_Z + travelled(age));
   out.unfold = THREE.MathUtils.clamp((age - UNFOLD_AFTER_S) / UNFOLD_S, 0, 1);
   return out;
 }

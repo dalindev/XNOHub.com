@@ -6,6 +6,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { buildStarship, buildSuperHeavy, SHIP_HEIGHT_M, BOOSTER_HEIGHT_M, SLOT_Y, R } from '@/lib/models/starship-models';
 import { StarlinkV3Fleet } from '@/lib/models/starlink-v3';
 import { makeExhaustCloud } from '@/lib/models/exhaust-cloud';
+import { buildPayloadBay, onboardCam, placeOnboardCamera, type OnboardCamId } from '@/lib/models/starship-onboard';
 import { reflectiveMaterials, sunlight } from '@/lib/models/vehicle-materials';
 import { makeOrbitEnvironment, makeSkyEnvironment, envRotationFor, environmentIntensity, sunlightAt, SKY_TOP_KM } from '@/lib/models/orbit-environment';
 import {
@@ -20,7 +21,7 @@ import {
   type Phase
 } from '@/lib/missions/starship';
 import { METRE } from '@/lib/chase-camera';
-import { useOrbitView, placeOrbitCamera, type OrbitView } from '@/components/use-orbit-view';
+import { useOrbitView, placeOrbitCamera, RIDE_FOV, type OrbitView } from '@/components/use-orbit-view';
 import { world } from '@/lib/world';
 
 // One Starship mission at a time: the V3 stack lifts off from Starbase,
@@ -43,13 +44,20 @@ export interface MissionInfo {
   inShadow: boolean;
   /** Too small to see from here: shown by a marker. */
   marked: boolean;
+  /** The booster is still flying (its camera can be watched). */
+  boosterFlying: boolean;
 }
+
+/** Riding along: the chase view, or one of the vehicles' own cameras (lib/models/starship-onboard). */
+export type StarshipCam = 'chase' | OnboardCamId;
 
 interface Props {
   /** Bump to launch (ignored while a mission is flying). */
   launchSignal: number;
   /** Camera rides along with the ship. */
   follow: boolean;
+  /** Which camera, while riding along. */
+  cam: StarshipCam;
   /** How many times faster than real the mission clock runs. */
   speed: number;
   onInfo: (info: MissionInfo | null) => void;
@@ -145,6 +153,12 @@ const engineLight = (color: number) => new THREE.PointLight(color, 0, 900 * METR
 const ENGINE_LIGHT = 900 * METRE * METRE;
 const SHIP_LIGHT_AT = new THREE.Vector3(0, -6, 0); // metres, below each hull
 const BOOSTER_LIGHT_AT = new THREE.Vector3(0, -8, 0);
+// The payload bay's lamps for the dispenser camera: cool white LEDs, a few
+// metres' reach, on from a minute before the door opens.
+const BAY_LAMP = 5 * METRE * METRE;
+const bayLamp = () => new THREE.PointLight(0xe4ecff, 0, 12 * METRE, 2);
+// Riding on a vehicle's camera: it sits right against the hull.
+const ONBOARD_NEAR = 0.15 * METRE;
 
 // A glowing dot in corner brackets, drawn the same size on screen at any distance.
 function marker() {
@@ -180,7 +194,7 @@ function marker() {
 const MARKER_PX = 22;
 const MARK_BELOW_PX = 5; // the ship shorter than this on screen: mark it
 
-export const StarshipMission: React.FC<Props> = ({ launchSignal, follow, speed, onInfo }) => {
+export const StarshipMission: React.FC<Props> = ({ launchSignal, follow, cam, speed, onInfo }) => {
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
   const gl = useThree((s) => s.gl);
   /** Mission elapsed time (real seconds), or null when no mission is flying. */
@@ -189,6 +203,10 @@ export const StarshipMission: React.FC<Props> = ({ launchSignal, follow, speed, 
   useEffect(() => {
     speedRef.current = speed;
   }, [speed]);
+  const camRef = useRef(cam);
+  useEffect(() => {
+    camRef.current = cam;
+  }, [cam]);
   // Riding along, the camera is the viewer's: drag to look round the ship, scroll to zoom.
   const view = useOrbitView(follow, { azimuth: 1.1, elevation: 0.12, distance: 1 });
   const state = useMemo(() => createMissionState(), []);
@@ -204,8 +222,11 @@ export const StarshipMission: React.FC<Props> = ({ launchSignal, follow, speed, 
     boosterPlume.forEach((p) => booster.add(p.translateY(-0.4)));
     const shipLight = engineLight(0xdfe6ff);
     const boosterLight = engineLight(0xffb070);
+    const bay = buildPayloadBay();
+    ship.group.add(bay.group);
+    const lamps = bay.lamps.map(bayLamp);
     const lights = new THREE.Group();
-    lights.add(shipLight, boosterLight);
+    lights.add(shipLight, boosterLight, ...lamps);
     const fleet = new StarlinkV3Fleet(DEPLOY_COUNT);
     ship.group.add(fleet.group); // ship coordinates, metres
     const shipRoot = new THREE.Group();
@@ -227,7 +248,7 @@ export const StarshipMission: React.FC<Props> = ({ launchSignal, follow, speed, 
     const root = new THREE.Group();
     root.add(shipRoot, boosterRoot, shipMarker, boosterMarker, cloudRoot);
     root.visible = false;
-    return { ship, booster, shipPlume, boosterPlume, shipLight, boosterLight, lights, fleet, shipRoot, boosterRoot, shipMarker, boosterMarker, cloud, cloudRoot, root };
+    return { ship, booster, shipPlume, boosterPlume, shipLight, boosterLight, bay, lamps, lights, fleet, shipRoot, boosterRoot, shipMarker, boosterMarker, cloud, cloudRoot, root };
   }, []);
 
   useEffect(() => () => parts.fleet.dispose(), [parts]);
@@ -258,7 +279,8 @@ export const StarshipMission: React.FC<Props> = ({ launchSignal, follow, speed, 
     w.__xno = {
       ...(w.__xno ?? {}),
       starship: (seconds: number) => (met.current = seconds),
-      shipView: (v: Partial<Omit<OrbitView, 'held'>>) => Object.assign(view.current, v, { held: true })
+      shipView: (v: Partial<Omit<OrbitView, 'held'>>) => Object.assign(view.current, v, { held: true }),
+      shipCam: (id: StarshipCam) => (camRef.current = id)
     };
   }, [view]);
 
@@ -286,10 +308,11 @@ export const StarshipMission: React.FC<Props> = ({ launchSignal, follow, speed, 
   );
 
   useFrame(({ clock, size }, delta) => {
-    const { root, shipRoot, boosterRoot, ship, shipPlume, boosterPlume, shipLight, boosterLight, fleet, shipMarker, boosterMarker, cloud, cloudRoot } = parts;
+    const { root, shipRoot, boosterRoot, ship, shipPlume, boosterPlume, shipLight, boosterLight, bay, lamps, fleet, shipMarker, boosterMarker, cloud, cloudRoot } = parts;
     if (met.current === null) {
       root.visible = false;
       shipLight.intensity = boosterLight.intensity = 0;
+      for (const l of lamps) l.intensity = 0;
       return;
     }
     // A long frame (a hidden tab) doesn't jump the mission ahead.
@@ -299,6 +322,7 @@ export const StarshipMission: React.FC<Props> = ({ launchSignal, follow, speed, 
       met.current = null;
       root.visible = false;
       shipLight.intensity = boosterLight.intensity = 0;
+      for (const l of lamps) l.intensity = 0;
       world.nearOverride = null;
       onInfo(null);
       return;
@@ -332,13 +356,20 @@ export const StarshipMission: React.FC<Props> = ({ launchSignal, follow, speed, 
     cloud.update(t, sunlightAt(cloudRoot.position, world.sunDirection), boosterFlame * (1 - THREE.MathUtils.smoothstep(t, 3, 12)));
     boosterLight.position.copy(BOOSTER_LIGHT_AT).multiplyScalar(METRE).applyQuaternion(boosterRoot.quaternion).add(boosterRoot.position);
 
-    // The payload door folds up into the bay; satellites slide out one by one.
+    // The payload door folds up into the bay; satellites wait in the stack and slide out one by one.
     ship.door.scale.y = 1 - 0.97 * state.door;
     for (let k = 0; k < DEPLOY_COUNT; k++) {
-      const s = satelliteAt(k, t, SLOT_Y, R, tmp.sat);
+      const s = satelliteAt(k, t, SLOT_Y, tmp.sat);
       fleet.set(k, s.visible ? tmp.m.compose(s.pos, s.quat, tmp.one) : null, s.unfold);
     }
     fleet.commit();
+    // The bay's lamps, on from a minute before the door opens.
+    const lampOn = THREE.MathUtils.smoothstep(t, DOOR_OPEN_S - 60, DOOR_OPEN_S - 58);
+    bay.glow.color.setScalar(0.06 + 0.94 * lampOn);
+    lamps.forEach((l, i) => {
+      l.intensity = BAY_LAMP * lampOn;
+      l.position.copy(bay.lamps[i]).multiplyScalar(METRE).applyQuaternion(shipRoot.quaternion).add(shipRoot.position);
+    });
 
     // Light: the Sun, unless the Earth is in the way; the Earth's (or sky's)
     // glow, turned so its ground is below this ship; and the engines.
@@ -366,7 +397,21 @@ export const StarshipMission: React.FC<Props> = ({ launchSignal, follow, speed, 
     boosterMarker.position.copy(boosterRoot.position);
     boosterMarker.scale.setScalar(markScale * 0.75);
 
-    if (follow) {
+    // On one of the vehicles' own cameras (the booster's only while it flies)?
+    const mountId = camRef.current;
+    const mount = mountId === 'chase' ? null : onboardCam(mountId);
+    const boosterFlying = boosterRoot.visible && t > 0;
+    const onboard = follow && mount && (mount.vehicle === 'ship' || boosterFlying) ? mount : null;
+    const lens = onboard ? onboard.fov : RIDE_FOV;
+    if (follow && camera.fov !== lens) {
+      camera.fov = lens;
+      camera.updateProjectionMatrix();
+    }
+
+    if (onboard) {
+      world.nearOverride = ONBOARD_NEAR;
+      placeOnboardCamera(camera, onboard.vehicle === 'ship' ? shipRoot : boosterRoot, onboard);
+    } else if (follow) {
       world.nearOverride = 0.5 * METRE;
       const up = tmp.up;
       // Travel direction: the ship's nose in flight, then east along the orbit.
@@ -401,7 +446,8 @@ export const StarshipMission: React.FC<Props> = ({ launchSignal, follow, speed, 
         deployed: state.deployed,
         unfolded: state.unfolded,
         inShadow: sunlight.value < 0.5,
-        marked
+        marked,
+        boosterFlying
       });
     }
   });

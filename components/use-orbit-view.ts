@@ -9,7 +9,7 @@ import { METRE } from '@/lib/chase-camera';
 // Starship): drag to look round it, scroll to move in and out, through a wider
 // lens than the globe view. It drifts slowly round until the viewer takes hold.
 
-const RIDE_FOV = 62; // degrees; the globe view uses 45
+export const RIDE_FOV = 62; // degrees; the globe view uses 45
 
 export interface OrbitView {
   azimuth: number; // radians round the target, 0 = straight behind

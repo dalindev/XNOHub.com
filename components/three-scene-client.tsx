@@ -14,7 +14,8 @@ import { TimeControls } from '@/components/time-controls';
 import { TiledEarth } from '@/components/tiled-earth';
 import { StarlinkConstellation } from '@/components/starlink-constellation';
 import { StarlinkFollow, type StarlinkInfo } from '@/components/starlink-follow';
-import { StarshipMission, type MissionInfo } from '@/components/starship-mission';
+import { StarshipMission, type MissionInfo, type StarshipCam } from '@/components/starship-mission';
+import { ONBOARD_CAMS } from '@/lib/models/starship-onboard';
 import { CableLines } from '@/components/cable-lines';
 import { NetworkPackets } from '@/components/network-packets';
 import { Dashboard } from '@/components/dashboard';
@@ -68,6 +69,8 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({ reps }) => {
   const [missionInfo, setMissionInfo] = useState<MissionInfo | null>(null);
   // How fast the Starship mission's clock runs: real events, sped up.
   const [missionSpeed, setMissionSpeed] = useState(10);
+  // Which camera while watching it: the chase view or one of the vehicles' own.
+  const [missionCam, setMissionCam] = useState<StarshipCam>('chase');
   const [hoveredNode, setHoveredNode] = useState<RepNode | null>(null);
   const missionFlying = useRef(false);
   const starlink = useStarlink();
@@ -230,7 +233,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({ reps }) => {
         {/* Late loaders: keep the page up while models load */}
         <Suspense fallback={null}>
           <StarlinkFollow active={isStarlinkView} pick={starlinkPick} onInfo={setStarlinkInfo} />
-          <StarshipMission launchSignal={launchSignal} follow={isStarshipView} speed={missionSpeed} onInfo={onMissionInfo} />
+          <StarshipMission launchSignal={launchSignal} follow={isStarshipView} cam={missionCam} speed={missionSpeed} onInfo={onMissionInfo} />
           <DonationAnimation />
         </Suspense>
       </Canvas>
@@ -301,7 +304,31 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({ reps }) => {
               ))}
             </div>
           )}
-          {isStarshipView && <div className="text-gray-500">mission clock as on Starship Flight 10 · true scale · V3 sizes are estimates</div>}
+          {isStarshipView && (
+            <div className="mt-1 flex flex-wrap items-center justify-center gap-1 text-gray-400">
+              <span>camera</span>
+              {[{ id: 'chase' as const, label: 'Chase', vehicle: 'ship' as const }, ...ONBOARD_CAMS].map((c) => {
+                const off = c.vehicle === 'booster' && !missionInfo.boosterFlying;
+                const showing = missionCam === c.id && !off;
+                return (
+                  <button
+                    key={c.id}
+                    disabled={off}
+                    onClick={() => setMissionCam(c.id)}
+                    className={`rounded border px-1.5 py-0.5 ${showing || (c.id === 'chase' && missionCam === 'booster' && off) ? 'border-white/40 text-white' : off ? 'border-white/5 text-gray-600' : 'border-white/10 hover:border-white/30'}`}
+                  >
+                    {c.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {isStarshipView && (
+            <div className="text-gray-500">
+              mission clock as on Starship Flight 10 · true scale · V3 sizes are estimates
+              {missionCam !== 'chase' && ' · onboard cameras where the real ones are; the bay lamps are our guess'}
+            </div>
+          )}
         </div>
       )}
     </div>

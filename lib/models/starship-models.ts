@@ -8,7 +8,8 @@ import { vehicleMaterials, textureSize, metreUVs } from '@/lib/models/vehicle-ma
 // Sizes: 9 m across; ship 52.1 m, booster 72.3 m, stack 124.4 m (published).
 // Shapes follow photos and SpaceX renders; where nothing is published the
 // numbers are estimates (flap and grid fin sizes, the nose profile, the
-// payload door's height).
+// payload door's height: made tall enough for a folded Starlink V3 with its
+// dishes to pass).
 //
 // Ship: stainless steel on the leeward side (+Z), black hexagonal heat-shield
 //   tiles round the windward side (-Z) and over the nose tip, aero chines
@@ -16,7 +17,8 @@ import { vehicleMaterials, textureSize, metreUVs } from '@/lib/models/vehicle-ma
 //   flaps moved toward the leeward side (about 140 degrees apart), catch
 //   fittings for the tower, 3 sea-level and 3 vacuum Raptors, and the Starlink
 //   "PEZ" door: a long slot with rounded ends on the leeward side at the
-//   bottom of the payload bay, its door folding up into the bay.
+//   bottom of the payload bay, open into the bay (lib/models/starship-onboard),
+//   its door folding up inside.
 // Booster: 33 Raptor 3s (3 + 10 + 20) with no engine shields, soot from the
 //   engines, three larger grid fins set lower than before (108, 108 and 144
 //   degrees apart), chines and a cable raceway down the side, and the
@@ -31,7 +33,7 @@ const NOSE = SHIP_HEIGHT_M - BARREL;
 const TILE_TIP = 50.4; // tiles all the way round above this
 
 export const SLOT_Y = 33.6;
-export const SLOT_H = 0.62;
+export const SLOT_H = 1.15;
 export const SLOT_HALF_ANGLE = Math.asin(3.2 / R); // a 6.4 m wide opening
 
 /** The nose's radius at a height above the top of the cylinder: blunt, like the real one. */
@@ -39,7 +41,8 @@ export function noseRadius(h: number) {
   const t = THREE.MathUtils.clamp(h / NOSE, 0, 1);
   return R * Math.pow(1 - Math.pow(t, 1.8), 0.6);
 }
-const shipRadius = (y: number) => (y <= BARREL ? R : noseRadius(y - BARREL));
+/** The hull's radius at a height (metres from the bottom). */
+export const shipRadius = (y: number) => (y <= BARREL ? R : noseRadius(y - BARREL));
 
 const DEG = Math.PI / 180;
 // Where the tiles stop on the leeward side, as an angle from +Z: just past the
@@ -127,10 +130,20 @@ export function buildStarship(): ShipParts {
   const voids: THREE.BufferGeometry[] = [];
 
   // Hull: steel leeward, tiles windward, tiles over the tip.
-  const barrel = [0, BARREL];
   const nose = range(BARREL, TILE_TIP, 14);
-  steel.push(lathe(barrel, shipRadius, -TILE_EDGE_BARREL, 2 * TILE_EDGE_BARREL, steelSize, 48));
-  tiles.push(lathe(barrel, shipRadius, TILE_EDGE_BARREL, Math.PI * 2 - 2 * TILE_EDGE_BARREL, tileSize, 72));
+  // The steel side, with the payload slot cut out of it: below and above the
+  // slot all the way across, and either side of it at its height.
+  const slotLo = SLOT_Y - SLOT_H / 2, slotHi = SLOT_Y + SLOT_H / 2;
+  steel.push(lathe([0, slotLo], shipRadius, -TILE_EDGE_BARREL, 2 * TILE_EDGE_BARREL, steelSize, 48));
+  steel.push(lathe([slotHi, BARREL], shipRadius, -TILE_EDGE_BARREL, 2 * TILE_EDGE_BARREL, steelSize, 48));
+  for (const [from, to] of [[-TILE_EDGE_BARREL, -SLOT_HALF_ANGLE], [SLOT_HALF_ANGLE, TILE_EDGE_BARREL]]) {
+    const side = lathe([slotLo, slotHi], shipRadius, from, to - from, steelSize, 14);
+    // Keep the steel's texture lined up with the rest of the side.
+    const uv = side.getAttribute('uv') as THREE.BufferAttribute;
+    for (let i = 0; i < uv.count; i++) uv.setX(i, uv.getX(i) + ((from + TILE_EDGE_BARREL) * R) / steelSize[0]);
+    steel.push(side);
+  }
+  tiles.push(lathe([0, BARREL], shipRadius, TILE_EDGE_BARREL, Math.PI * 2 - 2 * TILE_EDGE_BARREL, tileSize, 72));
   steel.push(lathe(nose, shipRadius, -TILE_EDGE_NOSE, 2 * TILE_EDGE_NOSE, steelSize, 40));
   tiles.push(lathe(nose, shipRadius, TILE_EDGE_NOSE, Math.PI * 2 - 2 * TILE_EDGE_NOSE, tileSize, 72));
   tiles.push(lathe(range(TILE_TIP, SHIP_HEIGHT_M, 10), shipRadius, 0, Math.PI * 2, tileSize, 72));
@@ -155,9 +168,8 @@ export function buildStarship(): ShipParts {
     steel.push(outward(metreUVs(new THREE.BoxGeometry(0.22, 0.4, 0.4).translate(R + 0.08, 30.6, 0), steelSize), a * DEG));
   }
 
-  // The payload slot: a dark opening framed by a steel lip with rounded ends.
+  // The payload slot: an opening into the bay, framed by a steel lip with rounded ends.
   const s = SLOT_HALF_ANGLE;
-  voids.push(new THREE.CylinderGeometry(R + 0.012, R + 0.012, SLOT_H, 40, 1, true, -s, 2 * s).translate(0, SLOT_Y, 0));
   for (const dy of [1, -1]) {
     steel.push(metreUVs(new THREE.CylinderGeometry(R + 0.05, R + 0.05, 0.1, 40, 1, false, -s - 0.03, 2 * s + 0.06), steelSize, (2 * s + 0.06) * R).translate(0, SLOT_Y + dy * (SLOT_H / 2 + 0.05), 0));
   }
