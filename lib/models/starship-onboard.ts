@@ -133,11 +133,14 @@ function shaded(params: THREE.MeshStandardMaterialParameters) {
 
 export interface PayloadBay {
   group: THREE.Group;
-  /** Lamp positions, ship frame (metres). */
+  /** Where the lamps' light comes from, ship frame (metres): out in front of each fixture, so the wall it is fixed to isn't lit as if by a bare bulb against it. */
   lamps: THREE.Vector3[];
   /** The lamps' glowing faces: brightness follows the lamps. */
   glow: THREE.MeshBasicMaterial;
 }
+
+/** How far in front of its fixture each lamp's light sits (m): a floodlight lights the bay, not the wall behind it. */
+export const LAMP_OUT_M = 0.9;
 
 /** The inside of the payload bay: walls with the slot cut in, floor, the dispenser's rails, the camera and its lamps. Ship frame, metres. */
 export function buildPayloadBay(): PayloadBay {
@@ -176,9 +179,10 @@ export function buildPayloadBay(): PayloadBay {
   group.add(new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.22, 0.22).translate(cam.pos.x - 0.2, cam.pos.y, cam.pos.z), dark));
 
   // Two lamps on the wall either side above the door, shining down on the slot.
-  const lamps = [new THREE.Vector3(-1.1, SLOT_Y + 2.1, 4.15), new THREE.Vector3(1.1, SLOT_Y + 2.1, 4.15)];
+  const fixtures = [new THREE.Vector3(-1.1, SLOT_Y + 2.1, 4.15), new THREE.Vector3(1.1, SLOT_Y + 2.1, 4.15)];
+  const lamps = fixtures.map((p) => p.clone().addScaledVector(new THREE.Vector3(p.x, 0, p.z).normalize(), -LAMP_OUT_M).add(new THREE.Vector3(0, -0.4, 0)));
   const glow = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
-  for (const p of lamps) {
+  for (const p of fixtures) {
     group.add(new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.1, 0.22).translate(p.x, p.y + 0.06, p.z), dark));
     group.add(new THREE.Mesh(new THREE.PlaneGeometry(0.28, 0.16).rotateX(Math.PI / 2).translate(p.x, p.y, p.z), glow));
   }

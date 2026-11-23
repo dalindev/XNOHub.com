@@ -25,6 +25,7 @@ const pointVertex = /* glsl */ `
   ${ORBIT_GLSL}
   uniform float uSize;
   uniform vec3 uSunDir;
+  uniform float uGain; // 0 against a daytime sky, which drowns them out
   attribute vec4 aOrbit;
   attribute vec2 aRates;
   attribute vec3 aColor;
@@ -49,7 +50,7 @@ const pointVertex = /* glsl */ `
     }
     vColor = aColor * mix(0.3, 1.0, lit) * mix(1.0, 0.22, overDay);
     // From far away thousands pile up along the limb: draw them fainter.
-    vColor *= mix(1.0, 0.6, smoothstep(2.0, 4.5, length(cameraPosition)));
+    vColor *= mix(1.0, 0.6, smoothstep(2.0, 4.5, length(cameraPosition))) * uGain;
   }
 `;
 
@@ -117,7 +118,7 @@ export const StarlinkConstellation: React.FC<{ data: StarlinkFile }> = ({ data }
     const pointMat = new THREE.ShaderMaterial({
       vertexShader: pointVertex,
       fragmentShader: pointFragment,
-      uniforms: { ...shared, uSize: { value: 2.5 }, uSunDir: { value: new THREE.Vector3(1, 0, 0) } },
+      uniforms: { ...shared, uSize: { value: 2.5 }, uSunDir: { value: new THREE.Vector3(1, 0, 0) }, uGain: { value: 1 } },
       transparent: true,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
@@ -176,6 +177,10 @@ export const StarlinkConstellation: React.FC<{ data: StarlinkFile }> = ({ data }
     pointMat.uniforms.uSunDir.value.copy(world.sunDirection);
     // Dots stay a few pixels wide whatever the distance; a bit bigger on high-DPI.
     pointMat.uniforms.uSize.value = 1.3 * state.viewport.dpr;
+    // Nobody sees a satellite against a daytime sky (as with the stars and the
+    // meteors), and the Starship view's camera records them like faint stars.
+    const daySky = 1 - THREE.MathUtils.smoothstep(world.skyLight, 0.1, 0.35);
+    pointMat.uniforms.uGain.value = daySky * (world.look.on ? world.look.starGain : 1);
     refreshLinks(now);
     lines.visible = settings.get().lasers;
     if (lines.visible) {

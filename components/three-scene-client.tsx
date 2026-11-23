@@ -7,6 +7,8 @@ import * as THREE from 'three';
 import { Globe, Rocket, Satellite, SkipForward } from 'lucide-react';
 import type { RepNode } from '@/types/index';
 import { CameraDirector } from '@/components/camera-director';
+import { CameraLook } from '@/components/camera-look';
+import { afterDecline, lookPixelRatio } from '@/lib/camera-look';
 import { DevProbe } from '@/components/dev-probe';
 import { Sky } from '@/components/sky';
 import { RealSky } from '@/components/real-sky';
@@ -15,6 +17,7 @@ import { TiledEarth } from '@/components/tiled-earth';
 import { StarlinkConstellation } from '@/components/starlink-constellation';
 import { StarlinkFollow, type StarlinkInfo } from '@/components/starlink-follow';
 import { StarshipMission, type MissionInfo, type StarshipCam } from '@/components/starship-mission';
+import { formatMet } from '@/lib/missions/starship';
 import { ONBOARD_CAMS } from '@/lib/models/starship-onboard';
 import { CableLines } from '@/components/cable-lines';
 import { NetworkPackets } from '@/components/network-packets';
@@ -34,7 +37,7 @@ import { useStarlink } from '@/lib/starlink-data';
 import { useCables } from '@/lib/cables-data';
 import { useConfirmations } from '@/providers/confirmation-provider';
 import { onConfirmation } from '@/lib/feed/bus';
-import { world, parseDeepLink } from '@/lib/world';
+import { world, parseDeepLink, SUN_INTENSITY } from '@/lib/world';
 import { setSimTime } from '@/lib/sim-clock';
 import { formatWeight } from '@/lib/reps';
 import { VERSION_NAMES } from '@/lib/orbits';
@@ -60,6 +63,16 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({ reps }) => {
   const [homeSignal, setHomeSignal] = useState(0);
   // Most device pixels drawn per CSS pixel. Starts at the screen's own density (up to 2) and only ever goes down.
   const [sharpness, setSharpness] = useState(2);
+  // The Starship view's camera look draws through a large float buffer: keep it near a 1080p frame,
+  // times its own factor, which only that view's frame-rate declines lower.
+  const [lookSharpness, setLookSharpness] = useState(2);
+  const [lookScale, setLookScale] = useState(1);
+  useEffect(() => {
+    const fit = () => setLookSharpness(lookPixelRatio(window.innerWidth, window.innerHeight));
+    fit();
+    window.addEventListener('resize', fit);
+    return () => window.removeEventListener('resize', fit);
+  }, []);
   const [isFlyView, setIsFlyView] = useState(false); // deep link only (?fly=), no button for now
   const [isStarlinkView, setIsStarlinkView] = useState(false);
   const [starlinkPick, setStarlinkPick] = useState(0);
@@ -193,7 +206,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({ reps }) => {
         camera={cameraSettings}
         className="w-full h-full cursor-move pointer-events-auto"
         performance={{ min: 0.5 }}
-        dpr={[1, sharpness]}
+        dpr={[1, isStarshipView ? Math.min(sharpness, lookSharpness * lookScale) : sharpness]}
         gl={{
           antialias: true,
           powerPreference: 'high-performance',
@@ -204,12 +217,18 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({ reps }) => {
       >
         {APP_CONFIG.debug.frameRateDisplay && <Stats />}
         {/* When the frame rate stays low for a few seconds, draw fewer pixels: a slightly softer picture that moves smoothly. */}
-        <PerformanceMonitor onDecline={() => setSharpness((d) => Math.max(1, d - 0.5))} />
+        <PerformanceMonitor
+          onDecline={() => {
+            const next = afterDecline(isStarshipView, sharpness, lookScale);
+            setSharpness(next.sharpness);
+            setLookScale(next.lookScale);
+          }}
+        />
         <CameraDirector mode={cameraMode} cameraRef={cameraRef} homeSignal={homeSignal} />
         {process.env.NODE_ENV === 'development' && <DevProbe />}
 
         <RealSky nightRef={starsRef} />
-        <directionalLight ref={lightRef} color={0xffffff} intensity={2} />
+        <directionalLight ref={lightRef} color={0xffffff} intensity={SUN_INTENSITY} />
         <ambientLight intensity={0.1} />
 
         {/* Fill light for a Starlink watched up close. The Earth lights itself (lib/earth-light); the
@@ -236,6 +255,8 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({ reps }) => {
           <StarshipMission launchSignal={launchSignal} follow={isStarshipView} cam={missionCam} speed={missionSpeed} onInfo={onMissionInfo} />
           <DonationAnimation />
         </Suspense>
+        {/* The webcast camera: exposure, bloom and grade (renders the frame while mounted). */}
+        {isStarshipView && <CameraLook />}
       </Canvas>
 
       <div className="absolute bottom-1 left-1/2 z-10 -translate-x-1/2">
@@ -279,8 +300,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({ reps }) => {
       {missionInfo && (isStarshipView || missionInfo.marked) && (
         <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-10 text-center text-xs text-gray-300 select-none">
           <div className="text-base text-white">
-            Starship · {missionInfo.phase} · T+{Math.floor(missionInfo.t / 60)}:
-            {String(Math.floor(missionInfo.t % 60)).padStart(2, '0')}
+            Starship · {missionInfo.phase} · {formatMet(missionInfo.t)}
           </div>
           <div>
             {missionInfo.altKm < 1 ? `${(missionInfo.altKm * 1000).toFixed(0)} m` : `${missionInfo.altKm.toFixed(0)} km`} up ·{' '}

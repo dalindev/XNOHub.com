@@ -19,15 +19,17 @@ import { vehicleMaterials, textureSize, metreUVs } from '@/lib/models/vehicle-ma
 //   "PEZ" door: a long slot with rounded ends on the leeward side at the
 //   bottom of the payload bay, open into the bay (lib/models/starship-onboard),
 //   its door folding up inside.
-// Booster: 33 Raptor 3s (3 + 10 + 20) with no engine shields, soot from the
-//   engines, three larger grid fins set lower than before (108, 108 and 144
-//   degrees apart), chines and a cable raceway down the side, and the
-//   hot-staging ring built in at the top: vents round a steel shield over the
-//   forward dome.
+// Booster: 33 Raptor 3s (3 + 10 + 20) hanging below a flat aft heat shield,
+//   with no skirt and no engine shields, soot from the engines, three larger
+//   grid fins set lower than before (108, 108 and 144 degrees apart), chines
+//   and a cable raceway down the side, and the hot-staging ring built in at
+//   the top: vents round a steel shield over the forward dome.
 
 export const R = 4.5;
 export const SHIP_HEIGHT_M = 52.1;
 export const BOOSTER_HEIGHT_M = 72.3;
+/** The booster's hot-staging ring: from this height to its top, vents round it. */
+export const HOT_STAGE_RING_Y = 69.8;
 const BARREL = 36.4; // top of the ship's cylinder; the nose is above
 const NOSE = SHIP_HEIGHT_M - BARREL;
 const TILE_TIP = 50.4; // tiles all the way round above this
@@ -98,16 +100,107 @@ function flap(outline: [number, number][], depth: number, angle: number, tiles: 
   edges.push(outward(new THREE.TubeGeometry(curve, 24, 0.32, 8, false), angle));
 }
 
-/** A rocket engine's bell, throat at y = 0 and exit `length` below. */
-function bell(throat: number, exit: number, length: number) {
-  const pts = range(0, 1, 12).map((t) => new THREE.Vector2(throat + (exit - throat) * Math.pow(t, 0.55), -t * length));
-  return new THREE.LatheGeometry(pts, 28);
+/** One engine: its nozzle exit's centre (metres, in the vehicle's frame), exit radius, bell length and ring. */
+export interface EngineSlot {
+  x: number;
+  z: number;
+  exitY: number;
+  exitR: number;
+  bell: number;
+  /** Super Heavy: 0 centre, 1 middle, 2 outer. Starship: 0 sea-level, 1 vacuum. */
+  ring: number;
 }
 
-/** A Raptor: bell plus the powerhead above it, exit at y = 0. */
-function raptor(throat: number, exit: number, length: number, x: number, z: number, exitY: number, bells: THREE.BufferGeometry[], heads: THREE.BufferGeometry[]) {
-  bells.push(bell(throat, exit, length).translate(x, exitY + length, z));
-  heads.push(new THREE.CylinderGeometry(throat * 1.5, throat * 1.1, 1.1, 12).translate(x, exitY + length + 0.55, z));
+function engineRing(count: number, radius: number, rot: number, exitY: number, exitR: number, bellLength: number, ring: number): EngineSlot[] {
+  return Array.from({ length: count }, (_, i) => {
+    const a = (i / count) * Math.PI * 2 + rot;
+    return { x: Math.sin(a) * radius, z: Math.cos(a) * radius, exitY, exitR, bell: bellLength, ring };
+  });
+}
+
+// Super Heavy V3's 33 Raptor 3s hang below its base: V3 has no aft skirt and
+// no engine shields, and the engines reach about 3 m below the booster
+// (Musk). The inner 13 have 1.30 m exits and 1.53 m bells (the FAA's figures);
+// the outer 20 are a little smaller (1.19 m, 1.40 m), as twenty of them fit
+// inside the hull's line on photos from below. Rings 0.82, 2.30 and 3.90 m
+// from the axis: the ratios measured on such a photo, the size our fit.
+export const BOOSTER_EXIT_Y = -3.0;
+export const BOOSTER_ENGINES: EngineSlot[] = [
+  ...engineRing(3, 0.82, 0, BOOSTER_EXIT_Y, 0.65, 1.53, 0),
+  ...engineRing(10, 2.3, 0.2, BOOSTER_EXIT_Y, 0.65, 1.53, 1),
+  ...engineRing(20, 3.9, 0.1, BOOSTER_EXIT_Y, 0.595, 1.4, 2)
+];
+// Starship: 3 sea-level Raptors in the middle, 3 vacuum ones round them,
+// inside its 2 m skirt (the vacuum bells' size is our estimate).
+export const SHIP_ENGINES: EngineSlot[] = [
+  ...engineRing(3, 1.25, 0, 0.4, 0.65, 1.53, 0),
+  ...engineRing(3, 3.05, Math.PI / 3, 0.05, 1.2, 3.1, 1)
+];
+
+const THROAT_R = 0.111; // Raptor's throat, 0.222 m across (FAA)
+const BAND = 0.22; // the bright metal band round the top of the bell, as a share of its length
+
+/**
+ * A Raptor's bell, the throat at y = 0 and the exit `length` below: a
+ * parabolic bell flaring out at 32 degrees and ending at 6, the usual shape
+ * for an area ratio of 34 (the FAA's figure for Raptor). `from` and `to` pick
+ * a stretch of it (0 the throat, 1 the exit). The points run up the bell, so
+ * a lathe of them faces outward.
+ */
+function bellProfile(exitR: number, length: number, from = 0, to = 1, steps = 12) {
+  const tn = Math.tan(32 * DEG), te = Math.tan(6 * DEG);
+  const cy = (exitR - length * te - THROAT_R) / (tn - te); // where the two tangents meet
+  const c = new THREE.Vector2(THROAT_R + cy * tn, -cy);
+  const a = new THREE.Vector2(THROAT_R, 0), b = new THREE.Vector2(exitR, -length);
+  return range(from, to, steps)
+    .map((t) => new THREE.Vector2((1 - t) ** 2 * a.x + 2 * (1 - t) * t * c.x + t * t * b.x, (1 - t) ** 2 * a.y + 2 * (1 - t) * t * c.y + t * t * b.y))
+    .reverse();
+}
+
+// Above the throat: the combustion chamber, then the powerhead (pumps,
+// preburners, manifolds) widening toward the top. Heights as shares of the
+// engine above its bell; our estimate from photos of Raptor 3.
+const HEAD: [number, number][] = [[THROAT_R, 0], [0.2, 0.05], [0.2, 0.28], [0.29, 0.38], [0.36, 0.55], [0.42, 0.82], [0.4, 1]];
+const ENGINE_LENGTH = 3.0; // exit to top, about 3.1 m on Raptor 3
+
+/** The name of each vehicle's mesh of engine-bell insides (it carries aEngine and aDepth, for their glow). */
+export const ENGINE_INSIDES = 'engine-insides';
+
+interface EngineParts {
+  bells: THREE.BufferGeometry[];
+  bands: THREE.BufferGeometry[];
+  insides: THREE.BufferGeometry[];
+  heads: THREE.BufferGeometry[];
+}
+
+/**
+ * One Raptor: matte bell with a bright band at its top, its inside (drawn
+ * from inside; it glows when the engine burns, so it carries which engine it
+ * is and how deep each point is: 0 at the exit, 1 at the throat), and the
+ * chamber and powerhead above it with a loop of pipe round each side.
+ */
+function raptor(e: EngineSlot, index: number, parts: EngineParts, headTop: number) {
+  const throatY = e.exitY + e.bell;
+  const at = (g: THREE.BufferGeometry) => g.translate(e.x, throatY, e.z);
+  parts.bands.push(at(new THREE.LatheGeometry(bellProfile(e.exitR, e.bell, 0, BAND, 3), 28)));
+  parts.bells.push(at(new THREE.LatheGeometry(bellProfile(e.exitR, e.bell, BAND, 1, 10), 28)));
+  const inside = new THREE.LatheGeometry(bellProfile(e.exitR - 0.012, e.bell - 0.005, 0, 1, 12), 28);
+  const pos = inside.getAttribute('position') as THREE.BufferAttribute;
+  const depth = new Float32Array(pos.count);
+  for (let i = 0; i < pos.count; i++) depth[i] = 1 + pos.getY(i) / e.bell;
+  inside.setAttribute('aDepth', new THREE.BufferAttribute(depth, 1));
+  inside.setAttribute('aEngine', new THREE.BufferAttribute(new Float32Array(pos.count).fill(index), 1));
+  parts.insides.push(at(inside));
+  const height = headTop - throatY;
+  if (height <= 0.05) return;
+  parts.heads.push(at(new THREE.LatheGeometry(HEAD.map(([r, y]) => new THREE.Vector2(r, y * height)), 14)));
+  for (const turn of [0.4, 2.5]) {
+    const a = Math.atan2(e.x, e.z) + turn + index;
+    const loop = new THREE.CatmullRomCurve3(
+      [[0.18, 0.2], [0.46, 0.38], [0.5, 0.7], [0.36, 0.92]].map(([r, y]) => new THREE.Vector3(Math.sin(a) * r, y * height, Math.cos(a) * r))
+    );
+    parts.heads.push(at(new THREE.TubeGeometry(loop, 10, 0.055, 6, false)));
+  }
 }
 
 export interface ShipParts {
@@ -125,8 +218,7 @@ export function buildStarship(): ShipParts {
   const steel: THREE.BufferGeometry[] = [];
   const tiles: THREE.BufferGeometry[] = [];
   const edges: THREE.BufferGeometry[] = []; // plain dark: fairings, chines
-  const bells: THREE.BufferGeometry[] = [];
-  const heads: THREE.BufferGeometry[] = [];
+  const engines: EngineParts = { bells: [], bands: [], insides: [], heads: [] };
   const voids: THREE.BufferGeometry[] = [];
 
   // Hull: steel leeward, tiles windward, tiles over the tip.
@@ -182,21 +274,18 @@ export function buildStarship(): ShipParts {
   // Bottom: the engine bay floor, the inside of the skirt, the engines.
   edges.push(new THREE.CircleGeometry(R, 48).rotateX(Math.PI / 2).translate(0, 2.0, 0));
   voids.push(new THREE.CylinderGeometry(R - 0.03, R - 0.03, 2.0, 48, 1, true).translate(0, 1.0, 0));
-  for (let i = 0; i < 3; i++) {
-    const a = (i / 3) * Math.PI * 2;
-    raptor(0.26, 0.65, 1.6, Math.sin(a) * 1.25, Math.cos(a) * 1.25, 0.4, bells, heads); // sea level
-    const b = a + Math.PI / 3;
-    raptor(0.3, 1.2, 3.1, Math.sin(b) * 3.05, Math.cos(b) * 3.05, 0.05, bells, heads); // vacuum
-  }
+  SHIP_ENGINES.forEach((e, i) => raptor(e, i, engines, 2.6));
 
   const group = new THREE.Group();
   group.name = 'starship-v3';
-  const add = (parts: THREE.BufferGeometry[], mat: THREE.Material) => group.add(new THREE.Mesh(merge(parts), mat));
+  const add = (parts: THREE.BufferGeometry[], mat: THREE.Material, name = '') => group.add(Object.assign(new THREE.Mesh(merge(parts), mat), { name }));
   add(steel, m.steel);
   add(tiles, m.tiles);
   add(edges, m.tileEdge);
-  add(bells, m.bell);
-  add(heads, m.engineBay);
+  add(engines.bells, m.bell);
+  add(engines.bands, m.bellBand);
+  add(engines.insides, m.bellInside, ENGINE_INSIDES);
+  add(engines.heads, m.engineBay);
   add(voids, m.void);
 
   const door = new THREE.Group();
@@ -214,7 +303,7 @@ export const GRID_FIN_ANGLES = [0, 108, 216].map((d) => d * DEG);
 export function buildSuperHeavy(): THREE.Group {
   const m = vehicleMaterials();
   const H = BOOSTER_HEIGHT_M;
-  const RING = 69.8; // the hot-staging ring above this
+  const RING = HOT_STAGE_RING_Y;
   const hullSize = textureSize('boosterSteel');
   const steelSize = textureSize('steel');
   const hull: THREE.BufferGeometry[] = [];
@@ -222,8 +311,8 @@ export function buildSuperHeavy(): THREE.Group {
   const fins: THREE.BufferGeometry[] = [];
   const lattice: THREE.BufferGeometry[] = [];
   const vents: THREE.BufferGeometry[] = [];
-  const bells: THREE.BufferGeometry[] = [];
-  const heads: THREE.BufferGeometry[] = [];
+  const engines: EngineParts = { bells: [], bands: [], insides: [], heads: [] };
+  const plate: THREE.BufferGeometry[] = [];
   const voids: THREE.BufferGeometry[] = [];
 
   hull.push(metreUVs(new THREE.CylinderGeometry(R, R, RING, 96, 1, true).translate(0, RING / 2, 0), hullSize, Math.PI * 2 * R));
@@ -261,29 +350,28 @@ export function buildSuperHeavy(): THREE.Group {
   }
   steel.push(outward(metreUVs(new THREE.BoxGeometry(0.32, 64, 0.7).translate(R + 0.12, 36, 0), steelSize), 200 * DEG));
 
-  // Bottom: engine shield floor, skirt inside, 33 bare Raptor 3s.
-  fins.push(new THREE.CircleGeometry(R, 48).rotateX(Math.PI / 2).translate(0, 3.1, 0));
-  voids.push(new THREE.CylinderGeometry(R - 0.03, R - 0.03, 3.1, 48, 1, true).translate(0, 1.55, 0));
-  const ring = (count: number, radius: number, rot: number, exitY: number) => {
-    for (let i = 0; i < count; i++) {
-      const a = (i / count) * Math.PI * 2 + rot;
-      raptor(0.26, 0.64, 1.7, Math.sin(a) * radius, Math.cos(a) * radius, exitY, bells, heads);
-    }
-  };
-  ring(3, 1.0, 0, -0.4);
-  ring(10, 2.45, 0.2, -0.3);
-  ring(20, 3.76, 0.1, 0.1);
+  // Bottom: a flat heat shield of metal tiles closing the aft end, the 33
+  // bare Raptor 3s hanging from it, and short covers round the gimbals of
+  // the inner 13 (the ones that steer).
+  plate.push(new THREE.CircleGeometry(R, 64).rotateX(Math.PI / 2));
+  BOOSTER_ENGINES.forEach((e, i) => {
+    raptor(e, i, engines, 0);
+    if (e.ring < 2) plate.push(new THREE.CylinderGeometry(e.exitR + 0.02, e.exitR + 0.08, 0.6, 20, 1, true).translate(e.x, -0.3, e.z));
+  });
 
   const g = new THREE.Group();
   g.name = 'super-heavy-v3';
-  const add = (parts: THREE.BufferGeometry[], mat: THREE.Material) => g.add(new THREE.Mesh(merge(parts), mat));
+  const add = (parts: THREE.BufferGeometry[], mat: THREE.Material, name = '') => g.add(Object.assign(new THREE.Mesh(merge(parts), mat), { name }));
   add(hull, m.boosterSteel);
   add(steel, m.steel);
   add(vents, m.vents);
   add(fins, m.fin);
   add(lattice, m.lattice);
-  add(bells, m.bell);
-  add(heads, m.engineBay);
+  add(plate, m.aftPlate);
+  add(engines.bells, m.bell);
+  add(engines.bands, m.bellBand);
+  add(engines.insides, m.bellInside, ENGINE_INSIDES);
+  add(engines.heads, m.engineBay);
   add(voids, m.void);
   return g;
 }

@@ -59,6 +59,12 @@ const SOURCES: { what: string; who: string; href: string; note?: string }[] = [
   },
   { what: 'Sun, Moon, planets', who: 'Astronomy Engine', href: 'https://github.com/cosinekitty/astronomy' },
   { what: 'Starlink orbits', who: 'CelesTrak', href: 'https://celestrak.org' },
+  {
+    what: 'Starship launch',
+    who: 'generated; timeline from Starship Flight 10',
+    href: 'https://en.wikipedia.org/wiki/Starship_flight_test_10',
+    note: 'event times are real; the vehicles, flames, steam, trail and hot-staging fire are generated, shaped from public launch photos, and some sizes and brightnesses are our estimates. Flight 10 let out 8 dummy satellites; here 60 go out at the same pace'
+  },
   { what: 'Submarine cables', who: 'TeleGeography', href: 'https://www.submarinecablemap.com' }
 ];
 

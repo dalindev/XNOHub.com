@@ -12,7 +12,7 @@ const config = [
       'react-hooks/refs': 'warn'
     }
   },
-  { ignores: ['.next/**', 'node_modules/**', 'public/**', 'next-env.d.ts'] }
+  { ignores: ['.next/**', 'node_modules/**', 'public/**', 'next-env.d.ts', 'video/out/**'] }
 ];
 
 export default config;

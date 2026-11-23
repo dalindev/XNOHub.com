@@ -61,7 +61,8 @@ export const SpaceDust: React.FC = () => {
   }, []);
 
   useFrame(({ clock, camera, gl }) => {
-    const riding = world.nearOverride !== null && world.altitude > ABOVE_AIR;
+    // Not through the Starship view's camera: no webcast shows it.
+    const riding = world.nearOverride !== null && world.altitude > ABOVE_AIR && !world.look.on;
     group.visible = riding;
     const slots = live.current;
     const now = clock.elapsedTime;

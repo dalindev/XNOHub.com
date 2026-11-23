@@ -155,6 +155,10 @@
     },
     hold() {
       shot?.hold?.();
+      // The Starship view's auto exposure jumps to the held pose instead of
+      // easing in, so the first recorded frame doesn't depend on how many
+      // warm-up steps ran.
+      window.__xno?.look?.cut();
     },
     /** Record time: t seconds into the shot. */
     frame(t) {

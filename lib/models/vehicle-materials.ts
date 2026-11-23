@@ -233,10 +233,14 @@ function make() {
     lattice: new THREE.MeshStandardMaterial({ color: 0xffffff, map: t.lattice.texture, alphaTest: 0.5, metalness: 0.6, roughness: 0.45, side: THREE.DoubleSide }),
     fin: new THREE.MeshStandardMaterial({ color: 0x5c6067, metalness: 0.6, roughness: 0.45 }),
     void: new THREE.MeshBasicMaterial({ color: 0x050506, side: THREE.DoubleSide }),
-    // Engine bells: dark metal, a little blued from the heat.
-    bell: new THREE.MeshStandardMaterial({ color: 0x4a4f58, metalness: 0.7, roughness: 0.4, side: THREE.DoubleSide }),
+    // Raptor 3 bells: matte charcoal (photos), with a band of bright metal
+    // round the top; sooty inside.
+    bell: new THREE.MeshStandardMaterial({ color: 0x2a2b2e, metalness: 0.25, roughness: 0.75 }),
+    bellBand: new THREE.MeshStandardMaterial({ color: 0x9a9ea6, metalness: 0.75, roughness: 0.35 }),
     bellInside: new THREE.MeshStandardMaterial({ color: 0x23201e, metalness: 0.3, roughness: 0.8, side: THREE.BackSide }),
     engineBay: new THREE.MeshStandardMaterial({ color: 0x2e2f33, metalness: 0.4, roughness: 0.7 }),
+    // Super Heavy's aft heat shield: metal tiles (colour our estimate).
+    aftPlate: new THREE.MeshStandardMaterial({ color: 0x3b3d42, metalness: 0.5, roughness: 0.6, side: THREE.DoubleSide }),
     // Starlink V3.
     v3Plate: new THREE.MeshStandardMaterial({ color: 0xffffff, map: t.v3Plate.texture, metalness: 0.55, roughness: 0.42 }),
     v3Under: new THREE.MeshStandardMaterial({ color: 0x2a2c31, metalness: 0.3, roughness: 0.6 }),
@@ -290,7 +294,7 @@ export function textureSize(name: 'steel' | 'boosterSteel' | 'tiles' | 'lattice'
 /** Every material that should reflect the environment. */
 export function reflectiveMaterials(): THREE.MeshStandardMaterial[] {
   const m = vehicleMaterials();
-  return [m.steel, m.boosterSteel, m.tiles, m.tileEdge, m.vents, m.lattice, m.fin, m.bell, m.engineBay, m.v3Plate, m.v3Trim, m.v3Dish, m.v3Cells, m.v3CellsBack, m.v3Under];
+  return [m.steel, m.boosterSteel, m.tiles, m.tileEdge, m.vents, m.lattice, m.fin, m.bell, m.bellBand, m.bellInside, m.engineBay, m.aftPlate, m.v3Plate, m.v3Trim, m.v3Dish, m.v3Cells, m.v3CellsBack, m.v3Under];
 }
 
 /**
