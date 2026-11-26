@@ -151,6 +151,8 @@
     begin(s) {
       if (!layer) buildLayers();
       shot = s;
+      // Flags a shot sets on __film (one vote burst, one meteor shower) start clear each time.
+      film.sent = film.meteors = false;
       shot.setup?.();
     },
     hold() {

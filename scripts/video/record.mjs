@@ -3,6 +3,8 @@
 //   node scripts/video/record.mjs                         # full: 1920x1080, 60 fps, all shots
 //   node scripts/video/record.mjs --size 640x360 --fps 30 --shots release --limit 3   # quick test
 //
+//   node scripts/video/record.mjs --stills                # the poster and stills (stills.mjs) as PNGs
+//
 // Options: --url (default http://localhost:3000/), --size WxH, --fps N,
 // --shots a,b (names in shots.mjs), --limit seconds (cut each shot),
 // --out file.mp4 (default video/out/xnohub-trailer.mp4), --extras (also a
@@ -16,10 +18,11 @@
 // loading, then records. Prints the time taken and what was downloaded.
 // Needs the dev server (the shots use its __xno hooks) and ffmpeg.
 import { spawn } from 'node:child_process';
-import { readFile, mkdir } from 'node:fs/promises';
+import { readFile, mkdir, writeFile, stat } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { shots as allShots } from './shots.mjs';
+import { stills } from './stills.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..', '..');
@@ -32,9 +35,12 @@ const [width, height] = arg('size', '1920x1080').split('x').map(Number);
 const fps = Number(arg('fps', 60));
 const limit = Number(arg('limit', Infinity));
 const pick = arg('shots', '');
-const shots = pick ? allShots.filter((s) => pick.split(',').includes(s.name)) : allShots;
+const stillsMode = process.argv.includes('--stills');
+const pool = stillsMode ? stills : allShots;
+const shots = pick ? pool.filter((s) => pick.split(',').includes(s.name)) : pool;
 const out = arg('out', join(root, 'video/out/xnohub-trailer.mp4'));
-const extras = process.argv.includes('--extras') || (!pick && !Number.isFinite(limit));
+const extras = !stillsMode && (process.argv.includes('--extras') || (!pick && !Number.isFinite(limit)));
+const stillsDir = join(root, 'video/out/stills');
 const profile = join(root, 'video/out/chrome');
 await mkdir(dirname(out), { recursive: true });
 await mkdir(profile, { recursive: true });
@@ -122,11 +128,12 @@ while (true) {
 }
 console.log((await run('__film.freeze()')) ? 'hot reload muted: edits made while recording do not reach this take' : 'note: no hot-reload socket seen');
 
-const ffmpeg = spawn('ffmpeg', [
+const ffmpeg = stillsMode ? null : spawn('ffmpeg', [
   '-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(fps), '-c:v', 'png', '-i', '-',
   '-c:v', 'libx264', '-preset', 'slow', '-crf', '18', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', out
 ], { stdio: ['pipe', 'inherit', 'inherit'] });
 const write = (buf) => new Promise((r) => (ffmpeg.stdin.write(buf) ? r() : ffmpeg.stdin.once('drain', r)));
+if (stillsMode) await mkdir(stillsDir, { recursive: true });
 
 let frames = 0;
 let captureMs = 0;
@@ -141,6 +148,16 @@ for (const shot of shots) {
     if ((quiet && Date.now() - warm > 3000) || Date.now() - warm > 45000) break;
   }
   const warmS = ((Date.now() - warm) / 1000).toFixed(1);
+  if (stillsMode) {
+    // Play the shot up to its moment, then capture one lossless frame.
+    const n = Math.round(shot.at * fps);
+    for (let f = 0; f <= n; f++) await run(`__film.frame(${f / fps}); __film.step(${dt})`);
+    const png = await send('Page.captureScreenshot', { format: 'png' });
+    await writeFile(join(stillsDir, `${shot.name}.png`), Buffer.from(png.data, 'base64'));
+    frames++;
+    console.log(`${shot.name}: warmed ${warmS} s, ${join(stillsDir, shot.name + '.png')}`);
+    continue;
+  }
   const n = Math.round(Math.min(shot.seconds, limit) * fps);
   const t0 = Date.now();
   for (let f = 0; f < n; f++) {
@@ -153,11 +170,14 @@ for (const shot of shots) {
   }
   console.log(`${shot.name}: warmed ${warmS} s, ${n} frames in ${((Date.now() - t0) / 1000).toFixed(1)} s`);
 }
-ffmpeg.stdin.end();
-await new Promise((r) => ffmpeg.on('close', r));
+if (ffmpeg) {
+  ffmpeg.stdin.end();
+  await new Promise((r) => ffmpeg.on('close', r));
+}
 
 const seconds = (Date.now() - started) / 1000;
-console.log(`\n${out}\n${frames} frames (${(frames / fps).toFixed(1)} s of video) in ${seconds.toFixed(0)} s; capture ${(captureMs / Math.max(1, frames)).toFixed(0)} ms a frame`);
+if (stillsMode) console.log(`\n${frames} stills in ${seconds.toFixed(0)} s`);
+else console.log(`\n${out}\n${frames} frames (${(frames / fps).toFixed(1)} s of video) in ${seconds.toFixed(0)} s; capture ${(captureMs / Math.max(1, frames)).toFixed(0)} ms a frame`);
 let total = 0;
 for (const [host, d] of [...downloaded].sort((a, b) => b[1].bytes - a[1].bytes)) {
   total += d.bytes;
@@ -170,9 +190,11 @@ if (extras) {
   const base = out.replace(/\.mp4$/, '');
   // README cut: 720p, sized to stay under 10 MB.
   await new Promise((r) => spawn('ffmpeg', ['-y', '-loglevel', 'error', '-i', out, '-vf', 'scale=1280:-2', '-c:v', 'libx264', '-preset', 'slow', '-crf', '27', '-maxrate', '2400k', '-bufsize', '4800k', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', `${base}-720p.mp4`], { stdio: 'inherit' }).on('close', r));
-  // Poster: a frame from the satellite release.
+  // Poster: the titled still (--stills) when there is one, else a frame from the satellite release.
+  const still = join(stillsDir, 'poster.png');
   const releaseAt = allShots.slice(0, allShots.findIndex((s) => s.name === 'release')).reduce((s, x) => s + x.seconds, 0) + 2.5;
-  await new Promise((r) => spawn('ffmpeg', ['-y', '-loglevel', 'error', '-ss', String(releaseAt), '-i', out, '-frames:v', '1', '-q:v', '2', `${base}-poster.jpg`], { stdio: 'inherit' }).on('close', r));
+  const from = (await stat(still).catch(() => null)) ? ['-i', still] : ['-ss', String(releaseAt), '-i', out];
+  await new Promise((r) => spawn('ffmpeg', ['-y', '-loglevel', 'error', ...from, '-frames:v', '1', '-q:v', '2', `${base}-poster.jpg`], { stdio: 'inherit' }).on('close', r));
   console.log(`  also ${base}-720p.mp4 and ${base}-poster.jpg`);
 }
 ws.close();

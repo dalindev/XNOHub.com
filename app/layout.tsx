@@ -43,8 +43,8 @@ export const metadata: Metadata = {
     images: [
       {
         url: 'https://xnohub.com/open-graph/xnohub.png',
-        width: 650,
-        height: 400,
+        width: 1200,
+        height: 630,
         alt: 'NanoCurrency Network Visualization'
       }
     ]
@@ -58,8 +58,8 @@ export const metadata: Metadata = {
     images: [
       {
         url: 'https://xnohub.com/open-graph/xnohub.png',
-        width: 650,
-        height: 400,
+        width: 1200,
+        height: 630,
         alt: 'NanoCurrency Network Visualization'
       }
     ]

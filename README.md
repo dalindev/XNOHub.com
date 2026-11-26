@@ -4,23 +4,22 @@
 
 ## Demo Video
 
-<div style="width: 100%">
+[![XNOHub: the Nano network, live. Click to watch the 30-second trailer](docs/media/poster.jpg)](docs/media/xnohub-trailer.mp4)
 
-[https://github.com/user-attachments/assets/d2efe6c6-585b-4553-aec3-240edbd930b5](https://github.com/user-attachments/assets/d2efe6c6-585b-4553-aec3-240edbd930b5)
+<sub>Click the image to watch the 30-second trailer, recorded from the live app.</sub>
 
-</div>
-
-<div style="width: 100%">
-
-[https://github.com/user-attachments/assets/85398eb2-74d7-41c8-815d-9c462db9a7f2](https://github.com/user-attachments/assets/f377d055-db28-400e-bda5-c91cf8df37ef)
-
-</div>
-
-<div style="width: 100%">
-
-[https://github.com/user-attachments/assets/fdd6f818-8279-4f0f-9d59-22bf28de70d7](https://github.com/user-attachments/assets/d6e1cf94-6aea-43b7-9752-b63e58cf6416)
-
-</div>
+<table>
+<tr>
+<td width="33%"><img src="docs/media/votes.jpg" alt="One block's votes racing between nodes"/><br/><sub>Every node votes: one block, every representative</sub></td>
+<td width="33%"><img src="docs/media/sunrise.jpg" alt="Dawn over Europe with node lights"/><br/><sub>Real nodes, real places, the real Sun</sub></td>
+<td width="33%"><img src="docs/media/starlink.jpg" alt="Riding a Starlink satellite"/><br/><sub>Ride a Starlink: real orbits, true scale</sub></td>
+</tr>
+<tr>
+<td width="33%"><img src="docs/media/liftoff.jpg" alt="Starship lifting off from Pad 2 at Starbase"/><br/><sub>Launch Starship from Starbase, Pad 2</sub></td>
+<td width="33%"><img src="docs/media/release.jpg" alt="Starlink V3 satellites leaving Starship in orbit"/><br/><sub>60 Starlink V3, one by one</sub></td>
+<td width="33%"></td>
+</tr>
+</table>
 
 ## Sponsors
 
@@ -160,6 +159,7 @@ The vehicles (Starlink, Starship, Super Heavy) are modelled in code; no third-pa
 - City lights: GeoNames (CC BY 4.0). Stars: Yale Bright Star Catalogue. Milky Way: NASA Scientific Visualization Studio, from ESA Gaia
 - Starlink orbits: CelesTrak. Submarine cables: TeleGeography. Sun, Moon and planets: Astronomy Engine
 - Nano nodes: nano.community
+- Starbase: positions from OpenStreetMap (ODbL), tower heights from FAA obstruction filings; colours and some heights are estimates, listed under "Data sources"
 
 ---
 
@@ -167,27 +167,13 @@ The vehicles (Starlink, Starship, Super Heavy) are modelled in code; no third-pa
 
 X (Twitter): [@dalinhuang](https://x.com/dalinhuang)
 
-## Social Media Images
+## Media
 
-The following image assets are required for social media sharing:
+- `public/open-graph/xnohub.png`: the social card (1200×630), used for OpenGraph and X.
+- `docs/media/`: the README's poster, stills and the 720p trailer.
 
-- `public/og-image.png`: OpenGraph image (1200x630px)
-  - Format: PNG/JPEG
-  - Max size: 8MB
-  - Used by: Facebook, LinkedIn, Discord
-
-- `public/twitter-card.png`: Twitter card image (1200x600px)
-  - Format: PNG
-  - Max size: 5MB
-  - Used by: Twitter/X
-
-- `public/xno-preview.gif`: Animated preview (800x400px)
-  - Format: GIF
-  - Max size: 5MB
-  - Used as alternative preview
-
-Image requirements:
-- Keep file sizes optimized
-- Include logo and relevant visualization
-- Use clear, high-contrast visuals
-- Test with Twitter Card Validator and Facebook Sharing Debugger
+All of it is rendered from the running app (`pnpm dev`, then from the repo root):
+```bash
+node scripts/video/record.mjs            # the trailer: video/out/xnohub-trailer.mp4, a 720p cut and the poster
+node scripts/video/record.mjs --stills   # the poster and stills as PNGs in video/out/stills
+```
