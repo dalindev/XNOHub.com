@@ -65,6 +65,12 @@ const SOURCES: { what: string; who: string; href: string; note?: string }[] = [
     href: 'https://en.wikipedia.org/wiki/Starship_flight_test_10',
     note: 'event times are real; the vehicles, flames, steam, trail and hot-staging fire are generated, shaped from public launch photos, and some sizes and brightnesses are our estimates. Flight 10 let out 8 dummy satellites; here 60 go out at the same pace'
   },
+  {
+    what: 'Starbase',
+    who: 'OpenStreetMap contributors (ODbL), as mapped in November 2026',
+    href: 'https://www.openstreetmap.org/#map=17/25.9967/-97.1570',
+    note: 'positions and footprints from OSM; tower heights from FAA filings (Tower 2 145 m, Tower 1 140 m); the stack stands on Pad 2 and flies the 106.6° heading of a 30.5° orbit. Our estimates: the launch deck’s height (18 m), the mount’s legs and clamps, the trench’s depth, the ship arm, the chopsticks’ height and angle at launch, the towers’ lattice spacing and roof, tank and building heights where not mapped, Pad 1’s rebuild details, and all colours'
+  },
   { what: 'Submarine cables', who: 'TeleGeography', href: 'https://www.submarinecablemap.com' }
 ];
 

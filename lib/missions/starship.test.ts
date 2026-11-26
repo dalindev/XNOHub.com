@@ -1,3 +1,5 @@
+import { sceneToEnu, siteFrame } from '@/lib/sites/frame';
+import { DECK_M, GROUND_M } from '@/lib/sites/starbase';
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import {
@@ -12,6 +14,7 @@ import {
   newSatellitePose,
   travelled,
   PAD,
+  HEADING_DEG,
   STAGING_S,
   SECO_S,
   BOOSTER_HOME_S,
@@ -52,25 +55,35 @@ const reach = (z: number) => {
 };
 
 describe('Starship mission', () => {
-  it('stands on the ground at Starbase (the drawn ellipsoid, not the sphere under it) pointing up', () => {
-    const s = at(0);
-    const pad = latLonToUnit(PAD.lat, PAD.lon);
-    expect(s.ship.pos.clone().normalize().angleTo(pad)).toBeLessThan(1e-6);
-    const aboveGroundM = (s.ship.pos.length() - surfaceRadiusGeocentric(geocentricLatitude(PAD.lat))) * EARTH_RADIUS_KM * 1000;
-    expect(aboveGroundM).toBeGreaterThan(0);
-    expect(aboveGroundM).toBeLessThan(10);
-    expect(axis(s.ship.quat, 0, 1, 0).dot(pad)).toBeGreaterThan(0.999);
+  it('stands on Pad 2’s launch deck, plumb (the ellipsoid’s normal, not the line to the Earth’s centre)', () => {
+    const s = at(-1); // still held down
+    const f = siteFrame(PAD.lat, PAD.lon);
+    const p = sceneToEnu(f, s.booster.pos);
+    expect(Math.hypot(p.x, p.y)).toBeLessThan(0.01); // on the mount's centre
+    expect(p.z).toBeCloseTo(GROUND_M + DECK_M, 3); // the deck, above the ellipsoid
+    expect(axis(s.booster.quat, 0, 1, 0).angleTo(f.up)).toBeLessThan(1e-6);
+    expect(axis(at(-4).ship.quat, 0, 1, 0).angleTo(f.up)).toBeLessThan(1e-6);
+  });
+
+  it('flies out on the real heading, 106.6° (ESE)', () => {
+    const f = siteFrame(PAD.lat, PAD.lon);
+    const p = sceneToEnu(f, at(100).ship.pos);
+    expect(THREE.MathUtils.radToDeg(Math.atan2(p.x, p.y))).toBeCloseTo(HEADING_DEG, 1);
+    expect(HEADING_DEG).toBe(106.6);
   });
 
   it('puts the pad where the map tiles have Starbase: same place on the WGS84 ellipsoid as its geodetic coordinates', () => {
     // ECEF of the geodetic point, turned into the scene frame (x, z, -y) the tiles use.
-    const a = 6378.137, b = 6356.752, e2 = 1 - (b * b) / (a * a);
+    const a = 6378.137, b = 6356.752314245, e2 = 1 - (b * b) / (a * a);
     const phi = THREE.MathUtils.degToRad(PAD.lat), lam = THREE.MathUtils.degToRad(PAD.lon);
     const n = a / Math.sqrt(1 - e2 * Math.sin(phi) ** 2);
     const ecef = new THREE.Vector3(n * Math.cos(phi) * Math.cos(lam), n * Math.cos(phi) * Math.sin(lam), n * (1 - e2) * Math.sin(phi));
     const scene = new THREE.Vector3(ecef.x, ecef.z, -ecef.y).divideScalar(EARTH_RADIUS_KM);
-    const pad = at(0).booster.pos;
-    expect(pad.distanceTo(scene) * EARTH_RADIUS_KM * 1000).toBeLessThan(10); // metres
+    // The booster's base: straight above that ground point, on the deck.
+    const up = siteFrame(PAD.lat, PAD.lon).up;
+    const d = at(0).booster.pos.clone().sub(scene).multiplyScalar(EARTH_RADIUS_KM * 1000);
+    expect(d.clone().addScaledVector(up, -d.dot(up)).length()).toBeLessThan(0.01); // metres
+    expect(d.dot(up)).toBeCloseTo(GROUND_M + DECK_M, 3);
   });
 
   it('climbs nearly straight up at first, tipping over gently', () => {
@@ -100,10 +113,10 @@ describe('Starship mission', () => {
   });
 
   it('keeps the booster light and its engines above the drawn ground on the pad', () => {
-    // Its base stands 7 m above the ellipsoid, the drawn ground 1 m: 6 m clear, the engines 3 m.
-    expect(baseClearanceM(0)).toBeCloseTo(6, 9);
-    expect(baseClearanceM(at(-4).booster.altKm) - 3).toBeGreaterThan(2.9);
-    expect(baseClearanceM(1)).toBeCloseTo(1006, 9);
+    // Its base stands on the deck, 18 m above the drawn ground; the engines hang 3 m below it.
+    expect(baseClearanceM(0)).toBeCloseTo(DECK_M, 9);
+    expect(baseClearanceM(at(-4).booster.altKm) - 3).toBeGreaterThan(DECK_M - 3.1);
+    expect(baseClearanceM(1)).toBeCloseTo(1000 + DECK_M, 9);
   });
 
   it('parts the booster from the ship slowly at hot staging, with no jolt', () => {

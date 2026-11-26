@@ -33,6 +33,11 @@ export function unitToLatLon(v: THREE.Vector3) {
   };
 }
 
+/** Local vertical at scene point `v` (on or near the ground): the WGS84 ellipsoid's normal, the way a plumb line hangs. */
+export function ellipsoidNormal(v: THREE.Vector3, out = new THREE.Vector3()) {
+  return out.set(v.x, v.y / FLAT, v.z).normalize();
+}
+
 /**
  * Plain spherical latitude and longitude → unit direction, no Earth shape: for
  * directions in the sky (a body's declination), or a latitude already

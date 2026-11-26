@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { METRE } from '@/lib/chase-camera';
+import { ellipsoidNormal } from '@/lib/geo';
 import { DOOR_OPEN_S, STAGING_S } from '@/lib/missions/starship';
 import { SLOT_Y } from '@/lib/models/starship-models';
 
@@ -13,6 +14,13 @@ export interface ChaseFrame {
   releasing: boolean;
 }
 
+/**
+ * Where the chase camera starts (radians round from behind the stack, toward
+ * its left; height; distance as a share of distM): south-west of the pad, so
+ * Tower 2, 31 m north of the mount, stands beside the stack, not in front of it.
+ */
+export const CHASE_START = { azimuth: -1.1, elevation: 0.12, distance: 1 };
+
 export const newChaseFrame = (): ChaseFrame => ({ up: new THREE.Vector3(), fwd: new THREE.Vector3(), centre: new THREE.Vector3(), distM: 0, releasing: false });
 
 const axis = new THREE.Vector3();
@@ -24,7 +32,8 @@ const side = new THREE.Vector3();
  * from the ship itself, so the first frame of a launch is framed right too.
  */
 export function chaseFrame(t: number, shipPos: THREE.Vector3, shipQuat: THREE.Quaternion, out: ChaseFrame): ChaseFrame {
-  const up = out.up.copy(shipPos).normalize();
+  // Up is the plumb line where the ship is, the way it stands on the pad.
+  const up = ellipsoidNormal(shipPos, out.up);
   // Travel direction: the ship's nose in flight, then east along the orbit.
   // Standing straight up on the pad, the nose gives none: the body's -Z there
   // points downrange, where the nose tips as it climbs, so the view doesn't swing.

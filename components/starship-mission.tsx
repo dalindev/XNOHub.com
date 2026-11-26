@@ -9,7 +9,7 @@ import { makePlume } from '@/lib/plume/plume-material';
 import { makeStagingVents, VENT_Y } from '@/lib/plume/staging-vents';
 import { boosterLook, newPlumeLook, shipLook } from '@/lib/plume/look';
 import { makeFlameClock } from '@/lib/plume/flame-clock';
-import { chaseFrame, newChaseFrame } from '@/lib/missions/starship-chase';
+import { chaseFrame, newChaseFrame, CHASE_START } from '@/lib/missions/starship-chase';
 import { StarlinkV3Fleet } from '@/lib/models/starlink-v3';
 import { makeExhaustCloud, padFrame } from '@/lib/models/exhaust-cloud';
 import { buildPayloadBay, onboardCam, placeOnboardCamera, type OnboardCamId } from '@/lib/models/starship-onboard';
@@ -184,7 +184,7 @@ export const StarshipMission: React.FC<Props> = ({ launchSignal, follow, cam, sp
   const frozen = useRef<number | null>(null);
   const looks = useMemo(() => ({ booster: newPlumeLook(), ship: newPlumeLook(), meco: newPlumeLook() }), []);
   // Riding along, the camera is the viewer's: drag to look round the ship, scroll to zoom.
-  const view = useOrbitView(follow, { azimuth: 1.1, elevation: 0.12, distance: 1 });
+  const view = useOrbitView(follow, CHASE_START);
   const state = useMemo(() => createMissionState(), []);
 
   // One memo for every object, for the same reason as in StarlinkFollow: a

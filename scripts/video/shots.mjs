@@ -93,7 +93,7 @@ export const shots = [
       __xno.clock.setSimTime(${T('2026-11-20T17:00:00Z')});
       __film.click('×10');
       __xno.starship(2);
-      __xno.shipView({ azimuth: 0.95, elevation: 0.05, distance: 1.25 });
+      __xno.shipView({ azimuth: -0.95, elevation: 0.05, distance: 1.25 }); // from the SW: Tower 2 beside the stack, not in front
     }`,
     frame: `(t) => {
       const F = __film;

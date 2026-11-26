@@ -1,6 +1,10 @@
 import * as THREE from 'three';
+import { ellipsoidNormal } from '@/lib/geo';
 import { describe, expect, it } from 'vitest';
-import { chaseFrame, newChaseFrame } from './starship-chase';
+import { chaseFrame, newChaseFrame, CHASE_START } from './starship-chase';
+import { placeOrbitCamera } from '@/components/use-orbit-view';
+import { sceneToEnu, siteFrame } from '@/lib/sites/frame';
+import { GROUND_M, ORIGIN, TOWER2 } from '@/lib/sites/starbase';
 import { createMissionState, DOOR_OPEN_S, LAUNCH_FROM_S, missionAt, STAGING_S } from './starship';
 import { BOOSTER_HEIGHT_M } from '@/lib/models/starship-models';
 import { METRE } from '@/lib/chase-camera';
@@ -18,7 +22,7 @@ describe('the chase camera’s framing', () => {
     // A fresh frame, as on the first launch since the page loaded.
     const c = chaseFrame(LAUNCH_FROM_S, pos, quat, newChaseFrame());
     expect(c.up.length()).toBeCloseTo(1, 6);
-    expect(c.up.dot(pos.clone().normalize())).toBeCloseTo(1, 6);
+    expect(c.up.dot(ellipsoidNormal(pos))).toBeCloseTo(1, 9);
     expect(c.fwd.length()).toBeCloseTo(1, 6);
     expect(Math.abs(c.fwd.dot(c.up))).toBeLessThan(1e-6);
     // Looking at the stack: 10 m below the ship's base, about 62 m above the booster's.
@@ -26,6 +30,21 @@ describe('the chase camera’s framing', () => {
     expect(height).toBeGreaterThan(55);
     expect(height).toBeLessThan(70);
     expect(c.distM).toBe(330);
+  });
+
+  it('starts where Tower 2 doesn’t hide the stack', () => {
+    const { pos, quat } = shipRoot(-4);
+    const c = chaseFrame(-4, pos, quat, newChaseFrame());
+    const cam = new THREE.PerspectiveCamera();
+    placeOrbitCamera(cam, c.centre, c.up, c.fwd, c.distM, { ...CHASE_START, held: false });
+    // On the ground plan: how close the line from the camera to the stack passes Tower 2's centre.
+    const f = siteFrame(ORIGIN.lat, ORIGIN.lon, GROUND_M);
+    const a = sceneToEnu(f, cam.position), b = sceneToEnu(f, c.centre);
+    const [te, tn] = TOWER2.at;
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const u = Math.min(1, Math.max(0, ((te - a.x) * dx + (tn - a.y) * dy) / (dx * dx + dy * dy)));
+    const miss = Math.hypot(a.x + u * dx - te, a.y + u * dy - tn);
+    expect(miss).toBeGreaterThan(15); // the lattice is 8.3 m from its centre to a corner
   });
 
   it('keeps its heading through liftoff: no swing round the stack as it starts to tip', () => {

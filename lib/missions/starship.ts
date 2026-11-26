@@ -1,5 +1,7 @@
 import * as THREE from 'three';
-import { latLonToUnit, surfaceRadiusGeocentric, EARTH_RADIUS_KM } from '@/lib/geo';
+import { latLonToUnit, unitToLatLon, EARTH_RADIUS_KM } from '@/lib/geo';
+import { geodeticToScene, siteFrame } from '@/lib/sites/frame';
+import { DECK_M, GROUND_M, ORIGIN } from '@/lib/sites/starbase';
 
 // A Starship Starlink mission as a function of mission elapsed time (MET,
 // real seconds after liftoff): ascent from Starbase, hot staging, the booster
@@ -23,7 +25,10 @@ import { latLonToUnit, surfaceRadiusGeocentric, EARTH_RADIUS_KM } from '@/lib/ge
 // (Over hours orbital mechanics would curve the line; over this hour it is
 // within a few metres of straight.)
 
-export const PAD = { lat: 25.997, lon: -97.157 }; // Starbase, Texas
+/** Pad 2's launch mount at Starbase, Texas (OSM; lib/sites/starbase.ts). */
+export const PAD = ORIGIN;
+/** The launch heading (degrees from north): ESE, for Flight 15's 30.5° orbit from 26°N (Flight 12's tracked climb ran at 106.9°). */
+export const HEADING_DEG = 106.6;
 
 /** A launch's clock starts here: a moment's quiet on the pad, then ignition. */
 export const LAUNCH_FROM_S = -5;
@@ -86,26 +91,33 @@ export interface MissionState {
 
 // The pad's direction from the Earth's centre (its latitude is the map's, geodetic).
 const U = latLonToUnit(PAD.lat, PAD.lon);
-/** The booster's base stands this high on the pad (km): its engines hang 3 m below it. */
-const ON_PAD_KM = 0.007;
 /** The ground at the pad as drawn: this high above the ellipsoid (m; the map's relief there is about 1 m). */
-export const PAD_GROUND_M = 1;
+export const PAD_GROUND_M = GROUND_M;
+/** The booster's base stands on the launch deck, this high above the ellipsoid (km): its engines hang 3 m below it. */
+const ON_PAD_KM = (GROUND_M + DECK_M) / 1000;
 /** How high the booster's base is above that ground (m) at `altKm` (Body.altKm). */
 export const baseClearanceM = (altKm: number) => (ON_PAD_KM + altKm) * 1000 - PAD_GROUND_M;
-// East at the pad: derivative of latLonToUnit with respect to longitude.
+/** Up at the pad: the ellipsoid's normal, the way the tower stands. */
+const PAD_UP = siteFrame(PAD.lat, PAD.lon).up;
+// East and north at the pad (geocentric), and downrange along the heading.
 const E = new THREE.Vector3(-Math.sin(PAD.lon * (Math.PI / 180)), 0, -Math.cos(PAD.lon * (Math.PI / 180))).normalize();
-const N = new THREE.Vector3().crossVectors(U, E).normalize();
+const NORTH = new THREE.Vector3().crossVectors(U, E).normalize();
+const DOWNRANGE = NORTH.clone().multiplyScalar(Math.cos(THREE.MathUtils.degToRad(HEADING_DEG))).addScaledVector(E, Math.sin(THREE.MathUtils.degToRad(HEADING_DEG)));
+/** The flight's plane: its normal points to the left of the heading. */
+const N = new THREE.Vector3().crossVectors(U, DOWNRANGE).normalize();
 
 /**
- * Scene point at downrange xKm (east along the great circle) and altitude hKm
- * above the ground: the globe is drawn on the WGS84 ellipsoid, about 3 km
- * above the mean sphere at Starbase, so altitude is measured from that.
+ * Scene point at downrange xKm (along the great circle on the heading) and
+ * altitude hKm above the ground there: the globe is drawn on the WGS84
+ * ellipsoid, so height is measured along its normal from it.
  */
+const dirTmp = new THREE.Vector3();
 function along(xKm: number, hKm: number, out = new THREE.Vector3()) {
   const th = xKm / EARTH_RADIUS_KM;
-  out.copy(U).multiplyScalar(Math.cos(th)).addScaledVector(E, Math.sin(th));
-  const lat = Math.asin(THREE.MathUtils.clamp(out.y, -1, 1)) * (180 / Math.PI);
-  return out.multiplyScalar(surfaceRadiusGeocentric(lat) + (ON_PAD_KM + hKm) / EARTH_RADIUS_KM);
+  dirTmp.copy(U).multiplyScalar(Math.cos(th)).addScaledVector(DOWNRANGE, Math.sin(th));
+  // The ground point in that direction from the centre, exactly (on the pad, the mount to within a millimetre).
+  const ll = unitToLatLon(dirTmp);
+  return geodeticToScene(ll.lat, ll.lon, (ON_PAD_KM + hKm) * 1000, out);
 }
 
 const smooth = (a: number, b: number, t: number) => THREE.MathUtils.smoothstep(t, a, b);
@@ -184,10 +196,11 @@ const X_AXIS = new THREE.Vector3(1, 0, 0);
  * the tiled belly (-Z) faces the ground.
  */
 function orient(dir: THREE.Vector3, quat: THREE.Quaternion) {
+  // The nose exactly along `dir`; X as near the plane's normal as that allows.
   const y = dir.clone().normalize();
   const x = N.clone().negate();
+  x.addScaledVector(y, -x.dot(y)).normalize();
   const z = new THREE.Vector3().crossVectors(x, y).normalize();
-  y.crossVectors(z, x).normalize();
   basis.makeBasis(x, y, z);
   return quat.setFromRotationMatrix(basis);
 }
@@ -201,7 +214,7 @@ function body(path: (t: number) => [number, number], t: number, b: Body, flip = 
   b.altKm = h0;
   const dir = tmpA.subVectors(tmpB, b.pos);
   b.speed = (dir.length() * EARTH_RADIUS_KM) / DT;
-  if (dir.lengthSq() < 1e-16) dir.copy(b.pos); // standing on the pad
+  if (dir.lengthSq() < 1e-16) dir.copy(PAD_UP); // standing on the pad, plumb
   orient(dir, b.quat);
   if (flip) b.quat.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), flip));
 }

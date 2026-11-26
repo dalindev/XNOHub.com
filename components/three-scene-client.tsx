@@ -17,6 +17,7 @@ import { TiledEarth } from '@/components/tiled-earth';
 import { StarlinkConstellation } from '@/components/starlink-constellation';
 import { StarlinkFollow, type StarlinkInfo } from '@/components/starlink-follow';
 import { StarshipMission, type MissionInfo, type StarshipCam } from '@/components/starship-mission';
+import { StarbaseSite } from '@/components/starbase-site';
 import { formatMet } from '@/lib/missions/starship';
 import { ONBOARD_CAMS } from '@/lib/models/starship-onboard';
 import { CableLines } from '@/components/cable-lines';
@@ -237,6 +238,7 @@ const ThreeSceneClient: React.FC<ThreeSceneClientProps> = ({ reps }) => {
 
         <EarthBase />
         <TiledEarth />
+        <StarbaseSite />
         <RelayNodes />
         <NanoRepNodes reps={reps} onNodeHover={setHoveredNode} />
         <CityLights />

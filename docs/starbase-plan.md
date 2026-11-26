@@ -1,6 +1,8 @@
 # Starbase in HD and a real ascent: build plan for XNOHub.com
 
-**Status (2026-11-22, after the flames work).** Written 2026-11-22; moved here from a scratch folder. Part B's looks are built, in places differently from this plan, and documented in [flames.md](flames.md): B1 plume and diamonds, B2 steam, B3 trail, B5 growth with height (recirculation not drawn), B6 hot staging (now jets out of the booster's ring and a leftover ring of exhaust), B7 boost-back, B8 the twilight bell (not yet compared frame by frame), and step 19, the sky by height. Not started: Part A (the site), B0 (the code still follows Flight 10's clock and flies due east) and B4 (the max-Q vapour, question 7). The questions in section 9 are still open. Hot-staging and plume details below are superseded by flames.md where the two differ.
+**Status (2026-11-22, after the flames work).** Written 2026-11-22; moved here from a scratch folder. Part B's looks are built, in places differently from this plan, and documented in [flames.md](flames.md): B1 plume and diamonds, B2 steam, B3 trail, B5 growth with height (recirculation not drawn), B6 hot staging (now jets out of the booster's ring and a leftover ring of exhaust), B7 boost-back, B8 the twilight bell (not yet compared frame by frame), and step 19, the sky by height. Not started: Part A (the site), B0 (the code still follows Flight 10's clock and flies due east) and B4 (the max-Q vapour, question 7). The questions in section 9 got defaults on 2026-11-24.
+
+**Status (2026-11-24).** Part A's structures are built (A4, A5's placement): `lib/sites/frame.ts`, `lib/sites/starbase.ts`, `lib/models/starbase-towers.ts`, `starbase-pads.ts`, `starbase-farm.ts`, `site-materials.ts`, `components/starbase-site.tsx`. The stack stands on Pad 2 on the normal and flies 106.6°. Not done: the NAIP ground patch and its bake (A1, A2.3–7), the shadows (A2.8), the preload and hold (A3), B0's clock and path, A5's roll, fins and booster ending. Flattening the relief (A2.2) was tried and taken out: the blend did not show and a hard-edged rectangle remained. Hot-staging and plume details below are superseded by flames.md where the two differ.
 
 
 **What this is based on**
@@ -723,6 +725,19 @@ Night: `time=2026-11-23T04:00:00Z`. Sun times computed with the NOAA algorithm (
 ---
 
 ## 9. Open questions only the owner can answer
+
+**Defaults taken on 2026-11-24** (Dalin said "continue and drive this"; any of these can be changed later):
+- 1: use only sources that are fine either way (NAIP, OSM, FAA). No EOX 2018–2025 layers.
+- 2: the booster's ending stays as it is for now (back at the pad). The offshore divert of Flight 15 comes with B0, in a later step.
+- 3: satellites unchanged (60 at Flight 10's pace).
+- 4: the visitor's own time, as today.
+- 5: yes, a hold of at most 8 s, once the ground patch exists.
+- 6: yes, about 1 MB, the 1.23 km patch; not widened.
+- 7: no vapour cone (not documented for Starship).
+- 8: no generated floodlights.
+- 9: yes, Pad 1 as the November 2026 construction site, dated on the page.
+- 10: the bake script is set up here; Dalin runs it (about 1.5–2.5 MB).
+
 
 1. Is XNOHub non-commercial? EOX's 2018–2025 layers are CC BY-NC-SA. NAIP and OSM are fine either way.
 2. How should the booster end?
