@@ -6,8 +6,8 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { CameraControls } from '@react-three/drei';
 import type CameraControlsImpl from 'camera-controls';
 import { FlyControls } from '@/components/fly-controls';
-import { world, ellipsoidRadius } from '@/lib/world';
-import { unitToLatLon } from '@/lib/geo';
+import { world } from '@/lib/world';
+import { unitToLatLon, ellipsoidRadius } from '@/lib/geo';
 
 // One camera, one owner at a time:
 //   globe  → CameraControls orbit the Earth
@@ -37,7 +37,10 @@ const ZOOM_SPEED = 0.6;
 
 const WorldWatcher: React.FC = () => {
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
+  const height = useThree((s) => s.size.height);
   useFrame(() => {
+    const distance = camera.position.length();
+    world.earthPx = (Math.tan(Math.asin(Math.min(1, 1 / distance))) / Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2)) * (height / 2);
     const { lat } = unitToLatLon(camera.position);
     const alt = camera.position.length() - ellipsoidRadius(lat) - (world.groundAltitude ?? 0);
     world.altitude = alt;

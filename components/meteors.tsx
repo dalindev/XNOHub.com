@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import { Streaks } from '@/lib/streaks';
-import { grazerPath, meteorPath, showerPath, type MeteorPath } from '@/lib/meteor-paths';
+import { behindEarth, grazerPath, meteorPath, showerPath, type MeteorPath } from '@/lib/meteor-paths';
 import { world } from '@/lib/world';
 
 // Meteors burning up over the Earth, at their real height (120 km down to
@@ -21,6 +21,10 @@ import { world } from '@/lib/world';
 // longer so they are more than a dot; from low orbit they are their real length.
 // They play in real time, apart from the earthgrazer, which is sped up about
 // ten times.
+//
+// Like real ones, they can't be seen against a daytime sky from near the
+// ground, nor through the Earth: each stays where it burns, so when the camera
+// moves away, the Earth can come between them.
 
 const MAX = 96;
 
@@ -80,6 +84,8 @@ export const Meteors: React.FC = () => {
     const wide = THREE.MathUtils.lerp(1, 1.8, far);
     // Against the sunlit Earth a meteor hardly shows.
     const shade = (over: THREE.Vector3) => THREE.MathUtils.lerp(1, 0.45, THREE.MathUtils.smoothstep(over.dot(world.sunDirection), -0.1, 0.3));
+    // Under a daytime sky, none (as with the stars).
+    const daySky = 1 - THREE.MathUtils.smoothstep(world.skyLight, 0.1, 0.35);
 
     const n = next.current;
     if (now > n.sporadic) {
@@ -145,11 +151,16 @@ export const Meteors: React.FC = () => {
       const done = Math.min(1, age);
       const head = tmp.head.copy(m.path.start).addScaledVector(m.path.dir, m.path.length * done);
       const tail = tmp.tail.copy(head).addScaledVector(m.path.dir, -m.path.length * Math.min(done, m.tail));
+      // Streaks aren't depth-tested, so the Earth's cover is checked here.
+      if (daySky <= 0 || behindEarth(camera.position, head) || behindEarth(camera.position, tail)) {
+        streaks.hide(i);
+        continue;
+      }
       // Brightens as the air thickens, then fades; a fireball ends in a flash.
       const burn = Math.pow(Math.sin(Math.PI * Math.min(1, done * 0.9 + 0.08)), 0.6);
       const flash = m.flash ? THREE.MathUtils.smoothstep(done, 0.82, 1) : 0;
       const fade = after > 0 ? 1 - after : 1;
-      streaks.set(i, head, tail, m.head, m.trail, m.opacity * Math.min(1, burn + flash) * fade, m.width * wide * (1 + 2.2 * flash));
+      streaks.set(i, head, tail, m.head, m.trail, m.opacity * Math.min(1, burn + flash) * fade * daySky, m.width * wide * (1 + 2.2 * flash));
     }
     streaks.commit(gl, camera);
   });

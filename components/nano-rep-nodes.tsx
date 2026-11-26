@@ -6,13 +6,15 @@ import { useFrame, useThree } from '@react-three/fiber';
 import type { RepNode } from '@/types/index';
 import NetworkArcs, { type ArcNodes } from '@/components/network-arcs';
 import { latLonToUnit } from '@/lib/geo';
+import { markerScale } from '@/lib/world';
 import { packetClock, takeDuePulses } from '@/lib/node-pulse';
 
 // Each representative node is a small glowing pad lying on the ground where
 // the node is: a bright core, and a ring whose size shows its voting weight.
 // When a packet leaves or arrives, a ring pulses outward in the packet's
 // colour. Pads are a fixed size on screen (they are markers, not buildings),
-// so they never tower over the Earth and never shrink out of sight.
+// so they never tower over the Earth and never shrink out of sight; when the
+// camera pulls far back they shrink with the Earth so they never outgrow it.
 //
 // One instanced quad, one draw call. Hovering is found in screen space.
 
@@ -25,6 +27,7 @@ export const padRadiusPx = (weightPercent: number) => 5 + 13 * Math.sqrt(Math.mi
 
 const vertex = /* glsl */ `
   uniform float uPixel; // world size of one pixel at distance 1
+  uniform float uScale; // markers shrink with the Earth when the camera pulls back (lib/world markerScale)
   uniform float uTime;
   attribute vec2 aCorner;
   attribute vec3 iCenter;
@@ -37,7 +40,7 @@ const vertex = /* glsl */ `
     vec3 n = normalize(iCenter);
     vec3 centre = n * ${NODE_LIFT};
     vec4 mv = modelViewMatrix * vec4(centre, 1.0);
-    float radius = iLook.x * (1.0 + 0.3 * iLook.z) * uPixel * -mv.z;
+    float radius = iLook.x * uScale * (1.0 + 0.3 * iLook.z) * uPixel * -mv.z;
 
     // Lying on the ground, tilted a little toward the camera so a pad near
     // the limb stays a visible ellipse instead of a hairline.
@@ -48,7 +51,7 @@ const vertex = /* glsl */ `
     gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
 
     vP = aCorner * ${EXTENT.toFixed(1)};
-    vLook = iLook;
+    vLook = vec4(iLook.x * uScale, iLook.yzw);
     vPulse = vec4((uTime - iPulse.x) / ${PULSE_SECONDS.toFixed(1)}, iPulse.yzw);
   }
 `;
@@ -138,7 +141,7 @@ const NanoRepNodes: React.FC<NanoRepNodesProps> = ({ reps, onNodeHover }) => {
     const material = new THREE.ShaderMaterial({
       vertexShader: vertex,
       fragmentShader: fragment,
-      uniforms: { uPixel: { value: 0.001 }, uTime: { value: 0 } },
+      uniforms: { uPixel: { value: 0.001 }, uScale: { value: 1 }, uTime: { value: 0 } },
       transparent: true,
       premultipliedAlpha: true,
       depthWrite: false
@@ -180,7 +183,7 @@ const NanoRepNodes: React.FC<NanoRepNodesProps> = ({ reps, onNodeHover }) => {
         if (v.dot(camera.position) < 1) continue; // beyond the horizon
         v.multiplyScalar(NODE_LIFT).project(camera);
         const d = Math.hypot((v.x * 0.5 + 0.5) * rect.width - x, (-v.y * 0.5 + 0.5) * rect.height - y);
-        if (d < Math.max(10, look.getX(i) + 4) && d < bestD) {
+        if (d < Math.max(10, look.getX(i) * markerScale() + 4) && d < bestD) {
           bestD = d;
           best = i;
         }
@@ -204,6 +207,7 @@ const NanoRepNodes: React.FC<NanoRepNodesProps> = ({ reps, onNodeHover }) => {
     material.uniforms.uTime.value = now;
     const fov = (camera as THREE.PerspectiveCamera).fov ?? 45;
     material.uniforms.uPixel.value = (2 * Math.tan(THREE.MathUtils.degToRad(fov) / 2)) / size.height;
+    material.uniforms.uScale.value = markerScale();
     let changed = false;
     takeDuePulses(now, (p) => {
       if (p.node < 0 || p.node >= drawn.length) return;

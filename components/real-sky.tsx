@@ -7,6 +7,9 @@ import { NAMED_STARS, decodeStars, planetsAt, raDecToSky, skyOrientation, starCo
 import { moonFix, sunFix } from '@/lib/astro';
 import { simNow } from '@/lib/sim-clock';
 import { settings } from '@/lib/settings';
+import { seaLevelAltitude, world as worldState } from '@/lib/world'; // RealSky has its own `world` vector
+import { EARTH_RADIUS_KM } from '@/lib/geo';
+import { transmittance } from '@/lib/sky-model';
 
 // The real sky, as the eye would see it from just outside the atmosphere:
 //  - 9,096 stars from the Yale Bright Star Catalogue at their true places,
@@ -25,6 +28,8 @@ const SUN_RADIUS_DEG = 0.2666;
 const starVertex = /* glsl */ `
   uniform float uDpr;
   uniform vec3 uSun; // direction to the Sun, in the sky's own frame
+  uniform float uGain; // the camera look's star gain (1 to the eye)
+  uniform float uMagLimit; // and the faintest magnitude it records, with a 1-magnitude fade
   attribute vec3 aColor;
   attribute float aMag;
   varying vec3 vColor;
@@ -39,8 +44,9 @@ const starVertex = /* glsl */ `
     gl_PointSize = size * uDpr;
     // Glare: stars within ~30° of the Sun are washed out.
     float glare = smoothstep(0.86, 0.998, dot(normalize(position), uSun));
-    vColor = aColor * dim * (1.0 - 0.92 * glare);
-    vHot = clamp((size - 3.0) / 4.0, 0.0, 1.0) * (1.0 - glare);
+    float cam = uGain * clamp(uMagLimit - aMag, 0.0, 1.0);
+    vColor = aColor * dim * (1.0 - 0.92 * glare) * cam;
+    vHot = clamp((size - 3.0) / 4.0, 0.0, 1.0) * (1.0 - glare) * cam;
   }
 `;
 
@@ -151,6 +157,9 @@ const sunVertex = /* glsl */ `
 
 const sunFragment = /* glsl */ `
   uniform float uDisc; // disc radius as a fraction of the quad's half size
+  uniform float uGain; // the disc's brightness: 1 to the eye, far more when the camera look's bloom draws the glare
+  uniform float uGlare; // the painted glare: 1 to the eye, 0 when bloom does it
+  uniform vec3 uTint; // what gets through the air toward the Sun: redder and dimmer low down
   varying vec2 vUv;
   void main() {
     float r = length(vUv);
@@ -160,10 +169,9 @@ const sunFragment = /* glsl */ `
     float disc = 1.0 - smoothstep(0.9, 1.05, x);
     float bloom = 0.9 / (1.0 + pow(x * 0.42, 2.0)); // tight, around the disc
     float veil = 0.2 * pow(1.0 - r, 5.0);           // wide and faint, as in a lens or an eye
-    vec3 col = vec3(1.0, 0.98, 0.93) * disc * 3.0
-             + vec3(1.0, 0.93, 0.8) * bloom * edge
-             + vec3(1.0, 0.88, 0.74) * veil;
-    gl_FragColor = vec4(col, 1.0);
+    vec3 col = vec3(1.0, 0.98, 0.93) * disc * 3.0 * uGain
+             + (vec3(1.0, 0.93, 0.8) * bloom * edge + vec3(1.0, 0.88, 0.74) * veil) * uGlare;
+    gl_FragColor = vec4(col * uTint, 1.0);
   }
 `;
 
@@ -209,7 +217,7 @@ export const RealSky: React.FC<Props> = ({ nightRef }) => {
     const starMat = new THREE.ShaderMaterial({
       vertexShader: starVertex,
       fragmentShader: starFragment,
-      uniforms: { uDpr: { value: 1 }, uSun: { value: new THREE.Vector3(1, 0, 0) } },
+      uniforms: { uDpr: { value: 1 }, uSun: { value: new THREE.Vector3(1, 0, 0) }, uGain: { value: 1 }, uMagLimit: { value: 1000 } },
       ...additive
     });
     const stars = new THREE.Points(new THREE.BufferGeometry(), starMat);
@@ -227,13 +235,20 @@ export const RealSky: React.FC<Props> = ({ nightRef }) => {
       vertexShader: sunVertex,
       fragmentShader: sunFragment,
       uniforms: {
-        uDisc: { value: Math.tan(THREE.MathUtils.degToRad(SUN_RADIUS_DEG)) / Math.tan(THREE.MathUtils.degToRad(SUN_QUAD_DEG)) }
+        uDisc: { value: Math.tan(THREE.MathUtils.degToRad(SUN_RADIUS_DEG)) / Math.tan(THREE.MathUtils.degToRad(SUN_QUAD_DEG)) },
+        uGain: { value: 1 },
+        uGlare: { value: 1 },
+        uTint: { value: new THREE.Vector3(1, 1, 1) }
       },
       ...additive
     });
     const sun = new THREE.Mesh(new THREE.PlaneGeometry(half * 2, half * 2), sunMat);
     sun.renderOrder = -17;
 
+    milkyWay.name = 'milky-way';
+    stars.name = 'stars';
+    planets.name = 'planets';
+    sun.name = 'sun';
     for (const o of [milkyWay, stars, planets, sun]) o.frustumCulled = false;
     night.add(milkyWay, stars, planets);
     return { night, milkyWay, milkyWayMat, stars, starMat, planets, sun, sunMat };
@@ -320,10 +335,19 @@ export const RealSky: React.FC<Props> = ({ nightRef }) => {
   const world = useMemo(() => new THREE.Vector3(), []);
   const forward = useMemo(() => new THREE.Vector3(), []);
   const unspin = useMemo(() => new THREE.Quaternion(), []);
+  const up = useMemo(() => new THREE.Vector3(), []);
+  const sunTint = useMemo(() => [1, 1, 1], []);
 
   useFrame((state) => {
     const { night, starMat, planets, sun } = sky;
     const date = simNow();
+    // What the camera records (components/camera-look); the eye's values otherwise.
+    const look = worldState.look;
+    starMat.uniforms.uGain.value = look.starGain;
+    starMat.uniforms.uMagLimit.value = look.magLimit;
+    sky.sunMat.uniforms.uGain.value = look.sunDisc;
+    sky.sunMat.uniforms.uGlare.value = look.sunGlare;
+    sky.milkyWay.visible = !look.on; // far too faint for a webcast camera
     night.position.copy(camera.position);
     skyOrientation(date, night.quaternion);
     starMat.uniforms.uDpr.value = state.viewport.dpr;
@@ -332,6 +356,16 @@ export const RealSky: React.FC<Props> = ({ nightRef }) => {
 
     const sunDir = sunFix(date).direction;
     sun.position.copy(sunDir).multiplyScalar(R).add(camera.position);
+    // In the Starship view's camera look, seen through the air above the
+    // camera: dimmer and redder low down (straight to the canvas, only redder:
+    // there the disc isn't drawn bright enough to stay visible dimmed). To the
+    // eye, in every other view, as before.
+    if (look.on) {
+      transmittance(up.copy(camera.position).normalize().dot(sunDir), seaLevelAltitude() * EARTH_RADIUS_KM, sunTint);
+      const most = Math.max(sunTint[0], sunTint[1], sunTint[2]);
+      if (look.sunDisc <= 1 && most > 0) for (let i = 0; i < 3; i++) sunTint[i] /= most;
+    } else sunTint.fill(1);
+    sky.sunMat.uniforms.uTint.value.fromArray(sunTint);
     sun.quaternion.copy(camera.quaternion);
     // The same direction in the sky's own frame, for washing out stars near the Sun.
     unspin.copy(night.quaternion).invert();
@@ -358,8 +392,9 @@ export const RealSky: React.FC<Props> = ({ nightRef }) => {
       pos.needsUpdate = col.needsUpdate = mag.needsUpdate = true;
     }
 
-    // Labels: hidden behind the Earth, off screen, in daylight, or when switched off.
-    const show = settings.get().skyLabels && night.visible;
+    // Labels: hidden behind the Earth, off screen, in daylight, through the
+    // Starship view's camera, or when switched off.
+    const show = settings.get().skyLabels && night.visible && !look.on;
     const camPos = camera.position;
     const camR2 = camPos.lengthSq();
     camera.getWorldDirection(forward);

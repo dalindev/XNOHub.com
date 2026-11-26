@@ -8,7 +8,7 @@ import {
   SiderealTime
 } from 'astronomy-engine';
 import * as THREE from 'three';
-import { latLonToUnit, EARTH_RADIUS_KM } from '@/lib/geo';
+import { sphericalToUnit, EARTH_RADIUS_KM } from '@/lib/geo';
 
 // Where the Sun and Moon are, in the scene's Earth-fixed frame (see lib/geo).
 // Computed from astronomy-engine (VSOP87 / ELP), true equator and equinox of
@@ -37,7 +37,7 @@ function fix(body: Body, date: Date): BodyFix {
   return {
     lat: eq.dec,
     lon,
-    direction: latLonToUnit(eq.dec, lon),
+    direction: sphericalToUnit(eq.dec, lon),
     distance: (eq.dist * KM_PER_AU) / EARTH_RADIUS_KM
   };
 }

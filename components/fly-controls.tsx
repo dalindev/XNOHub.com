@@ -3,8 +3,8 @@
 import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
-import { world, ellipsoidRadius } from '@/lib/world';
-import { unitToLatLon, latLonToUnit } from '@/lib/geo';
+import { world } from '@/lib/world';
+import { unitToLatLon, latLonToUnit, ellipsoidRadius } from '@/lib/geo';
 
 // Free flight, drone style: the horizon stays level (no roll), "up" is always
 // away from Earth's centre. Speed scales with altitude so you can cross a
