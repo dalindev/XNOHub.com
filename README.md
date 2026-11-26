@@ -21,12 +21,6 @@
 </tr>
 </table>
 
-## Sponsors
-
-<img src="https://benture.io/assets/img/logo.svg" alt="Benture" width="200"/>
-
-[Benture.io](https://benture.io) - A remote job board specializing in AI and tech positions.
-
 </div>
 
 ---
